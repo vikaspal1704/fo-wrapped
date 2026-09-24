@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env*
+.DS_Store
+
+# Real broker exports must never be committed (TRD §9)
+*-private/
+private-fixtures/
+verification-report*.json
