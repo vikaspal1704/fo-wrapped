@@ -65,3 +65,12 @@ function segmentLabel(segment: string): string {
       return `“${segment}”`;
   }
 }
+
+export class ChargesUnavailableError extends FoWrappedError {
+  constructor(readonly date: string, what: string) {
+    super(
+      `We can’t estimate charges for trades on ${date} (${what}). ` +
+        'Add your P&L statement for exact numbers.',
+    );
+  }
+}
