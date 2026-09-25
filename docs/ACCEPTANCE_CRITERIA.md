@@ -4,6 +4,12 @@ Binary checklist. v1 is **done** only when every box is true. v1 may **launch** 
 
 ---
 
+## Status (v0.1)
+
+- **B–F:** implemented and passing locally, except the ⏳ tests that wait on XLSX and P&L statement exports.
+- **E:** the CI and Pages workflows are written. They run once the repository exists on GitHub and Pages is enabled.
+- **A:** not started. It needs real exports and primary-source rate checks.
+
 ## A. Launch gate (blocking)
 
 - [ ] On **≥ 5 real Zerodha accounts**, estimated net P&L (tradebook only, no P&L statement) is within **±0.5%** of the Console P&L statement’s net P&L (`npm run verify:real`, TEST_PLAN §4)

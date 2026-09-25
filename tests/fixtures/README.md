@@ -29,3 +29,9 @@ Expected results (`parses_synthetic_console_fixture`):
 - Totals: 9 fills, 4 round trips, gross **₹862.75** (86275 paise), 0 unclosed positions.
 - Every round trip exits on its instrument’s expiry date, so card 4 has no “other days” group: `INSUFFICIENT_DATA`.
 - Executed orders for brokerage: **8**. Fills `5100003` and `5100004` share order `1600000090000003`.
+
+## `synthetic-year.csv`
+
+This is a made-up year of NIFTY weekly option trades: 240 fills, 120 round trips, from 2025-11-04 to 2026-03-04. It is dense enough for all 8 cards to render, and it's used by the Playwright tests.
+
+The data is deliberately "right but broke": slightly more wins than losses, but bigger losses, with some quick re-entries after losses. Regenerate it with `npm run fixtures`. The generator is deterministic, so the file only changes if the script changes.

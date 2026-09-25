@@ -170,12 +170,29 @@ For each fill, look up the rate window containing `tradeDate`. Compute on the fi
 
 Rounding: aggregate each charge **per trading day** and round to the nearest paise (half up), then sum days. If the ±0.5% launch gate fails, the rounding level (per fill / per order / per contract note) is the first thing to check against real contract notes. Record the finding here.
 
-### 6.2 Seed rate table (verify before use)
+### 6.2 Rate table (`src/engine/charges/rates.ts`, version 2026.09.1)
 
-> **Not normative until verified.** These are the Zerodha F&O rates published for trades from **2024-10-01**. Before launch, the implementer MUST (a) confirm each value on zerodha.com/charges and in the relevant NSE/BSE/SEBI circulars; (b) add windows for every earlier date the app should support; and (c) add any later revisions, including any STT change from Union Budget 2026. Fill in `source` and `verifiedOn` for every row.
+> **Checked against secondary sources only (2026-09-25).** zerodha.com, NSE and BSE pages can't be reached from the build environment, so each value was checked via search results and news coverage and is marked `checked: 'secondary'`. Before launch, re-check every row against the primary source and mark it `'primary'` (ACCEPTANCE_CRITERIA §A).
 
-| Charge | Options | Futures | Effective from |
-|--------|---------|---------|----------------|
+| Charge | Options | Futures | Window |
+|--------|---------|---------|--------|
+| Brokerage | ₹20 / executed order | min(₹20, 0.03%) / executed order | from 2024-10-01 |
+| STT (sell) | 0.1% of premium | 0.02% of value | 2024-10-01 → 2026-03-31 |
+| STT (sell) | **0.15%** of premium | **0.05%** of value | from 2026-04-01 (Union Budget 2026) |
+| NSE txn | 0.03503% of premium | 0.00173% of value | from 2024-10-01 |
+| BSE txn | 0.0325% (SENSEX, BANKEX, SENSEX50); 0.005% (stock options) | **not listed** | from 2024-10-01 |
+| SEBI | ₹10 / crore | ₹10 / crore | from 2024-10-01 |
+| Stamp duty (buy) | 0.003% | 0.002% | from 2024-10-01 |
+| GST | 18% of brokerage + txn + SEBI | same | from 2024-10-01 |
+
+Known gaps, which the app reports rather than papering over:
+- **Trades before 2024-10-01** and **BSE futures** have no window. Cards 1–2 say charges can’t be estimated, and the other cards still render.
+- **₹40 brokerage:** from 2026-04-01 Zerodha charges ₹40 per order when an account falls short of the 50% cash-collateral rule. A tradebook can’t show that, so the estimate uses ₹20. This is one reason every estimate is labelled *estimated*.
+- **Exercised / assigned options** (STT on intrinsic value) and **IPFT / clearing charges** are not modelled (PRD D-12).
+
+Dates for which no window exists → `ChargesUnavailableError`. The UI message is *“We can’t estimate charges for trades on {date} ({charge}). Add your P&L statement for exact numbers.”*
+
+--------|---------|---------|----------------|
 | Brokerage | ₹20 / executed order | min(₹20, 0.03%) / executed order | verify |
 | STT | 0.1% of sell premium | 0.02% of sell value | 2024-10-01 |
 | NSE txn | 0.03503% of premium | 0.00173% of value | 2024-10-01 |
@@ -209,15 +226,16 @@ Notation: `RT` = round trips included in per-trade cards (`exitKind` TRADE, plus
 
 ### 7.1 Samvat year
 
-`config/samvat.ts` maps each Samvat year to an inclusive IST date range starting on its Muhurat-trading day. Seed (verify against NSE Muhurat trading circulars):
+`config/samvat.ts` maps each Samvat year to an inclusive IST date range starting on its Muhurat-trading day. Muhurat 2026 is on 8 Nov 2026 (announced); re-check each date against NSE circulars before launch.
 
 | Samvat | From | To |
 |--------|------|----|
 | 2080 | 2023-11-12 | 2024-10-31 |
 | 2081 | 2024-11-01 | 2025-10-20 |
-| 2082 | 2025-10-21 | day before Muhurat 2026 (verify) |
+| 2082 | 2025-10-21 | 2026-11-07 |
+| 2083 | 2026-11-08 | open |
 
-The label is the Samvat year of the RT exit dates. If they span more than one year, show the range (`2081–82`). An exit date outside the table is a hard error in tests, and the card falls back to the calendar date range.
+The label is the Samvat year of the RT exit dates. If they span more than one year, show the range (`2081–82`). If any date falls outside the table, `samvatLabel` returns `null`, and the cards and share image show the calendar date range instead.
 
 ---
 

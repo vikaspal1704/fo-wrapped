@@ -33,7 +33,7 @@
 | Test | Setup | Expect |
 |------|-------|--------|
 | `parses_zerodha_csv_tradebook` | Synthetic CSV with expected headers | `Fill[]` with correct paise, IST epoch, side |
-| `parses_xlsx_with_preamble` | XLSX with 10 preamble rows before headers | Same fills as the CSV equivalent |
+| `parses_xlsx_with_preamble` ⏳ *pending sample export* | XLSX with 10 preamble rows before headers | Same fills as the CSV equivalent |
 | `rejects_unrecognized_file` | CSV of random columns | `UnrecognizedFileError` |
 | `rejects_equity_tradebook` | Valid headers, equity segment | `UnsupportedSegmentError` |
 | `rejects_invalid_row_with_location` | Row 7 has `quantity = -5` | `RowValidationError` with file, row 7, field `quantity` |
@@ -93,8 +93,8 @@
 | `flags_future_expiry_position_as_open` | Expiry after last trade date | `OPEN`; excluded |
 | `position_still_open_on_its_expiry_day_is_settled` | Expiry == last trade date, no closing fill | `SETTLED_AT_EXPIRY` |
 | `excluded_positions_are_reported` | 2 unclosed | `totals.excludedUnclosedCount = 2`; card 1 note present |
-| `values_settled_position_from_pnl_statement` | Settled CE + statement per-symbol row | RT with `exitKind: 'EXPIRY'`, gross = statement − closed part |
-| `settled_position_without_symbol_row_stays_excluded` | Statement with `perSymbol = null` | Excluded; warning present |
+| `values_settled_position_from_pnl_statement` ⏳ *pending sample export* | Settled CE + statement per-symbol row | RT with `exitKind: 'EXPIRY'`, gross = statement − closed part |
+| `settled_position_without_symbol_row_stays_excluded` ⏳ *pending sample export* | Statement with `perSymbol = null` | Excluded; warning present |
 | `as_of_is_last_trade_date_not_today` | Fake system clock far in the future | Same classification |
 
 ### Charges
@@ -107,17 +107,22 @@
 | `stt_on_sell_side_only` | Buy + sell | STT only on the sell |
 | `stamp_duty_on_buy_side_only` | Buy + sell | Stamp only on the buy |
 | `gst_base_is_brokerage_exchange_sebi` | Any | GST = 18% × (brokerage + txn + SEBI) |
+| `hand_worked_option_round_trip` | Buy 65 @ ₹100, sell 65 @ ₹120 on 2026-09-22 | Exactly ₹40.00 / 11.70 / 5.01 / 0.01 / 0.20 / 8.10 = ₹65.02 |
+| `uses_index_rate_for_bse_index_options` | SENSEX option buy | 0.0325% transaction charge |
 | `uses_rate_window_for_trade_date` | Fills either side of a rate change | Each charged at its own window’s rate |
 | `missing_rate_window_throws` | Fill before earliest window | `ChargesUnavailableError` |
 | `charges_marked_estimated_without_statement` | No statement | `totals.source = 'ESTIMATED'`; card notes say *estimated* |
-| `statement_totals_override_calculator` | With statement | `totals` equal statement values; `source = 'PNL_STATEMENT'` |
-| `rejects_statement_with_non_overlapping_period` | Statement 2022, tradebook 2024 | `PeriodMismatchError` |
+| `statement_totals_override_calculator` ⏳ *pending sample export* | With statement | `totals` equal statement values; `source = 'PNL_STATEMENT'` |
+| `analyzes_synthetic_fixture_end_to_end` | `analyze()` on the synthetic fixture | Totals, Samvat 2082, date range, expected card statuses |
+| `charges_unavailable_keeps_other_cards` | Trades before the first rate window | `charges = null`, cards 1–2 insufficient, warning present, gross still computed |
+| `rejects_statement_with_non_overlapping_period` ⏳ *pending sample export* | Statement 2022, tradebook 2024 | `PeriodMismatchError` |
 
 ### Cards
 
 | Test | Setup | Expect |
 |------|-------|--------|
 | `card1_net_pnl_trades_traded_value` | Known fixture | Exact values |
+| `cards_1_2_insufficient_when_charges_unavailable` | Totals without charges | Cards 1–2 `INSUFFICIENT_DATA`; summary starts with *P&L before charges* |
 | `card2_pct_of_gross_profit` | gross ₹10,000, charges ₹2,500 | 25 |
 | `card2_gross_loss_copy` | gross ≤ 0 | `pct = null`; loss copy variant |
 | `card3_win_rate_excludes_scratches` | 6 wins, 3 losses, 1 scratch | winRate = 6/9 |
@@ -131,6 +136,7 @@
 | `card7_median_holding_even_count` | Holding values [1,2,3,4] ms | 3 (2.5 rounded half up) |
 | `card8_best_worst_day_ties_earliest` | Two days with equal P&L | Earlier date |
 | `summary_has_three_headlines_and_no_percentiles` | Any | 3 headlines, Samvat, site URL; no “%ile” / “percentile” / “top X%” text |
+| `summary_always_has_three_distinct_headlines` | Sparse data, no charges | 3 headlines with distinct labels |
 | `samvat_label_spans_years` | Exits in 2081 and 2082 | `2081–82` |
 
 ### Invariants (property-style, fast-check optional)
@@ -143,6 +149,14 @@
 | `engine_is_deterministic` | Two runs → deep-equal results |
 
 ---
+
+### Performance
+
+| Test | Expect |
+|------|--------|
+| `perf_20k_fills_under_budget` | `analyze()` on 20,000 fills finishes in < 1.5 s on CI (NF-4 proxy) |
+
+Tests marked ⏳ wait on real XLSX and P&L statement exports (API_CONTRACT §2–§3). They are required before launch, not before merge.
 
 ## 3. Required e2e tests (Playwright)
 
@@ -186,7 +200,8 @@ Record results (aliases + % only) in the launch PR description. **Do not launch 
 npm ci
 npm test                 # vitest run
 npm run test:e2e         # playwright test
-TZ=America/New_York npm test -- time   # TZ-independence check
+npm run test:tz          # whole suite under TZ=America/New_York
+PW_CHROMIUM_PATH=/path/to/chrome npm run test:e2e   # when the local Chromium differs from Playwright's
 npm run verify:real -- --dir ../fo-wrapped-private
 ```
 

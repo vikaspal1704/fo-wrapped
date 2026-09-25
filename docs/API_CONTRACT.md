@@ -1,6 +1,8 @@
 # API Contract
 
-**Normative.** Implementations MUST match these types and behaviours.  
+**Normative.** Implementations MUST match these types and behaviours.
+
+> **Implementation status (v0.1):** everything here is implemented except the **P&L statement** (§3) and **XLSX** tradebooks, which wait on verified sample exports. Until they land, `Totals.source` is always `'ESTIMATED'` and `analyze()` takes no `pnlStatement`. The TypeScript sources in `src/engine/` are the exact shapes; this document explains them.  
 Import path: `src/engine/index.ts` (re-exports everything below). The engine is pure TypeScript with no DOM access.
 
 ---
@@ -149,11 +151,19 @@ export interface RateWindow<T> {
   effectiveTo?: IstDate;        // inclusive; absent = open-ended
   value: T;
   source: string;               // URL / circular reference
-  verifiedOn: IstDate;
+  checked: 'primary' | 'secondary';  // launch requires 'primary' everywhere
+  checkedOn: IstDate;
+}
+
+export interface ExchangeTxnRates {
+  indexOptions: RateWindow<Rational>[];  // on premium
+  stockOptions: RateWindow<Rational>[];  // on premium
+  futures: RateWindow<Rational>[];       // on value
 }
 
 export interface ChargeRateTable {
   version: string;              // bump on any change, e.g. '2026.09.1'
+  indexUnderlyings: Record<Exchange, readonly string[]>;  // charged at index-option rates
   brokerage: {
     optionsPerOrderPaise: RateWindow<Paise>[];
     futuresPerOrder: RateWindow<{ capPaise: Paise; pct: Rational }>[];  // min(cap, pct × value)
@@ -162,11 +172,8 @@ export interface ChargeRateTable {
     optionsSellOnPremium: RateWindow<Rational>[];
     futuresSell: RateWindow<Rational>[];
   };
-  exchangeTxn: Record<Exchange, {
-    options: RateWindow<Rational>[];   // on premium turnover
-    futures: RateWindow<Rational>[];
-  }>;
-  sebiPerCrore: RateWindow<Paise>[];
+  exchangeTxn: Record<Exchange, ExchangeTxnRates>;
+  sebi: RateWindow<Rational>[];        // ₹10 per crore = 1 / 1,000,000
   stampDutyBuy: {
     options: RateWindow<Rational>[];
     futures: RateWindow<Rational>[];
@@ -179,6 +186,7 @@ export function calculateCharges(fills: readonly Fill[], rates: ChargeRateTable)
 
 Rules:
 - Brokerage is charged **per executed order per trading day**: group by `(orderId, tradeDate)`.
+- Every other charge is summed per `(day, charge, rate)` and multiplied once, rounding to the nearest paise (half up) with BigInt arithmetic. GST is then applied per day to that day’s rounded brokerage + exchange + SEBI.
 - A fill with no matching rate window → throw `ChargesUnavailableError` (§5). The UI shows it; never substitute another window.
 - Seed values and how to verify them: [`ARCHITECTURE.md`](ARCHITECTURE.md) §6.
 
@@ -247,10 +255,11 @@ export interface UnclosedPosition {
 }
 
 export interface Totals {
-  source: 'PNL_STATEMENT' | 'ESTIMATED';
-  grossPnlPaise: Paise;            // statement realized P&L, or Σ roundTrip.gross
-  charges: ChargesBreakdown;       // statement charges, or calculateCharges()
-  netPnlPaise: Paise;              // gross − charges.total
+  source: 'ESTIMATED';             // 'PNL_STATEMENT' arrives with §3
+  grossPnlPaise: Paise;            // Σ roundTrip.gross
+  charges: ChargesBreakdown | null;        // null when any fill has no rate window
+  netPnlPaise: Paise | null;               // gross − charges.total; null with charges
+  chargesUnavailableReason: string | null; // user message when charges is null
   excludedUnclosedCount: number;   // unclosed positions left out of P&L; shown on cards 1–2 when > 0
 }
 
@@ -258,7 +267,7 @@ export interface AnalysisResult {
   engineVersion: string;
   rateTableVersion: string;
   dateRange: { from: IstDate; to: IstDate };
-  samvat: string;                  // e.g. '2081' or '2081–82'
+  samvat: string | null;           // e.g. '2081' or '2081–82'; null outside the Samvat table
   fillCount: number;
   duplicateFillsDropped: number;
   roundTrips: RoundTrip[];
@@ -284,17 +293,17 @@ export interface CardSet {
   rightButBroke: CardResult<{ winRate: number; avgWinPaise: number; avgLossPaise: number; wins: number; losses: number }>;
   expiryDay: CardResult<{ expiryPnlPaise: Paise; expiryTrades: number; otherPnlPaise: Paise; otherTrades: number }>;
   yourClock: CardResult<{ buckets: ClockBucket[]; bestIndex: number | null; worstIndex: number | null }>;
-  revengeTrades: CardResult<{ count: number; combinedPnlPaise: Paise; medianLossPaise: Paise }>;
-  holdingTime: CardResult<{ medianWinnerMs: number; medianLoserMs: number }>;
+  revengeTrades: CardResult<{ count: number; combinedPnlPaise: Paise; medianLossPaise: Paise; triggers: number }>;
+  holdingTime: CardResult<{ medianWinnerMs: number; medianLoserMs: number; winners: number; losers: number }>;
   bestWorstDay: CardResult<{ best: { date: IstDate; pnlPaise: Paise }; worst: { date: IstDate; pnlPaise: Paise } }>;
-  summary: { headlines: [Headline, Headline, Headline]; samvat: string; siteUrl: string };
+  summary: { headlines: [Headline, Headline, Headline]; samvat: string | null; siteUrl: string };
 }
 
 export interface ClockBucket { startMinuteIst: number; trades: number; pnlPaise: Paise; }
 export interface Headline { label: string; value: string; }
 ```
 
-Formulas and thresholds: [`ARCHITECTURE.md`](ARCHITECTURE.md) §7.
+Formulas and thresholds: [`ARCHITECTURE.md`](ARCHITECTURE.md) §7. When charges are unavailable, cards 1–2 are `INSUFFICIENT_DATA` with the charges message, and every other card still renders.
 
 ---
 
@@ -303,20 +312,19 @@ Formulas and thresholds: [`ARCHITECTURE.md`](ARCHITECTURE.md) §7.
 ```ts
 export const RATES: ChargeRateTable;   // the versioned table from src/engine/charges/rates.ts
 export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[];          // throws FoWrappedError
-export function parsePnlStatement(fileName: string, bytes: ArrayBuffer): PnlStatement;  // throws FoWrappedError
+// parsePnlStatement(fileName, bytes): PnlStatement arrives with §3.
 export function mergeFills(files: readonly Fill[][]): { fills: Fill[]; duplicatesDropped: number };
 export function buildRoundTrips(fills: readonly Fill[], asOf: IstDate): { roundTrips: RoundTrip[]; unclosed: UnclosedPosition[] };
 export function calculateCharges(fills: readonly Fill[], rates: ChargeRateTable): ChargesBreakdown;
 export function analyze(input: {
   tradebooks: readonly Fill[][];
-  pnlStatement?: PnlStatement;
   rates: ChargeRateTable;
   siteUrl: string;
 }): AnalysisResult;
 ```
 
 - `asOf` for `buildRoundTrips` is the **last `tradeDate` in the data**, never the current date (determinism, PRD F-EN-6).
-- `mergeFills` sorts output by `(executedAt, tradeId)`; ties are broken by `tradeId` string order.
+- `mergeFills` sorts output by `(executedAt, exchange, tradeId)`, comparing trade IDs numerically without converting them to numbers.
 
 ---
 
@@ -327,14 +335,14 @@ export type WorkerRequest =
   | { type: 'analyze'; files: { name: string; bytes: ArrayBuffer }[] };   // bytes are transferred
 
 export type WorkerResponse =
-  | { type: 'progress'; stage: 'reading' | 'validating' | 'matching' | 'charges' | 'cards'; pct: number }
-  | { type: 'fileAccepted'; name: string; kind: 'TRADEBOOK' | 'PNL_STATEMENT'; rows: number }
+  | { type: 'progress'; stage: 'reading' | 'validating' | 'matching' | 'cards'; pct: number }
+  | { type: 'fileAccepted'; name: string; rows: number }
   | { type: 'fileRejected'; name: string; message: string }
   | { type: 'result'; result: AnalysisResult }
   | { type: 'error'; message: string };
 ```
 
-The worker classifies each file itself (tradebook vs P&L statement vs unrecognised). The UI never inspects file contents.
+The worker parses each file itself; the UI never inspects file contents. A rejected file is reported and skipped, and analysis continues with the accepted files (PRD D-15). If none is accepted, the worker posts `error`. The UI terminates the worker as soon as `result` or `error` arrives.
 
 ---
 

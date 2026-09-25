@@ -22,11 +22,11 @@
 | Styling | CSS Modules or plain CSS | No runtime CSS-in-JS |
 | Validation | **Zod** | Every input row is parsed through a schema |
 | CSV | **PapaParse** | Runs inside the worker |
-| XLSX | **SheetJS (`xlsx`)** | Install from the official SheetJS CDN tarball (`https://cdn.sheetjs.com/`); the npm-registry `xlsx` package is outdated |
+| XLSX | **SheetJS (`xlsx`)** (not yet added) | Install from the official SheetJS CDN tarball (`https://cdn.sheetjs.com/`); the npm-registry `xlsx` package is outdated. Added once an XLSX export is verified |
 | Worker | Native **Web Worker** (`new Worker(new URL(..., import.meta.url), { type: 'module' })`) | Typed message protocol in `API_CONTRACT.md` §6 |
 | Image export | **html-to-image** | Renders the card DOM to PNG |
 | Unit tests | **Vitest** | Engine, parsers, charges, cards |
-| E2E tests | **Playwright** | Upload → cards → share/clear, privacy (no network) |
+| E2E tests | **Playwright** | Upload → cards → share/clear, privacy (no network). Set `PW_CHROMIUM_PATH` to use a local Chromium build |
 | Lint / format | ESLint + Prettier | |
 | Hosting | **GitHub Pages** | Deployed by GitHub Actions |
 | Package manager | **npm** (`package-lock.json` committed) | |
@@ -50,7 +50,8 @@ fo-wrapped/
 ├── src/
 │   ├── main.tsx
 │   ├── app/                   # screens: Landing, Progress, Cards, Error
-│   ├── cards/                 # one component per card + SummaryCard
+│   ├── config.ts              # site URL printed on the share image
+│   ├── cards/                 # Story viewer, one component per card, Summary
 │   ├── share/                 # image export + Web Share fallback
 │   ├── worker/
 │   │   ├── analysis.worker.ts # entry: receives files, posts progress/result
@@ -78,7 +79,8 @@ fo-wrapped/
 │   ├── unit/
 │   └── e2e/
 ├── scripts/
-│   └── verify-real.ts         # local-only launch-gate harness (see §9)
+│   ├── make-synthetic-year.mjs # regenerates tests/fixtures/synthetic-year.csv
+│   └── verify-real.ts         # local-only launch-gate harness (see §9; lands with the P&L statement parser)
 └── docs/
 ```
 
@@ -115,7 +117,7 @@ Console exports prices and quantities with 6 decimal places (`152.350000`, `20.0
 |---------|-------------|
 | CSP | `default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:` via `<meta http-equiv>` |
 | Storage | No `localStorage`, `sessionStorage`, IndexedDB, cookies, or Cache API for user data. |
-| Network | No `fetch` / XHR / beacon anywhere in `src/engine` or `src/worker` (enforced by ESLint `no-restricted-globals` and an e2e test). |
+| Network | No `fetch` / XHR / beacon anywhere in `src/engine` or `src/worker` (enforced by ESLint `no-restricted-globals` and an e2e test). UI code may import engine *values* only from `engine/format`, so the parser and analysis stay in the worker bundle (ESLint `no-restricted-imports`). |
 | Third parties | No analytics, fonts, or scripts from third-party origins. Self-host fonts. |
 | Clear data | `worker.terminate()`, drop React state, `URL.revokeObjectURL` on any generated image. |
 | Logging | No `console.log` of row data in production builds. |
@@ -148,7 +150,7 @@ npm run verify:real -- --dir ../fo-wrapped-private
 1. `npm ci`
 2. `npm run lint` and `npm run typecheck`
 3. `npm test` (Vitest, all required tests, no `.skip`), then `npm run test:tz` (the same suite under `TZ=America/New_York`)
-4. `npx playwright test` (Chromium is enough in CI)
+4. `npm run test:e2e` in a separate job after `npx playwright install --with-deps chromium`
 5. `npm run build`
 
 `.github/workflows/pages.yml` deploys `dist/` to GitHub Pages on push to `main`. Vite `base` must be `/fo-wrapped/` for the project page.

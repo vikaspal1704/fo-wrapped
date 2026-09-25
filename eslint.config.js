@@ -47,7 +47,18 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts', '*.config.{js,ts}'],
+    // The UI imports engine values only from engine/format; the parser and
+    // analysis stay in the worker bundle.
+    files: ['src/app/**/*.{ts,tsx}', 'src/cards/**/*.{ts,tsx}', 'src/share/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        { paths: [{ name: '../engine', message: 'Import values from ../engine/format; use `import type` for types.', allowTypeImports: true }] },
+      ],
+    },
+  },
+  {
+    files: ['tests/**/*.ts', '*.config.{js,ts}', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },
 );

@@ -152,3 +152,5 @@ The source spec leaves the items below open. Each has a **proposed default** tha
 | D-12 | IPFT / clearing charges not in the spec’s list | Not modelled in v1. The ±0.5% gate decides whether they must be added. |
 | D-13 | Which 3 headline stats on the summary card? | Net P&L, Charges paid, Win rate. If win rate has too little data, use Trades instead. |
 | D-14 | Dedupe key | **`exchange + trade_id`**. Trade IDs are issued by each exchange, and one file has both NSE and BSE rows, so a bare `trade_id` could collide across exchanges and raise a false conflict. Otherwise this is the spec’s “dedupe by `trade_id`”. |
+| D-15 | Some files valid, some not | Analyse the valid files and show the skipped ones, with reasons, on the first card. If none are valid, stay on the landing page with the errors. |
+| D-16 | Charges can’t be estimated for some dates | Cards 1–2 show *not enough data* with the reason, the summary uses *P&L before charges*, and cards 3–8 still render. |

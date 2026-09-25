@@ -2,7 +2,7 @@
   "name": "fo-wrapped",
   "private": true,
   "version": "0.1.0",
-  "description": "Your F&O trading year, Wrapped — runs entirely in the browser.",
+  "description": "Your F&O trading year, Wrapped \u2014 runs entirely in the browser.",
   "license": "MIT",
   "author": "Vikas Pal",
   "type": "module",
@@ -17,9 +17,12 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:tz": "TZ=America/New_York vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "fixtures": "node scripts/make-synthetic-year.mjs"
   },
   "dependencies": {
+    "html-to-image": "^1.11.13",
     "papaparse": "^5.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -27,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.4",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.3.0",
