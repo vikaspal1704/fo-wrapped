@@ -26,22 +26,36 @@ export type InstrumentKind = 'FUT' | 'CE' | 'PE';
 
 ## 2. Input: Zerodha Console tradebook
 
-> **Verify before coding.** The headers below are the *expected* F&O tradebook headers. Confirm them against 3–4 real Console exports (CSV and XLSX, different years). Record the confirmed header list and any variants in this section in the same PR that implements the parser.
+> **Verification status**
+> - ✅ **CSV, Sep 2026 export:** header row and value formats confirmed against one real Console F&O tradebook (NSE + BSE rows). Recorded below.
+> - ⏳ **Still needed before coding the parser:** 2–3 more exports, including **XLSX** and an **older year** (to catch header variants), and one **P&L statement** (§3).
+>
+> Confirmed CSV header row, in this exact order:
+>
+> ```
+> symbol,isin,trade_date,exchange,segment,series,trade_type,auction,quantity,price,trade_id,order_id,order_execution_time,expiry_date
+> ```
 
 | Header (expected) | Required | Zod rule | Maps to |
 |-------------------|----------|----------|---------|
 | `symbol` | yes | non-empty string, parses via §2.2 | `Fill.instrument` |
+| `isin` | column required | empty for F&O; ignored | — |
 | `trade_date` | yes | `YYYY-MM-DD` | `Fill.tradeDate` |
 | `exchange` | yes | `NSE` \| `BSE` | `Fill.exchange` |
-| `segment` | yes | must be the F&O segment value (e.g. `FO`) | rejected otherwise (§5) |
-| `trade_type` | yes | `buy` \| `sell` (case-insensitive) | `Fill.side` |
-| `quantity` | yes | positive integer | `Fill.qty` |
-| `price` | yes | positive decimal, ≤ 2 dp | `Fill.pricePaise` |
-| `trade_id` | yes | non-empty string | `Fill.tradeId` |
-| `order_id` | yes | non-empty string | `Fill.orderId` |
-| `order_execution_time` | yes | ISO-like `YYYY-MM-DDTHH:mm:ss`, IST | `Fill.executedAt` |
-| `expiry_date` | if present | `YYYY-MM-DD` | overrides symbol-derived expiry |
-| others (`isin`, `series`, `auction`, …) | no | ignored | — |
+| `segment` | yes | `FO`; anything else → `UnsupportedSegmentError` (§5) | — |
+| `series` | column required | empty for F&O; ignored | — |
+| `trade_type` | yes | `buy` \| `sell` (lowercase in exports; compare case-insensitively) | `Fill.side` |
+| `auction` | yes | `true` \| `false` | `Fill.auction` |
+| `quantity` | yes | decimal string with 6 dp (e.g. `20.000000`); must be a **positive whole number**, so all fractional digits are `0` | `Fill.qty` |
+| `price` | yes | decimal string with 6 dp (e.g. `152.350000`); must be **exact paise**, so digits after the 2nd decimal place are `0` | `Fill.pricePaise` |
+| `trade_id` | yes | digits only; **keep as string** | `Fill.tradeId` |
+| `order_id` | yes | digits only, up to 19 seen (e.g. `1799000000000000123`); **keep as string**. It exceeds `Number.MAX_SAFE_INTEGER` | `Fill.orderId` |
+| `order_execution_time` | yes | `YYYY-MM-DDTHH:mm:ss`, no offset, IST | `Fill.executedAt` |
+| `expiry_date` | yes (present in CSV, **including weekly contracts**) | `YYYY-MM-DD` | `Instrument.expiry` |
+
+CSV reading rules (confirmed): no preamble rows; comma-separated; a trailing empty line is ignored; blank lines elsewhere are an error. Parse with PapaParse `dynamicTyping: false` so no value is coerced to a number before Zod sees it.
+
+**Never convert `trade_id` or `order_id` to `number`.** A 19-digit `order_id` silently loses precision, which would merge distinct orders for brokerage.
 
 Header matching: trim, lowercase, and compare exactly. A small **explicit** alias map is allowed (e.g. `"trade type" → "trade_type"`) only for variants seen in real exports and recorded here. No fuzzy matching.
 
@@ -56,6 +70,7 @@ export interface Fill {
   instrument: Instrument;
   exchange: Exchange;
   side: Side;
+  auction: boolean;
   qty: number;           // positive integer, units
   pricePaise: Paise;     // positive
   tradeDate: IstDate;
@@ -78,15 +93,17 @@ export interface Instrument {
 }
 ```
 
-Accepted symbol shapes (verify against real exports):
+Symbol shapes (✅ = seen in a real export):
 
-| Shape | Example | Expiry source |
-|-------|---------|---------------|
-| Monthly option | `NIFTY24NOV24000CE` | `expiry_date` column, else expiry calendar config (`config/expiries.ts`) |
-| Weekly option | `NIFTY24N2124000CE` (`YY` + month code `1–9,O,N,D` + `DD`) | date encoded in symbol |
-| Monthly future | `NIFTY24NOVFUT` | `expiry_date` column, else expiry calendar config |
+| Shape | Example | Status |
+|-------|---------|--------|
+| Weekly option | `NIFTY2692223600CE`, `SENSEX2691074900CE` (`UNDERLYING` + `YY` + month code `1–9,O,N,D` + `DD` + strike + `CE`/`PE`) | ✅ NSE and BSE |
+| Monthly option | `NIFTY26SEP23500CE` (`YY` + `MMM`) | ⏳ verify |
+| Monthly future | `NIFTY26SEPFUT` | ⏳ verify |
 
-A symbol matching none of these, or a monthly symbol with no `expiry_date` and no config entry → **validation error** naming the symbol. Never guess an expiry.
+**Expiry source:** the `expiry_date` column is authoritative. For weekly symbols, the date encoded in the symbol MUST equal `expiry_date`. A mismatch → `UnknownInstrumentError` naming the symbol. The expiry calendar config (`config/expiries.ts`) is only a fallback for export formats that lack `expiry_date` (none seen yet).
+
+Parsing the underlying: take the longest leading run of `A–Z` / `&` / `-` characters before the 2-digit year. Strike = the digits between the date part and `CE`/`PE`. A symbol matching none of the shapes → `UnknownInstrumentError`. Never guess an expiry.
 
 ---
 
@@ -178,7 +195,7 @@ export class UnsupportedSegmentError extends FoWrappedError {}  // equity / curr
 export class RowValidationError extends FoWrappedError {
   readonly file: string; readonly row: number; readonly field: string; readonly value: string;
 }
-export class ConflictingDuplicateError extends FoWrappedError {} // same trade_id, different fields
+export class ConflictingDuplicateError extends FoWrappedError {} // same exchange + trade_id, different fields
 export class UnknownInstrumentError extends FoWrappedError {}    // symbol/expiry cannot be determined
 export class ChargesUnavailableError extends FoWrappedError {}   // no rate window for a date
 export class PeriodMismatchError extends FoWrappedError {}       // P&L statement doesn't overlap

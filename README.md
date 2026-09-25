@@ -8,7 +8,7 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 
 | | |
 |---|---|
-| **Status** | Docs-first. Spec v1 is locked; implementation pending |
+| **Status** | In progress. The engine core (CSV parsing, merge, FIFO round trips) is built and tested; charges, cards and the upload UI are next |
 | **Stack** | Vite · React · TypeScript · Web Worker · Zod |
 | **Hosting** | GitHub Pages (static, no backend) |
 | **License** | [MIT](LICENSE) |
@@ -67,16 +67,46 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 
 ---
 
-## How to run (once implemented)
+## How to run
 
 ```bash
 git clone https://github.com/vikaspal1704/fo-wrapped.git
 cd fo-wrapped
 npm ci
-npm run dev          # local dev server
+npm run dev          # local dev server (landing page only for now)
 npm test             # unit tests (Vitest)
-npm run test:e2e     # end-to-end tests (Playwright)
+npm run test:tz      # same tests under a non-IST time zone
+npm run lint         # ESLint, incl. no-network / no-float-money rules in the engine
+npm run typecheck    # tsc
 npm run build        # static build in dist/
+```
+
+## Progress
+
+| Area | Status |
+|------|--------|
+| Tradebook CSV parser (Zod-validated, verified against a real Console export) | ✅ |
+| Symbol parser (NSE/BSE weekly + monthly options, futures) | ✅ |
+| Multi-file merge and dedupe | ✅ |
+| FIFO round-trip builder, open / settled-at-expiry positions | ✅ |
+| XLSX tradebooks, P&L statement | ⏳ waiting on sample exports |
+| Charges calculator, 8 cards, `analyze()` | ⏳ next |
+| Web Worker, upload UI, cards UI, share image | ⏳ |
+| Playwright e2e, GitHub Pages deploy | ⏳ |
+
+## Project layout
+
+```
+src/engine/          # pure TypeScript, no DOM: runs in the browser worker and in Node tests
+  types.ts errors.ts money.ts time.ts
+  parse/tradebook.ts # Console CSV → Fill[] (Zod)
+  parse/symbol.ts    # trading symbol + expiry_date → Instrument
+  merge.ts           # merge files, dedupe by exchange + trade_id
+  roundTrips.ts      # FIFO round trips + unclosed positions
+  positions.ts       # OPEN vs SETTLED_AT_EXPIRY
+src/app/             # React UI (landing page so far)
+tests/unit/          # Vitest, named per docs/TEST_PLAN.md
+tests/fixtures/      # synthetic Console-format files only
 ```
 
 ## Privacy

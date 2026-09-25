@@ -9,7 +9,8 @@
 
 - **TypeScript 5.x**, `"strict": true`, `noUncheckedIndexedAccess: true`
 - Runs entirely in the browser: evergreen Chrome/Edge/Firefox, Android Chrome, iOS Safari 16+
-- **Node 20+** for tooling only (build, tests, local verification harness)
+- **Node 22.12+** for tooling only (build, tests, local verification harness); Vitest 5 requires it
+- **TypeScript 5.9** is pinned: typescript-eslint does not support TypeScript 7 yet
 - No backend, no serverless functions
 
 ## 2. Stack
@@ -93,7 +94,7 @@ Rule: **`src/engine/` must not import React, the DOM, or anything from `src/app`
 | Rates | rational `{ num: number; den: number }` | e.g. 0.03% = `{ num: 3, den: 10000 }`. Rounding is done once per charge per the rule in the rate config. |
 | Percentages shown in UI | computed at render time | Engine returns raw paise values; UI formats. |
 
-Prices with more than 2 decimal places are a validation error in v1 (equity F&O ticks are ₹0.05).
+Console exports prices and quantities with 6 decimal places (`152.350000`, `20.000000`). Parse the string directly: a price whose 3rd–6th decimal digits are not all `0` is a validation error, and so is a quantity with any non-zero fractional digit. Equity F&O ticks are ₹0.05. IDs (`trade_id`, `order_id`) stay strings, because `order_id` can be 19 digits.
 
 ## 5. Time model
 
@@ -118,6 +119,7 @@ Prices with more than 2 decimal places are a validation error in v1 (equity F&O 
 | Third parties | No analytics, fonts, or scripts from third-party origins. Self-host fonts. |
 | Clear data | `worker.terminate()`, drop React state, `URL.revokeObjectURL` on any generated image. |
 | Logging | No `console.log` of row data in production builds. |
+| File names | Console file names contain the client ID (`tradebook-<CLIENT_ID>-FO.csv`). Show them only in on-screen upload status; never put them in share images, result objects that leave the worker for export, or logs. |
 
 ## 8. Charges configuration
 
@@ -145,7 +147,7 @@ npm run verify:real -- --dir ../fo-wrapped-private
 
 1. `npm ci`
 2. `npm run lint` and `npm run typecheck`
-3. `npm test` (Vitest, all required tests, no `.skip`)
+3. `npm test` (Vitest, all required tests, no `.skip`), then `npm run test:tz` (the same suite under `TZ=America/New_York`)
 4. `npx playwright test` (Chromium is enough in CI)
 5. `npm run build`
 

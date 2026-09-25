@@ -151,3 +151,4 @@ The source spec leaves the items below open. Each has a **proposed default** tha
 | D-11 | Physically settled stock F&O | Treated like any other position without a closing F&O trade: “settled at expiry”, same rules as F-EN-2. |
 | D-12 | IPFT / clearing charges not in the spec’s list | Not modelled in v1. The ±0.5% gate decides whether they must be added. |
 | D-13 | Which 3 headline stats on the summary card? | Net P&L, Charges paid, Win rate. If win rate has too little data, use Trades instead. |
+| D-14 | Dedupe key | **`exchange + trade_id`**. Trade IDs are issued by each exchange, and one file has both NSE and BSE rows, so a bare `trade_id` could collide across exchanges and raise a false conflict. Otherwise this is the spec’s “dedupe by `trade_id`”. |

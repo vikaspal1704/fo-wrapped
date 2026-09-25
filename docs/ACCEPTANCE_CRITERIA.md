@@ -8,7 +8,7 @@ Binary checklist. v1 is **done** only when every box is true. v1 may **launch** 
 
 - [ ] On **≥ 5 real Zerodha accounts**, estimated net P&L (tradebook only, no P&L statement) is within **±0.5%** of the Console P&L statement’s net P&L (`npm run verify:real`, TEST_PLAN §4)
 - [ ] Results recorded in the launch PR as account alias + % difference only (no amounts, no symbols)
-- [ ] Tradebook headers verified against 3–4 real exports and recorded in `API_CONTRACT.md` §2
+- [ ] Tradebook headers verified against 3–4 real exports and recorded in `API_CONTRACT.md` §2 (1 of 4 done: CSV, Sep 2026; XLSX and an older year still needed)
 - [ ] P&L statement layout verified and recorded in `API_CONTRACT.md` §3
 - [ ] Every row of the charges rate table has `source` and `verifiedOn` filled (ARCHITECTURE §6.2)
 - [ ] Samvat boundaries verified (ARCHITECTURE §7.1)

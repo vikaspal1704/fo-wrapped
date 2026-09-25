@@ -52,7 +52,7 @@ flowchart LR
 
 1. **Classify** each file by its headers: F&O tradebook, P&L statement, or unrecognised (`UnrecognizedFileError`). Equity / currency / commodity tradebooks → `UnsupportedSegmentError`.
 2. **Parse + validate** every row with Zod (`API_CONTRACT.md` §2). One bad row rejects its file.
-3. **Merge + dedupe** across tradebook files by `trade_id`. Identical duplicates are dropped and counted. Duplicates with different fields → `ConflictingDuplicateError`.
+3. **Merge + dedupe** across tradebook files by `exchange + trade_id` (PRD D-14). Identical duplicates are dropped and counted. Duplicates with different fields → `ConflictingDuplicateError`.
 4. **Sort** by `(executedAt, tradeId)`.
 5. **Build round trips** per instrument with FIFO (§4).
 6. **Classify unclosed** positions as `OPEN` or `SETTLED_AT_EXPIRY` (§5).
@@ -66,7 +66,7 @@ Progress is reported after each stage and every 2,000 rows inside stages 2 and 5
 
 ## 3. Merge & dedupe
 
-- Key: `trade_id`.
+- Key: `exchange + trade_id` (PRD D-14). Trade IDs are exchange-issued, and a single file mixes NSE and BSE.
 - “Identical” means every mapped `Fill` field except `sourceFile` / `sourceRow` is equal.
 - Why files overlap: Console caps each download at 365 days, so users often download overlapping ranges.
 - Gaps between files are **not** an error, but the UI shows the covered date ranges so the user can spot a missing year.
@@ -144,7 +144,7 @@ After all fills are processed, any non-empty lot queue is an unclosed position. 
 
 | Condition | Status | P&L treatment |
 |-----------|--------|---------------|
-| `instrument.expiry < asOf`, or `instrument.expiry == asOf` with no later fill | `SETTLED_AT_EXPIRY` | Valued from the P&L statement’s per-symbol row if available (`API_CONTRACT.md` §3), otherwise **excluded** |
+| `instrument.expiry <= asOf` | `SETTLED_AT_EXPIRY` | Valued from the P&L statement’s per-symbol row if available (`API_CONTRACT.md` §3), otherwise **excluded** |
 | `instrument.expiry > asOf` | `OPEN` | **Excluded** |
 
 Applies to options and futures, including physically settled stock F&O (PRD D-11). Card 1 and card 2 show *“{n} positions that expired or are still open aren’t included.”* whenever any position is excluded.

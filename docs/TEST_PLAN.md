@@ -37,7 +37,14 @@
 | `rejects_unrecognized_file` | CSV of random columns | `UnrecognizedFileError` |
 | `rejects_equity_tradebook` | Valid headers, equity segment | `UnsupportedSegmentError` |
 | `rejects_invalid_row_with_location` | Row 7 has `quantity = -5` | `RowValidationError` with file, row 7, field `quantity` |
-| `rejects_price_with_more_than_two_decimals` | `price = 10.123` | `RowValidationError` |
+| `parses_six_decimal_quantity_and_price` | `quantity = "20.000000"`, `price = "152.350000"` | `qty = 20`, `pricePaise = 15235` |
+| `rejects_price_not_in_whole_paise` | `price = "10.123000"` | `RowValidationError` on `price` |
+| `rejects_fractional_quantity` | `quantity = "20.500000"` | `RowValidationError` on `quantity` |
+| `keeps_19_digit_order_id_exact` | `order_id = "1799000000000000123"` | `Fill.orderId` equals the input string exactly |
+| `ignores_trailing_blank_line` | File ends with an empty line | No error; row count excludes it |
+| `rejects_blank_line_between_rows` | Empty line between two data rows | `RowValidationError` on that line |
+| `parses_file_with_byte_order_mark` | UTF-8 BOM before the header | Parses normally |
+| `rejects_xlsx_until_supported` | Zip (XLSX) bytes | Plain-language error asking for CSV. Replaced by `parses_xlsx_with_preamble` once XLSX is verified |
 | `parses_price_to_paise_exactly` | `price = "0.05"`, `"123.45"`, `"19999.95"` | `5`, `12345`, `1999995` (no float drift) |
 | `parses_times_as_ist_regardless_of_tz` | Run with `TZ=America/New_York` | Same epoch as with `TZ=Asia/Kolkata` |
 
@@ -46,9 +53,13 @@
 | Test | Setup | Expect |
 |------|-------|--------|
 | `parses_weekly_option_symbol` | `NIFTY24N2124000CE` | underlying NIFTY, CE, strike 24000, expiry 2024-11-21 |
+| `parses_bse_sensex_weekly_symbol` | `SENSEX2691074900CE`, exchange BSE, `expiry_date = 2026-09-10` | underlying SENSEX, CE, strike 74900, expiry 2026-09-10, key `BSE:SENSEX2691074900CE` |
+| `rejects_symbol_expiry_mismatch` | Weekly symbol encoding 2026-09-10 with `expiry_date = 2026-09-17` | `UnknownInstrumentError` |
+| `parses_synthetic_console_fixture` | `tests/fixtures/zerodha-fo-tradebook.synthetic.csv` | 9 fills, 4 round trips, values as in the fixture README |
 | `parses_monthly_option_symbol_with_expiry_column` | `BANKNIFTY24NOV51000PE` + `expiry_date` | PE, strike 51000, expiry from column |
 | `parses_future_symbol` | `NIFTY24NOVFUT` + `expiry_date` | FUT, strike null |
-| `rejects_monthly_symbol_without_expiry_source` | Monthly symbol, no column, no config | `UnknownInstrumentError` |
+| `rejects_monthly_symbol_without_expiry_source` | Row with an empty `expiry_date` | `RowValidationError` (the column is required, API_CONTRACT §2) |
+| `parses_underlying_containing_digits` | `NIFTYNXT5026O0668000CE`, expiry 2026-10-06 | underlying `NIFTYNXT50`, strike 68000 |
 | `rejects_unknown_symbol_shape` | `FOO123` | `UnknownInstrumentError` |
 
 ### Merge
@@ -56,6 +67,7 @@
 | Test | Setup | Expect |
 |------|-------|--------|
 | `dedupes_overlapping_files_by_trade_id` | File A (Jan–Dec), file B (Jun–May), 100 shared trades | Shared trades counted once; `duplicatesDropped = 100` |
+| `same_trade_id_on_different_exchanges_is_not_a_duplicate` | NSE and BSE fills sharing a `trade_id` value | Both kept (dedupe key is `exchange + trade_id`, PRD D-14) |
 | `rejects_conflicting_duplicate` | Same `trade_id`, different price | `ConflictingDuplicateError` |
 | `merge_is_file_order_independent` | `[A, B]` vs `[B, A]` | Identical `AnalysisResult` apart from diagnostics |
 
@@ -79,6 +91,7 @@
 |------|-------|--------|
 | `flags_option_past_expiry_as_settled` | BUY CE, expiry before last trade date, no sell | `SETTLED_AT_EXPIRY`; excluded from RT |
 | `flags_future_expiry_position_as_open` | Expiry after last trade date | `OPEN`; excluded |
+| `position_still_open_on_its_expiry_day_is_settled` | Expiry == last trade date, no closing fill | `SETTLED_AT_EXPIRY` |
 | `excluded_positions_are_reported` | 2 unclosed | `totals.excludedUnclosedCount = 2`; card 1 note present |
 | `values_settled_position_from_pnl_statement` | Settled CE + statement per-symbol row | RT with `exitKind: 'EXPIRY'`, gross = statement − closed part |
 | `settled_position_without_symbol_row_stays_excluded` | Statement with `perSymbol = null` | Excluded; warning present |
