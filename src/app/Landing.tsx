@@ -75,11 +75,17 @@ export function Landing({ onFiles, onPrivacy, files, error }: Props) {
 
       <section aria-labelledby="how" className="how">
         <h2 id="how">{t.howTitle}</h2>
-        <ol>
-          <li>{t.how1(bold)}</li>
-          <li>{t.how2(bold)}</li>
-          <li>{t.how3(bold)}</li>
-        </ol>
+        {t.guides(bold).map((g, i) => (
+          <details key={g.id} className="guide" open={i === 0}>
+            <summary>{g.name}</summary>
+            <ol>
+              {g.steps.map((step, j) => (
+                <li key={j}>{step}</li>
+              ))}
+            </ol>
+            {g.note && <p className="guide-note">{g.note}</p>}
+          </details>
+        ))}
       </section>
 
       <footer className="footnote">
@@ -98,11 +104,13 @@ export function Landing({ onFiles, onPrivacy, files, error }: Props) {
 export function FileList({ files }: { files: FileStatus[] }) {
   const t = useT();
   const { locale } = useLocale();
+  const accepted = (f: FileStatus) =>
+    f.statement ? t.statementRead(f.statement.from, f.statement.to) : t.tradesRead(f.rows ?? 0, f.broker ? t.brokerNames[f.broker] : '');
   return (
     <ul className="files" aria-label={t.filesLabel}>
       {files.map((f) => (
         <li key={f.name} className={f.ok ? 'ok' : 'bad'}>
-          <span aria-hidden="true">{f.ok ? '✓' : '✕'}</span> <strong>{f.name}</strong>: {f.ok ? t.tradesRead(f.rows ?? 0) : f.message?.[locale]}
+          <span aria-hidden="true">{f.ok ? '✓' : '✕'}</span> <strong>{f.name}</strong>: {f.ok ? accepted(f) : f.message?.[locale]}
         </li>
       ))}
     </ul>

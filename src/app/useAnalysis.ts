@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-import type { AnalysisResult, Locale } from '../engine';
+import type { AnalysisResult, BrokerId, IstDate, Locale } from '../engine';
 import type { Localized, Stage, WorkerRequest, WorkerResponse } from '../worker/protocol';
 
 export interface FileStatus {
@@ -7,6 +7,9 @@ export interface FileStatus {
   ok: boolean;
   /** Trades read, for accepted files. */
   rows?: number;
+  broker?: BrokerId;
+  /** Set for an accepted Zerodha P&L statement. */
+  statement?: { from: IstDate; to: IstDate };
   /** Why it was rejected, in each language. */
   message?: Localized;
 }
@@ -36,7 +39,7 @@ function reducer(state: State, action: Action): State {
         case 'progress':
           return { ...state, stage: msg.stage, pct: msg.pct };
         case 'fileAccepted':
-          return { ...state, files: [...state.files, { name: msg.name, ok: true, rows: msg.rows }] };
+          return { ...state, files: [...state.files, { name: msg.name, ok: true, rows: msg.rows, broker: msg.broker, statement: msg.statement }] };
         case 'fileRejected':
           return { ...state, files: [...state.files, { name: msg.name, ok: false, message: msg.message }] };
         case 'result':

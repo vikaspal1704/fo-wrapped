@@ -1,5 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Locale } from '../engine';
+import type { BrokerId, Locale } from '../engine';
+
+/** Download steps for one broker, shown on the landing page. */
+export interface Guide {
+  id: string;
+  name: string;
+  steps: ReactNode[];
+  /** What this broker's file can and can't give (docs/BROKERS.md §3). */
+  note?: string;
+}
 
 /**
  * UI copy in English and Hindi (ROADMAP X2). Hindi entries are type-checked
@@ -14,18 +23,61 @@ const en = {
   // Landing
   eyebrow: 'Your trading year, Wrapped',
   tagline: 'Honest, shareable cards about your F&O year: charges, win rate, expiry days, revenge trades and more.',
-  drop: 'Drop your tradebook',
+  drop: 'Drop your trade files',
   privacyLine: 'Files are processed on your device and never uploaded.',
   howToCheck: 'How to check',
   filesLabel: 'Files',
-  howTitle: 'How to download from Zerodha Console',
-  how1: (b: (s: string) => ReactNode) => <>Open {b('console.zerodha.com')} and go to {b('Reports → Tradebook')}.</>,
-  how2: (b: (s: string) => ReactNode) => <>Choose segment {b('F&O')} and a date range of up to 365 days.</>,
-  how3: (b: (s: string) => ReactNode) => <>Download as {b('CSV')} or {b('XLSX')}. For more than a year, repeat and drop all the files together.</>,
+  howTitle: 'How to download your trades',
+  guides: (b: (s: string) => ReactNode): Guide[] => [
+    {
+      id: 'zerodha',
+      name: 'Zerodha',
+      steps: [
+        <>Open {b('console.zerodha.com')} and go to {b('Reports → Tradebook')}.</>,
+        <>Choose segment {b('F&O')} and a date range of up to 365 days. Download as {b('CSV')} or {b('XLSX')}. For more than a year, repeat and drop all the files together.</>,
+        <>For exact charges, also download {b('Reports → P&L')}, segment {b('F&O')}, for the same dates, as {b('XLSX')}.</>,
+      ],
+    },
+    {
+      id: 'angelone',
+      name: 'Angel One',
+      steps: [
+        <>In the Angel One app or website, go to {b('Reports → Trades History')}.</>,
+        <>Choose your dates and download the {b('Excel (XLSX)')} file.</>,
+      ],
+      note: 'Charges come from the file. It has no trade times, so time-of-day cards are skipped.',
+    },
+    {
+      id: 'upstox',
+      name: 'Upstox',
+      steps: [
+        <>In Upstox, go to {b('Reports → Trade')}.</>,
+        <>Choose segment {b('F&O')} and your dates, and download the {b('XLSX')} file.</>,
+      ],
+      note: 'Options only for now. Charges are estimated.',
+    },
+    {
+      id: 'dhan',
+      name: 'Dhan',
+      steps: [
+        <>On {b('web.dhan.co')}, go to {b('Reports → Global Transaction Report')}.</>,
+        <>Choose your dates and download the {b('CSV')} file.</>,
+      ],
+      note: 'Charges come from the file. It has no trade times, so time-of-day cards are skipped.',
+    },
+    {
+      id: 'groww',
+      name: 'Groww',
+      steps: [<>Not supported yet: we haven’t seen a real Groww F&O export. You can help by sharing one, with personal details removed, through the {b('New broker export')} issue on GitHub.</>],
+    },
+  ],
   footer1: 'Free and open source. No sign-up, no tracking. Not investment, trading or tax advice.',
-  footer2: 'Independent project, not affiliated with Zerodha, NSE or BSE.',
+  footer2: 'Independent project, not affiliated with any broker, NSE or BSE.',
   privacyAbout: 'Privacy & about',
-  tradesRead: (n: number) => `${n} trades read`,
+  tradesRead: (n: number, broker: string) => `${broker}: ${n} trades read`,
+  statementRead: (from: string, to: string) => `Zerodha P&L statement, ${from} to ${to}`,
+  brokerNames: { zerodha: 'Zerodha', angelone: 'Angel One', upstox: 'Upstox', dhan: 'Dhan' } as Record<BrokerId, string>,
+  noTimesNote: (n: number) => `${n} time-of-day ${n === 1 ? 'card is' : 'cards are'} skipped, because your broker’s file has no trade times.`,
 
   // Progress
   stageReading: 'Reading your files…',
@@ -200,7 +252,7 @@ const en = {
   pCheck: 'Check it yourself',
   pC1: (b: (s: string) => ReactNode) => (
     <>
-      {b('Airplane-mode test:')} open this site, then switch off Wi-Fi and mobile data. Drop your tradebook: it still works, because nothing needs
+      {b('Airplane-mode test:')} open this site, then switch off Wi-Fi and mobile data. Drop your trade files: everything still works, because nothing needs
       the internet. After your first visit you can even open the site offline, or install it to your home screen.
     </>
   ),
@@ -222,7 +274,7 @@ const en = {
   pN3: 'This is a mirror of your own trades, not investment, trading or tax advice.',
   pAffiliation: 'Not affiliated',
   pA1:
-    'F&O Wrapped is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Zerodha Broking Ltd, NSE, BSE or Spotify. “Zerodha” and “Console” are trademarks of their owners and are used only to describe which files work.',
+    'F&O Wrapped is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Zerodha, Angel One, Upstox, Dhan, Groww, NSE, BSE or Spotify. Broker names are trademarks of their owners and are used only to describe which files work.',
   pTranslation: '',
 };
 
@@ -235,18 +287,61 @@ const hi: UiMessages = {
 
   eyebrow: 'आपका ट्रेडिंग साल, Wrapped',
   tagline: 'आपके F&O साल के बारे में ईमानदार, शेयर करने लायक़ कार्ड: चार्जेस, जीत दर, एक्सपायरी के दिन, रिवेंज ट्रेड और बहुत कुछ।',
-  drop: 'अपनी ट्रेडबुक डालें',
+  drop: 'अपनी ट्रेड फ़ाइलें डालें',
   privacyLine: 'फ़ाइलें आपके डिवाइस पर ही प्रोसेस होती हैं, कभी अपलोड नहीं होतीं।',
   howToCheck: 'कैसे जाँचें',
   filesLabel: 'फ़ाइलें',
-  howTitle: 'Zerodha Console से कैसे डाउनलोड करें',
-  how1: (b) => <>{b('console.zerodha.com')} खोलें और {b('Reports → Tradebook')} पर जाएँ।</>,
-  how2: (b) => <>सेगमेंट {b('F&O')} चुनें और 365 दिन तक की तारीख़ सीमा चुनें।</>,
-  how3: (b) => <>{b('CSV')} या {b('XLSX')} में डाउनलोड करें। एक साल से ज़्यादा के लिए यह दोहराएँ और सारी फ़ाइलें एक साथ डालें।</>,
+  howTitle: 'अपने ट्रेड कैसे डाउनलोड करें',
+  guides: (b) => [
+    {
+      id: 'zerodha',
+      name: 'Zerodha',
+      steps: [
+        <>{b('console.zerodha.com')} खोलें और {b('Reports → Tradebook')} पर जाएँ।</>,
+        <>सेगमेंट {b('F&O')} और 365 दिन तक की तारीख़ सीमा चुनें। {b('CSV')} या {b('XLSX')} में डाउनलोड करें। एक साल से ज़्यादा के लिए यह दोहराएँ और सारी फ़ाइलें एक साथ डालें।</>,
+        <>सटीक चार्जेस के लिए उन्हीं तारीख़ों का {b('Reports → P&L')}, सेगमेंट {b('F&O')}, {b('XLSX')} में भी डाउनलोड करें।</>,
+      ],
+    },
+    {
+      id: 'angelone',
+      name: 'Angel One',
+      steps: [
+        <>Angel One ऐप या वेबसाइट में {b('Reports → Trades History')} पर जाएँ।</>,
+        <>तारीख़ें चुनें और {b('Excel (XLSX)')} फ़ाइल डाउनलोड करें।</>,
+      ],
+      note: 'चार्जेस फ़ाइल से लिए जाते हैं। इसमें ट्रेड का समय नहीं होता, इसलिए समय वाले कार्ड छोड़ दिए जाते हैं।',
+    },
+    {
+      id: 'upstox',
+      name: 'Upstox',
+      steps: [
+        <>Upstox में {b('Reports → Trade')} पर जाएँ।</>,
+        <>सेगमेंट {b('F&O')} और तारीख़ें चुनें, और {b('XLSX')} फ़ाइल डाउनलोड करें।</>,
+      ],
+      note: 'अभी सिर्फ़ ऑप्शंस। चार्जेस अनुमानित हैं।',
+    },
+    {
+      id: 'dhan',
+      name: 'Dhan',
+      steps: [
+        <>{b('web.dhan.co')} पर {b('Reports → Global Transaction Report')} पर जाएँ।</>,
+        <>तारीख़ें चुनें और {b('CSV')} फ़ाइल डाउनलोड करें।</>,
+      ],
+      note: 'चार्जेस फ़ाइल से लिए जाते हैं। इसमें ट्रेड का समय नहीं होता, इसलिए समय वाले कार्ड छोड़ दिए जाते हैं।',
+    },
+    {
+      id: 'groww',
+      name: 'Groww',
+      steps: [<>अभी सपोर्टेड नहीं: हमने अभी तक Groww का असली F&O एक्सपोर्ट नहीं देखा। आप GitHub पर {b('New broker export')} इश्यू के ज़रिए एक फ़ाइल (निजी जानकारी हटाकर) शेयर करके मदद कर सकते हैं।</>],
+    },
+  ],
   footer1: 'मुफ़्त और ओपन सोर्स। न साइन-अप, न ट्रैकिंग। यह निवेश, ट्रेडिंग या टैक्स सलाह नहीं है।',
-  footer2: 'स्वतंत्र प्रोजेक्ट, Zerodha, NSE या BSE से संबद्ध नहीं।',
+  footer2: 'स्वतंत्र प्रोजेक्ट, किसी ब्रोकर, NSE या BSE से संबद्ध नहीं।',
   privacyAbout: 'प्राइवेसी और परिचय',
-  tradesRead: (n) => `${n} ट्रेड पढ़े गए`,
+  tradesRead: (n, broker) => `${broker}: ${n} ट्रेड पढ़े गए`,
+  statementRead: (from, to) => `Zerodha P&L स्टेटमेंट, ${from} से ${to} तक`,
+  brokerNames: { zerodha: 'Zerodha', angelone: 'Angel One', upstox: 'Upstox', dhan: 'Dhan' },
+  noTimesNote: (n) => `समय वाले ${n} कार्ड छोड़ दिए गए हैं, क्योंकि आपके ब्रोकर की फ़ाइल में ट्रेड का समय नहीं है।`,
 
   stageReading: 'आपकी फ़ाइलें पढ़ी जा रही हैं…',
   stageValidating: 'हर पंक्ति जाँची जा रही है…',
@@ -404,7 +499,7 @@ const hi: UiMessages = {
   pCheck: 'ख़ुद जाँचें',
   pC1: (b) => (
     <>
-      {b('एयरप्लेन-मोड टेस्ट:')} यह साइट खोलें, फिर वाई-फ़ाई और मोबाइल डेटा बंद कर दें। अपनी ट्रेडबुक डालें: यह फिर भी चलती है, क्योंकि
+      {b('एयरप्लेन-मोड टेस्ट:')} यह साइट खोलें, फिर वाई-फ़ाई और मोबाइल डेटा बंद कर दें। अपनी ट्रेड फ़ाइलें डालें: सब कुछ फिर भी चलता है, क्योंकि
       किसी चीज़ को इंटरनेट की ज़रूरत नहीं। पहली बार के बाद आप साइट ऑफ़लाइन भी खोल सकते हैं या होम स्क्रीन पर इंस्टॉल कर सकते हैं।
     </>
   ),
@@ -425,7 +520,7 @@ const hi: UiMessages = {
   pN3: 'यह आपके अपने ट्रेड का आईना है, निवेश, ट्रेडिंग या टैक्स सलाह नहीं।',
   pAffiliation: 'संबद्ध नहीं',
   pA1:
-    'F&O Wrapped एक स्वतंत्र ओपन-सोर्स प्रोजेक्ट है। यह Zerodha Broking Ltd, NSE, BSE या Spotify से संबद्ध, समर्थित या प्रायोजित नहीं है। “Zerodha” और “Console” उनके मालिकों के ट्रेडमार्क हैं और यहाँ सिर्फ़ यह बताने के लिए इस्तेमाल हुए हैं कि कौन-सी फ़ाइलें काम करती हैं।',
+    'F&O Wrapped एक स्वतंत्र ओपन-सोर्स प्रोजेक्ट है। यह Zerodha, Angel One, Upstox, Dhan, Groww, NSE, BSE या Spotify से संबद्ध, समर्थित या प्रायोजित नहीं है। ब्रोकरों के नाम उनके मालिकों के ट्रेडमार्क हैं और यहाँ सिर्फ़ यह बताने के लिए इस्तेमाल हुए हैं कि कौन-सी फ़ाइलें काम करती हैं।',
   pTranslation: 'हिंदी अनुवाद की समीक्षा जारी है। अगर कुछ ग़लत लगे तो GitHub पर बताएँ।',
 };
 
