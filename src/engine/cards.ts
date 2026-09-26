@@ -27,7 +27,7 @@ export interface Headline {
 
 export interface Totals {
   /** Where the charges come from: published rates, the broker's own file, or both. */
-  source: 'ESTIMATED' | 'BROKER' | 'MIXED';
+  source: 'ESTIMATED' | 'BROKER' | 'PNL_STATEMENT' | 'MIXED';
   grossPnlPaise: Paise;
   /** null when charges can't be estimated for some trade dates. */
   charges: ChargesBreakdown | null;
@@ -87,7 +87,13 @@ export function computeCards(input: {
 }): CardSet {
   const { roundTrips: rts, fills, totals } = input;
   const estimatedNotes = [
-    totals.source === 'BROKER' ? m().chargesFromBroker : totals.source === 'MIXED' ? m().chargesMixed : m().chargesEstimatedAddStatement,
+    totals.source === 'BROKER'
+      ? m().chargesFromBroker
+      : totals.source === 'PNL_STATEMENT'
+        ? m().chargesFromStatement
+        : totals.source === 'MIXED'
+          ? m().chargesMixed
+          : m().chargesEstimatedAddStatement,
     ...(totals.excludedUnclosedCount > 0 ? [m().excludedPositions(totals.excludedUnclosedCount)] : []),
   ];
   const noTrades = m().noClosedTrades;
@@ -102,7 +108,7 @@ export function computeCards(input: {
               netPnlPaise: totals.netPnlPaise,
               totalTrades: rts.length,
               tradedValuePaise: sum(fills.map((f) => f.valuePaise)) as Paise,
-              estimated: totals.source !== 'BROKER',
+              estimated: totals.source === 'ESTIMATED' || totals.source === 'MIXED',
             },
             estimatedNotes,
           );
@@ -118,7 +124,7 @@ export function computeCards(input: {
               chargesPaise: totals.charges.total,
               chargesPctOfGrossProfit:
                 totals.grossPnlPaise > 0 ? (totals.charges.total / totals.grossPnlPaise) * 100 : null,
-              estimated: totals.source !== 'BROKER',
+              estimated: totals.source === 'ESTIMATED' || totals.source === 'MIXED',
             },
             estimatedNotes,
           );

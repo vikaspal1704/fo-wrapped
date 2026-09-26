@@ -111,6 +111,16 @@ const en = {
   chargeGst: 'GST',
   legacyXls: (file: string) => `${file} is an old .xls file. Please download the tradebook from Console as CSV or XLSX.`,
   noFilesRead: 'None of the files could be read. See the details above.',
+  pnlWrongSegment: (file: string, segment: string) => `${file} is a P&L statement for ${segment}. F&O Wrapped needs the F&O P&L statement.`,
+  pnlBadValue: (file: string, what: string, value: string) => `${file}: “${what}” has a value we can’t read (‘${value}’). Please download a fresh copy.`,
+  pnlInconsistent: (file: string) => `${file}: the charges don’t add up to the total the statement prints. Please download a fresh copy.`,
+  pnlNoOverlap: (file: string, from: string, to: string, tFrom: string, tTo: string) =>
+    `${file} covers ${from} to ${to}, but your Zerodha tradebook covers ${tFrom} to ${tTo}. Download the P&L statement for the same dates.`,
+  pnlNoTradebook: (file: string) => `${file} is a P&L statement. Add your Zerodha tradebook too: the statement gives exact totals, the tradebook gives the cards.`,
+  chargesFromStatement: 'Charges and realised P&L are from your Zerodha P&L statement.',
+  statementPartial: (from: string, to: string) => `Your P&L statement covers ${from} to ${to}, which doesn’t match this period, so charges here are estimated.`,
+  statementMismatch: (pct: string) => `The tradebook’s P&L differs from your P&L statement by ${pct}%. The statement’s figures are used.`,
+  statementOther: (amount: string) => `Your P&L statement also shows ${amount} of other credits and debits (e.g. interest), not included here.`,
   genericFailure: 'Something went wrong while reading your files. Please try again with a fresh download.',
 };
 
@@ -205,6 +215,16 @@ const hi: EngineMessages = {
   chargeGst: 'GST',
   legacyXls: (file) => `${file} पुरानी .xls फ़ाइल है। कृपया Console से ट्रेडबुक CSV या XLSX में डाउनलोड करें।`,
   noFilesRead: 'कोई भी फ़ाइल पढ़ी नहीं जा सकी। ऊपर विवरण देखें।',
+  pnlWrongSegment: (file, segment) => `${file} ${segment} का P&L स्टेटमेंट है। F&O Wrapped को F&O का P&L स्टेटमेंट चाहिए।`,
+  pnlBadValue: (file, what, value) => `${file}: “${what}” का मान (‘${value}’) पढ़ा नहीं जा सका। कृपया नई कॉपी डाउनलोड करें।`,
+  pnlInconsistent: (file) => `${file}: चार्जेस का जोड़ स्टेटमेंट में छपे कुल से मेल नहीं खाता। कृपया नई कॉपी डाउनलोड करें।`,
+  pnlNoOverlap: (file, from, to, tFrom, tTo) =>
+    `${file} ${from} से ${to} तक का है, लेकिन आपकी Zerodha ट्रेडबुक ${tFrom} से ${tTo} तक की है। उन्हीं तारीख़ों का P&L स्टेटमेंट डाउनलोड करें।`,
+  pnlNoTradebook: (file) => `${file} P&L स्टेटमेंट है। अपनी Zerodha ट्रेडबुक भी जोड़ें: स्टेटमेंट से सटीक कुल आँकड़े मिलते हैं, ट्रेडबुक से कार्ड।`,
+  chargesFromStatement: 'चार्जेस और रियलाइज़्ड P&L आपके Zerodha P&L स्टेटमेंट से हैं।',
+  statementPartial: (from, to) => `आपका P&L स्टेटमेंट ${from} से ${to} तक का है, जो इस अवधि से मेल नहीं खाता, इसलिए यहाँ चार्जेस अनुमानित हैं।`,
+  statementMismatch: (pct) => `ट्रेडबुक का P&L आपके P&L स्टेटमेंट से ${pct}% अलग है। स्टेटमेंट के आँकड़े इस्तेमाल किए गए हैं।`,
+  statementOther: (amount) => `आपके P&L स्टेटमेंट में ${amount} के अन्य क्रेडिट और डेबिट (जैसे ब्याज) भी हैं, जो यहाँ शामिल नहीं हैं।`,
   genericFailure: 'आपकी फ़ाइलें पढ़ते समय कुछ गड़बड़ हुई। कृपया नई डाउनलोड की हुई फ़ाइल के साथ फिर कोशिश करें।',
 };
 

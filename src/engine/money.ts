@@ -35,3 +35,21 @@ export function safeMul(a: number, b: number): number {
   if (!Number.isSafeInteger(r)) throw new RangeError(`Value out of safe integer range: ${a} × ${b}`);
   return r;
 }
+
+const SIGNED_DECIMAL = /^([-+]?)(\d+)(?:\.(\d+))?$/;
+
+/**
+ * Parses a signed decimal that may carry more than 2 decimals (broker
+ * statements print values like "20099.9999") and rounds it to the nearest
+ * paise, halves away from zero. Returns null if it isn't a plain decimal.
+ */
+export function decimalToPaiseRounded(value: string): Paise | null {
+  const m = SIGNED_DECIMAL.exec(value.trim().replace(/,/g, ''));
+  if (!m) return null;
+  const [, sign = '', whole = '', frac = ''] = m;
+  const f = frac.padEnd(3, '0');
+  let paise = Number(whole) * 100 + Number(f.slice(0, 2));
+  if (Number(f[2]) >= 5) paise += 1;
+  if (!Number.isSafeInteger(paise)) return null;
+  return (sign === '-' && paise !== 0 ? -paise : paise) as Paise;
+}
