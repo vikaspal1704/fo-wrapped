@@ -641,3 +641,61 @@ h1 {
   margin: 0;
   font-size: 0.72rem;
 }
+
+/* ---------- Period picker & comparison ---------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.period-picker select {
+  max-width: 11rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.changes {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.changes caption {
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+.changes th,
+.changes td {
+  padding: 0.55rem 0.25rem;
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.changes th[scope='row'] {
+  color: var(--muted);
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+}
+
+.changes thead th {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.changes td.now {
+  font-weight: 700;
+}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import type { AnalysisResult } from '../engine';
+import type { AnalysisResult, PeriodKind } from '../engine';
 import { FileList } from '../app/Landing';
 import type { FileStatus } from '../app/useAnalysis';
 import { TheNumber } from './TheNumber';
@@ -11,6 +11,7 @@ import { RevengeTrades } from './RevengeTrades';
 import { HoldingTime } from './HoldingTime';
 import { BestWorstDay } from './BestWorstDay';
 import { Summary } from './Summary';
+import { WhatChanged } from './WhatChanged';
 
 interface Props {
   result: AnalysisResult;
@@ -21,10 +22,18 @@ interface Props {
 const SWIPE_PX = 40;
 
 /** Story-style viewer: tap sides, swipe, or use arrow keys. */
+const KIND_GROUPS: { kind: PeriodKind; label: string }[] = [
+  { kind: 'SAMVAT', label: 'Samvat year' },
+  { kind: 'FY', label: 'Financial year' },
+  { kind: 'CALENDAR', label: 'Calendar year' },
+];
+
 export function Story({ result, files, onClear }: Props) {
-  const { cards } = result;
+  const [viewId, setViewId] = useState(result.defaultViewId);
+  const view = result.views.find((v) => v.period.id === viewId) ?? result.views[0]!;
+  const { cards } = view;
   const slides: { title: string; node: ReactNode }[] = [
-    { title: 'The number', node: <TheNumber result={result} /> },
+    { title: 'The number', node: <TheNumber view={view} /> },
     { title: 'Where the money went', node: <WhereMoneyWent card={cards.whereMoneyWent} /> },
     { title: 'Right but broke', node: <RightButBroke card={cards.rightButBroke} /> },
     { title: 'Expiry day', node: <ExpiryDay card={cards.expiryDay} /> },
@@ -32,7 +41,11 @@ export function Story({ result, files, onClear }: Props) {
     { title: 'Revenge trades', node: <RevengeTrades card={cards.revengeTrades} /> },
     { title: 'Diamond hands, paper hands', node: <HoldingTime card={cards.holdingTime} /> },
     { title: 'Best day, worst day', node: <BestWorstDay card={cards.bestWorstDay} /> },
-    { title: 'Your year', node: <Summary summary={cards.summary} result={result} onClear={onClear} /> },
+    ...(view.comparison ? [{ title: 'What changed', node: <WhatChanged comparison={view.comparison} currentLabel={view.period.label} /> }] : []),
+    {
+      title: 'Your year',
+      node: <Summary summary={cards.summary} view={view} versions={{ engine: result.engineVersion, rates: result.rateTableVersion }} onClear={onClear} />,
+    },
   ];
   const [index, setIndex] = useState(0);
   const last = slides.length - 1;
@@ -78,12 +91,39 @@ export function Story({ result, files, onClear }: Props) {
           ))}
         </div>
         <div className="story-meta">
+          <label className="period-picker">
+            <span className="sr-only">Period</span>
+            <select
+              value={view.period.id}
+              onChange={(e) => {
+                setViewId(e.target.value);
+                setIndex(0);
+              }}
+            >
+              <option value="all">All trades</option>
+              {KIND_GROUPS.map((g) => {
+                const options = result.views.filter((v) => v.period.kind === g.kind && v.roundTripCount > 0);
+                return options.length === 0 ? null : (
+                  <optgroup key={g.kind} label={g.label}>
+                    {options.map((v) => (
+                      <option key={v.period.id} value={v.period.id}>
+                        {v.period.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+          </label>
           <span>
-            {index + 1} / {slides.length}
+            <span data-testid="slide-count">
+              {index + 1} / {slides.length}
+            </span>
+            {' · '}
+            <button type="button" className="link" onClick={onClear}>
+              Clear data
+            </button>
           </span>
-          <button type="button" className="link" onClick={onClear}>
-            Clear data
-          </button>
         </div>
       </div>
 

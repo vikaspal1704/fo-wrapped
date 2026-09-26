@@ -38,7 +38,7 @@ export interface CardSet {
   revengeTrades: CardResult<{ count: number; combinedPnlPaise: Paise; medianLossPaise: Paise; triggers: number }>;
   holdingTime: CardResult<{ medianWinnerMs: number; medianLoserMs: number; winners: number; losers: number }>;
   bestWorstDay: CardResult<{ best: { date: IstDate; pnlPaise: Paise }; worst: { date: IstDate; pnlPaise: Paise } }>;
-  summary: { headlines: [Headline, Headline, Headline]; samvat: string | null; siteUrl: string };
+  summary: { headlines: [Headline, Headline, Headline]; samvat: string | null; periodTitle: string; siteUrl: string };
 }
 
 /** Card thresholds (ARCHITECTURE §7). */
@@ -73,6 +73,8 @@ export function computeCards(input: {
   fills: readonly Fill[];
   totals: Totals;
   samvat: string | null;
+  /** Summary heading for this period, e.g. 'Samvat 2082' or 'FY 2025-26'. */
+  periodTitle?: string;
   siteUrl: string;
 }): CardSet {
   const { roundTrips: rts, fills, totals } = input;
@@ -127,7 +129,12 @@ export function computeCards(input: {
     revengeTrades: revengeCard(rts),
     holdingTime: holdingCard(rts),
     bestWorstDay: bestWorstDayCard(rts),
-    summary: { headlines: summaryHeadlines, samvat: input.samvat, siteUrl: input.siteUrl },
+    summary: {
+      headlines: summaryHeadlines,
+      samvat: input.samvat,
+      periodTitle: input.periodTitle ?? (input.samvat ? `Samvat ${input.samvat}` : 'All trades'),
+      siteUrl: input.siteUrl,
+    },
   };
 }
 

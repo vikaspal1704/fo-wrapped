@@ -11,6 +11,7 @@ export type * from './charges/types';
 export { RATES } from './charges/rates';
 export { calculateCharges } from './charges/calculate';
 export * from './cards';
-export { analyze, ENGINE_VERSION, type AnalysisResult } from './analyze';
+export { analyze, ENGINE_VERSION, type AnalysisResult, type PeriodView, type Comparison, type ComparisonRow } from './analyze';
+export { periodsFor, previousPeriod, inPeriod, type Period, type PeriodKind } from './periods';
 export { samvatLabel, samvatYearOf, SAMVAT_YEARS } from './config/samvat';
 export { formatInr, formatPct, formatDuration } from './format';

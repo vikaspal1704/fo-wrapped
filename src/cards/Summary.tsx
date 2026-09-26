@@ -1,27 +1,26 @@
 import { useRef, useState } from 'react';
-import type { AnalysisResult, CardSet } from '../engine';
+import type { CardSet, PeriodView } from '../engine';
 import { SITE_LABEL } from '../config';
 import { formatDate } from '../app/format';
 import { download, renderPng, shareOrDownload } from '../share/exportImage';
 
 interface Props {
   summary: CardSet['summary'];
-  result: AnalysisResult;
+  view: PeriodView;
+  versions: { engine: string; rates: string };
   onClear: () => void;
 }
 
-function yearLabel(summary: CardSet['summary'], result: AnalysisResult): string {
-  return summary.samvat
-    ? `Samvat ${summary.samvat}`
-    : `${formatDate(result.dateRange.from)} – ${formatDate(result.dateRange.to)}`;
+function yearLabel(view: PeriodView): string {
+  return view.title !== 'All trades' ? view.title : `${formatDate(view.dateRange.from)} – ${formatDate(view.dateRange.to)}`;
 }
 
-export function Summary({ summary, result, onClear }: Props) {
+export function Summary({ summary, view, versions, onClear }: Props) {
   const imageRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const year = yearLabel(summary, result);
-  const fileName = `fo-wrapped-${(summary.samvat ?? result.dateRange.to).replace(/[^0-9a-z]+/gi, '-')}.png`;
+  const year = yearLabel(view);
+  const fileName = `fo-wrapped-${year.toLowerCase().replace(/[^0-9a-z]+/g, '-').replace(/^-|-$/g, '')}.png`;
 
   const run = async (action: 'download' | 'share') => {
     if (!imageRef.current) return;
@@ -73,16 +72,16 @@ export function Summary({ summary, result, onClear }: Props) {
           {status}
         </p>
       )}
-      {result.warnings.length > 0 && (
+      {view.warnings.length > 0 && (
         <ul className="notes">
-          {result.warnings.map((w) => (
+          {view.warnings.map((w) => (
             <li key={w}>{w}</li>
           ))}
         </ul>
       )}
 
       <p className="muted version">
-        Engine {result.engineVersion} · rates {result.rateTableVersion}
+        Engine {versions.engine} · rates {versions.rates}
       </p>
 
       {/* Off-screen 1080×1920 source for the PNG. Only the 3 headlines,

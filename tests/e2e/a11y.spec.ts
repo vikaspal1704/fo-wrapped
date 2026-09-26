@@ -23,7 +23,7 @@ test('a11y_landing_privacy_and_every_card', async ({ page }) => {
 
   await page.getByTestId('file-input').setInputFiles(YEAR);
   await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
-  const total = Number((await page.getByText(/^1 \/ \d+$/).textContent())!.split('/')[1]);
+  const total = Number((await page.getByTestId('slide-count').textContent())!.split('/')[1]);
   for (let i = 1; i <= total; i++) {
     await expectNoViolations(page, `card ${i}`);
     await page.keyboard.press('ArrowRight');

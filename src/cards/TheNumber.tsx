@@ -1,17 +1,22 @@
 import { formatInr } from '../engine/format';
-import type { AnalysisResult } from '../engine';
+import type { PeriodView } from '../engine';
 import { formatDate, signedInr, tone } from '../app/format';
 import { Card } from './Card';
 
-export function TheNumber({ result }: { result: AnalysisResult }) {
-  const { from, to } = result.dateRange;
+export function TheNumber({ view }: { view: PeriodView }) {
+  const { from, to } = view.dateRange;
   return (
-    <Card title="The number" result={result.cards.theNumber}>
+    <Card title="The number" result={view.cards.theNumber}>
       {(d) => (
         <>
           <p className="muted">
             {formatDate(from)} – {formatDate(to)}
-            {result.samvat && ` · Samvat ${result.samvat}`}
+            {view.title !== 'All trades' && (
+              <>
+                {' · '}
+                <span className="amount">{view.title}</span>
+              </>
+            )}
           </p>
           <p className={`hero ${tone(d.netPnlPaise)}`}>{signedInr(d.netPnlPaise)}</p>
           <p className="lead">net P&amp;L after all charges</p>

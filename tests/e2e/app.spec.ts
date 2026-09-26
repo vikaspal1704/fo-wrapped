@@ -31,13 +31,13 @@ test('e2e_upload_to_cards', async ({ page }) => {
   await upload(page, YEAR);
   for (const [i, title] of TITLES.entries()) {
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
-    await expect(page.getByText(`${i + 1} / ${TITLES.length}`)).toBeVisible();
+    await expect(page.getByTestId('slide-count')).toHaveText(`${i + 1} / ${TITLES.length}`);
     await expect(page.getByText('Not enough trades to say.')).toHaveCount(0);
     if (i < TITLES.length - 1) await page.keyboard.press('ArrowRight');
   }
   await expect(page.getByRole('button', { name: 'Download image' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
-  await expect(page.getByText('Samvat 2082').first()).toBeVisible();
+  await expect(page.locator('section.card').getByText('My F&O year · Samvat 2082')).toBeVisible();
 });
 
 test('e2e_no_network_during_analysis', async ({ page, baseURL }) => {
@@ -96,7 +96,7 @@ test('e2e_download_image', async ({ page }) => {
   await upload(page, YEAR);
   await toSummary(page);
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download image' }).click()]);
-  expect(download.suggestedFilename()).toBe('fo-wrapped-2082.png');
+  expect(download.suggestedFilename()).toBe('fo-wrapped-samvat-2082.png');
   const png = readFileSync((await download.path())!);
   expect(png.subarray(1, 4).toString()).toBe('PNG');
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1080, 1920]);
@@ -169,4 +169,24 @@ test('e2e_upload_xlsx', async ({ page }) => {
   // Same numbers as the CSV version of the same year.
   await toSummary(page);
   await expect(page.getByText('−₹4,491').first()).toBeVisible();
+});
+
+test('e2e_period_picker_and_comparison', async ({ page }) => {
+  await page.goto('./');
+  await page.getByTestId('file-input').setInputFiles(fixture('synthetic-two-fy.csv'));
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  const picker = page.getByLabel('Period');
+  // Default: the latest Samvat year with at least 10 trades.
+  await expect(picker).toHaveValue('samvat-2082');
+  await picker.selectOption({ label: 'FY 2026-27' });
+  await expect(page.locator('section.card').getByText(/· FY 2026-27/)).toBeVisible();
+  // The comparison card sits just before the summary.
+  const total = Number((await page.getByTestId('slide-count').textContent())!.split('/')[1]);
+  for (let i = 1; i < total - 1; i++) await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('heading', { name: 'What changed' })).toBeVisible();
+  await expect(page.getByRole('table')).toContainText('FY 2025-26');
+  await expect(page.getByRole('rowheader', { name: 'Trades', exact: true })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('heading', { name: 'Your year' })).toBeVisible();
+  await expect(page.getByText('My F&O year · FY 2026-27')).toBeVisible();
 });
