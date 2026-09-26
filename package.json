@@ -1,7 +1,7 @@
 {
   "name": "fo-wrapped",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Your F&O trading year, Wrapped \u2014 runs entirely in the browser.",
   "license": "MIT",
   "author": "Vikas Pal",

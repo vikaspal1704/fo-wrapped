@@ -183,6 +183,8 @@ const en = {
   imageFailedRetry: 'Couldn’t create the image. Please try again.',
   versions: (engine: string, rates: string) => `Engine ${engine} · rates ${rates}`,
   siEyebrow: 'My F&O year, Wrapped',
+  chooseStats: 'Choose stats',
+  chooseStatsHint: 'Pick any 3 for your image.',
 
   // Dates
   months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
@@ -387,6 +389,8 @@ const hi: UiMessages = {
   imageFailedRetry: 'इमेज नहीं बन पाई। कृपया फिर कोशिश करें।',
   versions: (engine, rates) => `इंजन ${engine} · दरें ${rates}`,
   siEyebrow: 'मेरा F&O साल, Wrapped',
+  chooseStats: 'आँकड़े चुनें',
+  chooseStatsHint: 'अपनी इमेज के लिए कोई भी 3 चुनें।',
 
   months: ['जन॰', 'फ़र॰', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुल॰', 'अग॰', 'सित॰', 'अक्तू॰', 'नव॰', 'दिस॰'],
 

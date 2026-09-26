@@ -43,7 +43,14 @@ export interface CardSet extends ExtraCards {
   revengeTrades: CardResult<{ count: number; combinedPnlPaise: Paise; medianLossPaise: Paise; triggers: number }>;
   holdingTime: CardResult<{ medianWinnerMs: number; medianLoserMs: number; winners: number; losers: number }>;
   bestWorstDay: CardResult<{ best: { date: IstDate; pnlPaise: Paise }; worst: { date: IstDate; pnlPaise: Paise } }>;
-  summary: { headlines: [Headline, Headline, Headline]; samvat: string | null; periodTitle: string; siteUrl: string };
+  summary: {
+    headlines: [Headline, Headline, Headline];
+    /** Every available headline (≥ 3), default ones first; the user may pick any 3 (ROADMAP X6). */
+    headlineOptions: Headline[];
+    samvat: string | null;
+    periodTitle: string;
+    siteUrl: string;
+  };
 }
 
 /** Card thresholds (ARCHITECTURE §7). */
@@ -115,7 +122,8 @@ export function computeCards(input: {
           );
 
   const daysTraded = new Set(fills.map((f) => f.tradeDate)).size;
-  const summaryHeadlines = headlines(theNumber, whereMoneyWent, rightButBrokeCard(rts), totals, rts.length, daysTraded);
+  // Every honest stat, in default order; the first 3 are the default headlines (PRD D-13).
+  const headlineOptions = headlines(theNumber, whereMoneyWent, rightButBrokeCard(rts), totals, rts.length, daysTraded);
 
   return {
     ...computeExtraCards({ roundTrips: rts, totals, indexUnderlyings: input.indexUnderlyings ?? { NSE: [], BSE: [] } }),
@@ -128,7 +136,8 @@ export function computeCards(input: {
     holdingTime: holdingCard(rts),
     bestWorstDay: bestWorstDayCard(rts),
     summary: {
-      headlines: summaryHeadlines,
+      headlines: [headlineOptions[0]!, headlineOptions[1]!, headlineOptions[2]!],
+      headlineOptions,
       samvat: input.samvat,
       periodTitle: input.periodTitle ?? (input.samvat ? m().samvat(input.samvat) : m().allTrades),
       siteUrl: input.siteUrl,
@@ -286,7 +295,7 @@ function headlines(
   totals: Totals,
   trades: number,
   daysTraded: number,
-): [Headline, Headline, Headline] {
+): Headline[] {
   const candidates: Headline[] = [];
   const t = m();
   if (theNumber.status === 'OK') candidates.push({ label: t.hNetPnl, value: formatInr(theNumber.data.netPnlPaise) });
@@ -298,5 +307,5 @@ function headlines(
   candidates.push({ label: t.hGrossPnl, value: formatInr(totals.grossPnlPaise) });
   candidates.push({ label: t.hDaysTraded, value: String(daysTraded) });
   const unique = candidates.filter((h, i) => candidates.findIndex((x) => x.label === h.label) === i);
-  return [unique[0]!, unique[1]!, unique[2]!];
+  return unique;
 }

@@ -4,11 +4,11 @@ Binary checklist. v1 is **done** only when every box is true. v1 may **launch** 
 
 ---
 
-## Status (v0.1)
+## Status (v0.2)
 
-- **B–F:** implemented and passing locally, except the ⏳ tests that wait on XLSX and P&L statement exports.
-- **E:** the CI and Pages workflows are written. They run once the repository exists on GitHub and Pages is enabled.
-- **A:** not started. It needs real exports and primary-source rate checks.
+- **B–F:** implemented and passing (105 unit, 20 e2e including axe accessibility), except the ⏳ P&L statement tests.
+- **E:** CI and Pages are live. Make `main` the default branch so pushes to `main` deploy.
+- **A:** not started. It needs real P&L statement exports and primary-source rate checks.
 
 ## A. Launch gate (blocking)
 

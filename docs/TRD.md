@@ -22,16 +22,19 @@
 | Styling | CSS Modules or plain CSS | No runtime CSS-in-JS |
 | Validation | **Zod** | Every input row is parsed through a schema |
 | CSV | **PapaParse** | Runs inside the worker |
-| XLSX | **SheetJS (`xlsx`)** (not yet added) | Install from the official SheetJS CDN tarball (`https://cdn.sheetjs.com/`); the npm-registry `xlsx` package is outdated. Added once an XLSX export is verified |
+| XLSX | **read-excel-file** | Reads exact number text and date cells (API_CONTRACT §2.3). SheetJS’s official CDN build isn’t reachable here, and npm’s `xlsx` 0.18 has parsing CVEs |
 | Worker | Native **Web Worker** (`new Worker(new URL(..., import.meta.url), { type: 'module' })`) | Typed message protocol in `API_CONTRACT.md` §6 |
-| Image export | **html-to-image** | Renders the card DOM to PNG |
+| Image export | **html-to-image** | Renders the summary or any card into a 1080×1920 PNG |
+| Languages | Typed catalogues (`engine/i18n.ts`, `app/i18n.tsx`) | English and Hindi; no i18n library needed at this size |
+| Offline | Hand-written service worker, generated at build (`build/swPlugin.ts`) | Precaches only the app’s own files |
+| Accessibility tests | **@axe-core/playwright** | WCAG 2.1 AA on every screen and card |
 | Unit tests | **Vitest** | Engine, parsers, charges, cards |
 | E2E tests | **Playwright** | Upload → cards → share/clear, privacy (no network). Set `PW_CHROMIUM_PATH` to use a local Chromium build |
 | Lint / format | ESLint + Prettier | |
 | Hosting | **GitHub Pages** | Deployed by GitHub Actions |
 | Package manager | **npm** (`package-lock.json` committed) | |
 
-No other runtime dependencies without updating this table.
+No other runtime dependencies without updating this table. `write-excel-file` is a dev dependency, used only to build XLSX test inputs.
 
 ## 3. Repository layout
 
@@ -47,12 +50,15 @@ fo-wrapped/
 ├── .github/workflows/
 │   ├── ci.yml                 # lint, typecheck, unit, e2e, build
 │   └── pages.yml              # deploy dist/ to GitHub Pages on main
+├── build/                     # sw-template.js + swPlugin.ts (generates dist/sw.js)
+├── public/                    # manifest, icons, og.png (npm run brand)
 ├── src/
 │   ├── main.tsx
 │   ├── app/                   # screens: Landing, Progress, Cards, Error
-│   ├── config.ts              # site URL printed on the share image
+│   ├── config.ts              # site and repo URLs
 │   ├── cards/                 # Story viewer, one component per card, Summary
-│   ├── share/                 # image export + Web Share fallback
+│   ├── share/                 # image export, per-card share, Web Share fallback
+│   ├── app/i18n.tsx           # UI copy (en/hi), LocaleProvider, language toggle
 │   ├── worker/
 │   │   ├── analysis.worker.ts # entry: receives files, posts progress/result
 │   │   └── protocol.ts        # WorkerRequest / WorkerResponse types

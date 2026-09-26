@@ -780,3 +780,40 @@ h1 {
 .lang-toggle {
   font-size: 0.95rem;
 }
+
+/* ---------- Choose headline stats ---------- */
+
+.choose {
+  margin-bottom: 0.75rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.chips p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.chip {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--surface-2);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: 0.85rem;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent-2);
+  background: color-mix(in oklab, var(--accent) 35%, var(--surface));
+}
+
+.chip:disabled {
+  opacity: 0.5;
+}

@@ -286,3 +286,19 @@ test.describe('hindi browser', () => {
     await expect(page.getByText(/इक्विटी ट्रेडबुक है/).first()).toBeVisible();
   });
 });
+
+test('e2e_choose_summary_stats', async ({ page }) => {
+  await upload(page, YEAR);
+  await toSummary(page);
+  const card = page.locator('section.card');
+  await expect(card.locator('.headlines dt')).toHaveText(['Net P&L', 'Charges paid', 'Win rate']);
+  await page.getByRole('button', { name: 'Choose stats' }).click();
+  await page.getByRole('button', { name: 'Win rate', pressed: true }).click();
+  // Only 2 chosen: exporting is disabled until there are 3.
+  await expect(page.getByRole('button', { name: 'Download image' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Trades', exact: true, pressed: false }).click();
+  await expect(card.locator('.headlines dt')).toHaveText(['Net P&L', 'Charges paid', 'Trades']);
+  await expect(page.getByRole('button', { name: 'Download image' })).toBeEnabled();
+  // The image uses the chosen stats.
+  await expect(page.getByTestId('share-image').locator('.si-label')).toHaveText(['Net P&L', 'Charges paid', 'Trades']);
+});

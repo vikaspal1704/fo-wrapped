@@ -8,8 +8,9 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 
 | | |
 |---|---|
-| **Status** | v0.1 works end to end for Zerodha F&O **CSV** tradebooks. Pre-launch: XLSX, the P&L statement, and the ±0.5% accuracy check are still to do |
-| **Stack** | Vite · React · TypeScript · Web Worker · Zod |
+| **Status** | v0.2: Zerodha F&O tradebooks (CSV and XLSX), 14 cards, period views, English and हिंदी, and it works offline. Pre-launch: the P&L statement import and the ±0.5% accuracy check |
+| **Stack** | Vite · React · TypeScript · Web Worker · Zod · installable (PWA) |
+| **Live** | https://vikaspal1704.github.io/fo-wrapped/ |
 | **Hosting** | GitHub Pages (static, no backend) |
 | **License** | [MIT](LICENSE) |
 | **Repo** | https://github.com/vikaspal1704/fo-wrapped |
@@ -18,10 +19,10 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 
 ## What it does
 
-1. You download your **tradebook** from Zerodha Console (plus, optionally, your **P&L statement**).
-2. You drop one or more files onto the page. Yearly files are merged, and duplicate trades are removed by `trade_id`.
-3. A Web Worker parses, validates, and analyses the files on your device.
-4. You swipe through 8 cards:
+1. You download your **tradebook** from Zerodha Console, as CSV or XLSX.
+2. You drop one or more files onto the page. Yearly files are merged, and duplicate trades are removed.
+3. A Web Worker parses, validates and analyses them on your device, and the page works offline after your first visit.
+4. You pick a period (a **Samvat year**, a **financial year** or a **calendar year**) and swipe through the cards:
 
 | # | Card | What it tells you |
 |---|------|-------------------|
@@ -33,9 +34,12 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 | 6 | Revenge trades | Entries within 15 min of a big loss, and what they cost |
 | 7 | Diamond hands, paper hands | How long you hold winners vs losers |
 | 8 | Best and worst day | Dates and amounts |
+| + | Buyer or seller · What you traded · Busy days · Day of the week · Position size · Charges drag | Shown when you have enough data for them |
+| + | What changed | This period vs the previous one of the same kind |
 
-5. You download or share a summary card with 3 headline stats and your Samvat year. There are no percentile claims.
-6. **Clear data** wipes everything from memory.
+5. You share any card, or a summary card with the 3 stats you choose, as a story-sized image. There are no percentile claims.
+6. The app is available in **English and हिंदी**.
+7. **Clear data** wipes everything from memory.
 
 ## What it is not
 
@@ -80,7 +84,9 @@ npm run test:tz      # same tests under a non-IST time zone
 npm run lint         # ESLint, incl. no-network / no-float-money rules in the engine
 npm run typecheck    # tsc
 npm run test:e2e     # Playwright end-to-end tests (incl. no-network and no-storage checks)
-npm run build        # static build in dist/
+npm run build        # static build in dist/ (includes the generated service worker)
+npm run fixtures     # regenerate synthetic test fixtures
+npm run brand        # regenerate the link-preview image and icons
 ```
 
 ## Progress
@@ -93,28 +99,34 @@ npm run build        # static build in dist/
 | All 8 cards + summary, Samvat year | ✅ |
 | Web Worker, story UI, download / share image, clear data | ✅ |
 | Unit (Vitest) + e2e (Playwright) tests, CI + GitHub Pages workflows | ✅ |
-| XLSX tradebooks, Console P&L statement (exact charges) | ⏳ waiting on sample exports |
+| XLSX tradebooks | ✅ (still to check against a real XLSX export) |
+| Period views, year-over-year, 6 extra cards, per-card share, chosen headline stats | ✅ |
+| Hindi, installable offline app, privacy page, link previews, accessibility (axe) | ✅ |
+| Console P&L statement (exact charges) | ⏳ waiting on a sample export |
 | Launch gate: ±0.5% vs Console on ≥ 5 real accounts | ⏳ |
 
 ## Project layout
 
 ```
 src/engine/            # pure TypeScript, no DOM: runs in the worker and in Node tests
-  parse/               # Console CSV → Fill[] (Zod); trading symbol → Instrument
+  parse/               # CSV and XLSX → Fill[] (Zod); trading symbol → Instrument
   merge.ts             # merge files, dedupe by exchange + trade_id
   roundTrips.ts        # FIFO round trips + open / settled-at-expiry positions
   charges/             # dated rate table + calculator
-  cards.ts             # the 8 cards + summary
-  analyze.ts           # the whole pipeline
-  config/samvat.ts     # Samvat year boundaries
-src/worker/            # Web Worker that runs the engine
-src/app/               # landing, progress, worker lifecycle
+  cards.ts, cardsExtra.ts  # the 14 cards + summary
+  periods.ts           # Samvat, calendar and financial-year views
+  analyze.ts           # the whole pipeline, one view per period
+  i18n.ts              # engine copy in English and Hindi
+src/worker/            # Web Worker that runs the engine (both languages)
+src/app/               # landing, privacy, progress, worker lifecycle, UI copy
 src/cards/             # story viewer and card components
-src/share/             # PNG export + Web Share
+src/share/             # PNG export, per-card share, Web Share
+build/                 # service-worker generator
+public/                # manifest, icons, link-preview image
 tests/unit/            # Vitest, named per docs/TEST_PLAN.md
-tests/e2e/             # Playwright
+tests/e2e/             # Playwright (incl. offline, privacy and axe accessibility)
 tests/fixtures/        # synthetic Console-format files only
-scripts/               # synthetic fixture generator
+scripts/               # fixture and brand-image generators
 ```
 
 ## Privacy

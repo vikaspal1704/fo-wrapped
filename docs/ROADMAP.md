@@ -2,7 +2,7 @@
 
 **Product:** F&O Wrapped  
 **Owner:** Vikas Pal  
-**Last updated:** 2026-09-26  
+**Last updated:** 2026-09-26. Shipped: N3, N8, most of N6 and N7, X2, X3, X5, X6, X4 (except custom range) and the six new cards. Blocked on real exports: N1, N2, X1.  
 **Format:** Now / Next / Later. Phases are ordered by priority, not by date. The only fixed date is the Diwali launch window.
 
 This document sets the direction. The requirements for the current release live in [`PRD.md`](PRD.md), and what "done" means lives in [`ACCEPTANCE_CRITERIA.md`](ACCEPTANCE_CRITERIA.md).
@@ -59,14 +59,14 @@ Wrapped products live or die by timing. Three moments matter for Indian traders:
 
 | # | Item | Why | Size |
 |---|------|-----|------|
-| N1 | **Launch gate:** a local verification script, and net P&L within ±0.5% of Console on ≥ 5 real accounts | This is the product’s credibility | M |
-| N2 | **Console P&L statement** import: exact charges, and a value for positions settled at expiry | Turns “estimated” into “exact”, and closes the expiry gap in card 1 | M |
-| N3 | **XLSX tradebooks** | Many users download XLSX by default | S |
-| N4 | **Rates checked against primary sources** (Zerodha, NSE/BSE, circulars); add windows **before Oct 2024** and for BSE futures | FY 2024-25 data is common; right now it shows “charges unavailable” | S |
-| N5 | Confirm the PRD §10 decisions (D-1 … D-16) | They define what every card means | S |
-| N6 | Launch polish: Open Graph preview image and meta tags, iOS Safari manual pass, an accessibility pass (keyboard and screen reader through all 9 cards) | The link preview is the first impression on WhatsApp and X | S |
-| N7 | Repo hygiene: default branch → `main`, branch protection, CONTRIBUTING and a security contact | So deploys and outside contributions work predictably | S |
-| N8 | Clear copy that the app is **not affiliated with Zerodha**, plus a short privacy page explaining how to verify the no-upload claim | Trust, and staying on the right side of trademark use | S |
+| N1 | ⏳ needs real P&L statement exports · **Launch gate:** a local verification script, and net P&L within ±0.5% of Console on ≥ 5 real accounts | This is the product’s credibility | M |
+| N2 | ⏳ needs real P&L statement exports · **Console P&L statement** import: exact charges, and a value for positions settled at expiry | Turns “estimated” into “exact”, and closes the expiry gap in card 1 | M |
+| N3 | ✅ **XLSX tradebooks** | Many users download XLSX by default | S |
+| N4 | ⏳ needs primary-source checks (zerodha.com is blocked from the build environment) · **Rates checked against primary sources** (Zerodha, NSE/BSE, circulars); add windows **before Oct 2024** and for BSE futures | FY 2024-25 data is common; right now it shows “charges unavailable” | S |
+| N5 | ⏳ owner · Confirm the PRD §10 decisions (D-1 … D-16) | They define what every card means | S |
+| N6 | ◐ link preview, meta tags and accessibility pass ✅; iOS Safari manual pass needs a device (owner) · Launch polish: Open Graph preview image and meta tags, iOS Safari manual pass, an accessibility pass (keyboard and screen reader through all 9 cards) | The link preview is the first impression on WhatsApp and X | S |
+| N7 | ◐ docs and templates ✅; default branch and protection need the owner · Repo hygiene: default branch → `main`, branch protection, CONTRIBUTING and a security contact | So deploys and outside contributions work predictably | S |
+| N8 | ✅ Clear copy that the app is **not affiliated with Zerodha**, plus a short privacy page explaining how to verify the no-upload claim | Trust, and staying on the right side of trademark use | S |
 
 **Deliberately not in Now:** new cards, other brokers, and languages. Launching accurate beats launching broad.
 
@@ -80,21 +80,21 @@ Wrapped products live or die by timing. Three moments matter for Indian traders:
 
 | # | Item | Notes |
 |---|------|-------|
-| X1 | **More brokers**, in order of F&O user base: Groww, Angel One, Upstox, Dhan | Each needs a verified export spec, a parser and a symbol map, plus its own rate table (brokerage differs). The engine is already broker-agnostic from the fill level down. |
-| X2 | **Hindi**, then other languages by demand | The card copy is short, so it’s cheap to translate. Numbers keep the Indian digit grouping. |
-| X3 | **Installable app (PWA)** with offline support | Works with no network after the first visit, which is a stronger privacy story |
+| X1 | ⏳ needs real exports per broker · **More brokers**, in order of F&O user base: Groww, Angel One, Upstox, Dhan | Each needs a verified export spec, a parser and a symbol map, plus its own rate table (brokerage differs). The engine is already broker-agnostic from the fill level down. |
+| X2 | ✅ **Hindi**, then other languages by demand | The card copy is short, so it’s cheap to translate. Numbers keep the Indian digit grouping. |
+| X3 | ✅ **Installable app (PWA)** with offline support | Works with no network after the first visit, which is a stronger privacy story |
 
 ### 6.2 More useful views
 
 | # | Item | Notes |
 |---|------|-------|
-| X4 | **Period picker:** Samvat year, calendar year, financial year, or a custom range | Needed for the December and March moments |
-| X5 | **Year-over-year:** drop two years and see what changed | “Charges fell by ₹X; revenge trades halved.” Only facts, no judgement |
-| X6 | **A share image per card**, plus a choice of 3 headlines on the summary | People share the card that surprised them, not always the summary |
+| X4 | ◐ Samvat, calendar and financial years ✅. Custom range deliberately not built: it would need raw trades kept in memory, or the worker kept alive, after analysis (P1). Revisit if users ask · **Period picker:** Samvat year, calendar year, financial year, or a custom range | Needed for the December and March moments |
+| X5 | ✅ **Year-over-year:** drop two years and see what changed | “Charges fell by ₹X; revenge trades halved.” Only facts, no judgement |
+| X6 | ✅ **A share image per card**, plus a choice of 3 headlines on the summary | People share the card that surprised them, not always the summary |
 
-### 6.3 New cards (each needs a formula in ARCHITECTURE, tests, and a threshold)
+### 6.3 New cards ✅ shipped (formulas: ARCHITECTURE §7.3)
 
-Candidates to validate with users before building:
+All six are built. Each appears only when there is enough data for it. Validate with users which ones earn their place:
 
 | Card | Question it answers |
 |------|---------------------|
