@@ -1,0 +1,46 @@
+name: Accuracy report
+description: A number didn't match your broker's P&L statement (or it did; that helps too).
+title: "Accuracy: "
+labels: [accuracy]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please don't paste amounts, symbols, trades or files.** A percentage and a date range are enough to investigate.
+  - type: dropdown
+    id: result
+    attributes:
+      label: Did net P&L match Console?
+      options:
+        - "Yes, within 0.5%"
+        - "No, off by more than 0.5%"
+    validations:
+      required: true
+  - type: input
+    id: diff
+    attributes:
+      label: Difference in net P&L (%)
+      description: "(F&O Wrapped − Console) ÷ Console × 100, e.g. -1.2"
+    validations:
+      required: true
+  - type: input
+    id: range
+    attributes:
+      label: Date range of your tradebook
+      placeholder: "2025-04-01 to 2026-03-31"
+    validations:
+      required: true
+  - type: checkboxes
+    id: context
+    attributes:
+      label: What did your trades include?
+      options:
+        - label: NSE index options
+        - label: BSE (Sensex/Bankex) options
+        - label: Stock options
+        - label: Futures
+        - label: Options held to expiry
+  - type: input
+    id: version
+    attributes:
+      label: Engine and rate table version (bottom of the "Your year" card)

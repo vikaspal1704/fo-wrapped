@@ -3,11 +3,12 @@ import type { FileStatus } from './useAnalysis';
 
 interface Props {
   onFiles: (files: File[]) => void;
+  onPrivacy: () => void;
   files: FileStatus[];
   error: string | null;
 }
 
-export function Landing({ onFiles, files, error }: Props) {
+export function Landing({ onFiles, onPrivacy, files, error }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -51,7 +52,10 @@ export function Landing({ onFiles, files, error }: Props) {
         }}
       />
       <p className="privacy">
-        <span aria-hidden="true">🔒 </span>Files are processed on your device and never uploaded.
+        <span aria-hidden="true">🔒 </span>Files are processed on your device and never uploaded.{' '}
+        <button type="button" className="link" onClick={onPrivacy}>
+          How to check
+        </button>
       </p>
 
       {error && (
@@ -77,7 +81,13 @@ export function Landing({ onFiles, files, error }: Props) {
       </section>
 
       <footer className="footnote">
-        Free and open source. No sign-up, no tracking. Not investment or tax advice.
+        <p>Free and open source. No sign-up, no tracking. Not investment, trading or tax advice.</p>
+        <p>
+          Independent project, not affiliated with Zerodha, NSE or BSE.{' '}
+          <button type="button" className="link" onClick={onPrivacy}>
+            Privacy &amp; about
+          </button>
+        </p>
       </footer>
     </main>
   );

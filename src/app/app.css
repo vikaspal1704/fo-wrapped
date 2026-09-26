@@ -94,7 +94,7 @@ h1 {
   padding: 1.1rem;
   border: 0;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), #a855f7);
+  background: linear-gradient(135deg, #7050f5, #8b3fd9);
   color: #fff;
   font-size: 1.15rem;
   font-weight: 700;
@@ -415,7 +415,18 @@ h1 {
   height: 5.5rem;
 }
 
+.heatmap {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.heatmap li {
+  display: flex;
+}
+
 .heatmap .cell {
+  flex: 1;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -513,7 +524,8 @@ h1 {
 
 .primary {
   border: 0;
-  background: var(--accent);
+  /* Darker than --accent so white text meets 4.5:1 (5.05:1). */
+  background: #7050f5;
   color: #fff;
 }
 
@@ -592,4 +604,40 @@ h1 {
   .progress > div {
     transition: none;
   }
+}
+
+/* ---------- Privacy & about ---------- */
+
+.page h1 {
+  margin-top: 1rem;
+  font-size: 2rem;
+}
+
+.page h2 {
+  margin: 1.75rem 0 0.5rem;
+  font-size: 1.1rem;
+  color: var(--accent-2);
+}
+
+.page ul,
+.page ol {
+  padding-left: 1.25rem;
+}
+
+.page li {
+  margin-bottom: 0.5rem;
+}
+
+.page a,
+.footnote a {
+  color: var(--accent-2);
+}
+
+.footnote p {
+  margin: 0.25rem 0;
+}
+
+.version {
+  margin: 0;
+  font-size: 0.72rem;
 }

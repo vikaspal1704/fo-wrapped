@@ -81,6 +81,10 @@ export function Summary({ summary, result, onClear }: Props) {
         </ul>
       )}
 
+      <p className="muted version">
+        Engine {result.engineVersion} · rates {result.rateTableVersion}
+      </p>
+
       {/* Off-screen 1080×1920 source for the PNG. Only the 3 headlines,
           the year and the site URL: no symbols, trades or account details. */}
       <div className="share-image" ref={imageRef} aria-hidden="true" data-testid="share-image">

@@ -75,12 +75,13 @@ test('e2e_no_storage_writes', async ({ page }) => {
 test('e2e_clear_data_resets', async ({ page }) => {
   await upload(page, YEAR);
   await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
-  // The worker is terminated as soon as the result arrives.
-  expect(page.workers()).toHaveLength(0);
+  // The worker that saw the data is terminated when the result arrives;
+  // only one fresh, empty spare worker remains.
+  await expect.poll(() => page.workers().length).toBe(1);
   await page.getByRole('button', { name: 'Clear data' }).click();
   await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
   await expect(page.getByText('₹')).toHaveCount(0);
-  expect(page.workers()).toHaveLength(0);
+  expect(page.workers()).toHaveLength(1);
 });
 
 test('e2e_rejects_wrong_file_with_message', async ({ page }) => {
@@ -126,4 +127,24 @@ test.describe('mobile', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow).toBe(false);
   });
+});
+
+test('e2e_works_offline_after_load', async ({ page, context }) => {
+  await page.goto('./');
+  await page.waitForLoadState('networkidle');
+  await context.setOffline(true);
+  await page.getByTestId('file-input').setInputFiles(YEAR);
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  await toSummary(page);
+  await context.setOffline(false);
+});
+
+test('e2e_privacy_page', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Privacy & about' }).click();
+  await expect(page.getByRole('heading', { name: 'Your data stays on your device' })).toBeVisible();
+  await expect(page.getByText(/not affiliated with, endorsed by or sponsored by Zerodha/)).toBeVisible();
+  await expect(page).toHaveURL(/#privacy$/);
+  await page.getByRole('button', { name: '← Back' }).click();
+  await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
 });

@@ -23,21 +23,22 @@ export function YourClock({ card }: { card: CardSet['yourClock'] }) {
         const worst = d.worstIndex !== null ? d.buckets[d.worstIndex]! : null;
         return (
           <>
-            <div className="heatmap" role="list" aria-label="P&L by entry time, 15-minute slots">
+            <ul className="heatmap" aria-label="P&L by entry time, 15-minute slots">
               {d.buckets.map((b, i) => (
-                <button
-                  type="button"
-                  role="listitem"
-                  key={b.startMinuteIst}
-                  className={`cell${i === shown ? ' picked' : ''}`}
-                  style={{ background: fill(b, max) }}
-                  aria-label={`${slot(b)}: ${b.trades} trades, ${signedInr(b.pnlPaise)}`}
-                  title={`${slot(b)} · ${b.trades} trades · ${signedInr(b.pnlPaise)}`}
-                  onClick={() => setPicked(i)}
-                  onMouseEnter={() => setPicked(i)}
-                />
+                <li key={b.startMinuteIst}>
+                  <button
+                    type="button"
+                    className={`cell${i === shown ? ' picked' : ''}`}
+                    style={{ background: fill(b, max) }}
+                    aria-label={`${slot(b)}: ${b.trades} trades, ${signedInr(b.pnlPaise)}`}
+                    aria-pressed={i === shown}
+                    title={`${slot(b)} · ${b.trades} trades · ${signedInr(b.pnlPaise)}`}
+                    onClick={() => setPicked(i)}
+                    onMouseEnter={() => setPicked(i)}
+                  />
+                </li>
               ))}
-            </div>
+            </ul>
             <div className="heatmap-marks" aria-hidden="true">
               {d.buckets.map((b, i) => (
                 <span key={b.startMinuteIst} className={i === d.bestIndex ? 'profit' : 'loss'}>
