@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import type { AnalysisResult, PeriodKind } from '../engine';
 import { FileList } from '../app/Landing';
 import type { FileStatus } from '../app/useAnalysis';
@@ -12,6 +12,7 @@ import { HoldingTime } from './HoldingTime';
 import { BestWorstDay } from './BestWorstDay';
 import { Summary } from './Summary';
 import { WhatChanged } from './WhatChanged';
+import { CardShare } from '../share/CardShare';
 import { BusyDays, BuyerVsSeller, ChargesDrag, PositionSize, Underlyings, Weekday } from './ExtraCards';
 
 interface Props {
@@ -63,7 +64,9 @@ export function Story({ result, files, onClear }: Props) {
   const last = slides.length - 1;
   const go = useCallback((delta: number) => setIndex((i) => Math.min(last, Math.max(0, i + delta))), [last]);
 
-  useEffect(() => {
+  // Layout effect: the key listener is attached before the first paint, so
+  // an arrow key pressed as soon as the card appears is never lost.
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') go(1);
       if (e.key === 'ArrowLeft') go(-1);
@@ -158,6 +161,9 @@ export function Story({ result, files, onClear }: Props) {
           </div>
         )}
         {slide.node}
+        {index < last && (
+          <CardShare key={`${view.period.id}-${index}`} node={slide.node} title={slide.title} periodTitle={view.title} siteUrl={cards.summary.siteUrl} />
+        )}
         {index < last && (
           <>
             <button type="button" className="tap-zone prev" aria-label="Previous card" onClick={tap(-1)} disabled={index === 0} />

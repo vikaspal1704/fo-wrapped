@@ -208,3 +208,25 @@ test('e2e_period_picker_and_comparison', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Your year' })).toBeVisible();
   await expect(page.getByText('My F&O year · FY 2026-27')).toBeVisible();
 });
+
+test('e2e_share_single_card', async ({ page }) => {
+  await upload(page, YEAR);
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('heading', { name: 'Right but broke' })).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Share this card: Right but broke' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('fo-wrapped-samvat-2082-right-but-broke.png');
+  const path = (await download.path())!;
+  const png = readFileSync(path);
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1080, 1920]);
+  if (process.env.SHOTS_DIR) (await import('node:fs')).copyFileSync(path, `${process.env.SHOTS_DIR}/card-share.png`);
+  // The off-screen frame exists only while exporting.
+  await expect(page.getByTestId('card-share-image')).toHaveCount(0);
+  // The card is still interactive afterwards.
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('heading', { name: 'Expiry day' })).toBeVisible();
+});
