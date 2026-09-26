@@ -23,21 +23,39 @@ async function upload(page: Page, files: string | { name: string; mimeType: stri
 
 async function toSummary(page: Page) {
   await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
-  for (let i = 1; i < TITLES.length; i++) await page.keyboard.press('ArrowRight');
+  const total = Number((await page.getByTestId('slide-count').textContent())!.split('/')[1]);
+  for (let i = 1; i < total; i++) await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('heading', { name: 'Your year' })).toBeVisible();
 }
 
 test('e2e_upload_to_cards', async ({ page }) => {
   await upload(page, YEAR);
-  for (const [i, title] of TITLES.entries()) {
+  const core = TITLES.slice(0, 8);
+  for (const title of core) {
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
-    await expect(page.getByTestId('slide-count')).toHaveText(`${i + 1} / ${TITLES.length}`);
     await expect(page.getByText('Not enough trades to say.')).toHaveCount(0);
-    if (i < TITLES.length - 1) await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
   }
+  // Optional cards appear only with enough data, so never as "not enough".
+  const extras: string[] = [];
+  while (!(await page.getByRole('heading', { name: 'Your year' }).isVisible())) {
+    extras.push((await page.locator('section.card .card-title').first().textContent())!);
+    await expect(page.getByText('Not enough trades to say.')).toHaveCount(0);
+    await page.keyboard.press('ArrowRight');
+  }
+  expect(extras).toEqual(['Buyer or seller', 'Busy days', 'Day of the week', 'Position size', 'Charges drag']);
+  await expect(page.getByTestId('slide-count')).toHaveText(`${core.length + extras.length + 1} / ${core.length + extras.length + 1}`);
   await expect(page.getByRole('button', { name: 'Download image' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
   await expect(page.locator('section.card').getByText('My F&O year · Samvat 2082')).toBeVisible();
+});
+
+test('e2e_skip_to_end', async ({ page }) => {
+  await upload(page, YEAR);
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  await page.getByRole('button', { name: 'Skip to end' }).click();
+  await expect(page.getByRole('heading', { name: 'Your year' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skip to end' })).toHaveCount(0);
 });
 
 test('e2e_no_network_during_analysis', async ({ page, baseURL }) => {

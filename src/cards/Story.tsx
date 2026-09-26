@@ -12,6 +12,7 @@ import { HoldingTime } from './HoldingTime';
 import { BestWorstDay } from './BestWorstDay';
 import { Summary } from './Summary';
 import { WhatChanged } from './WhatChanged';
+import { BusyDays, BuyerVsSeller, ChargesDrag, PositionSize, Underlyings, Weekday } from './ExtraCards';
 
 interface Props {
   result: AnalysisResult;
@@ -41,6 +42,17 @@ export function Story({ result, files, onClear }: Props) {
     { title: 'Revenge trades', node: <RevengeTrades card={cards.revengeTrades} /> },
     { title: 'Diamond hands, paper hands', node: <HoldingTime card={cards.holdingTime} /> },
     { title: 'Best day, worst day', node: <BestWorstDay card={cards.bestWorstDay} /> },
+    // Extra cards only appear when there's enough data for them.
+    ...[
+      { title: 'Buyer or seller', ok: cards.buyerVsSeller.status === 'OK', node: <BuyerVsSeller card={cards.buyerVsSeller} /> },
+      { title: 'What you traded', ok: cards.underlyings.status === 'OK', node: <Underlyings card={cards.underlyings} /> },
+      { title: 'Busy days', ok: cards.busyDays.status === 'OK', node: <BusyDays card={cards.busyDays} /> },
+      { title: 'Day of the week', ok: cards.weekday.status === 'OK', node: <Weekday card={cards.weekday} /> },
+      { title: 'Position size', ok: cards.positionSize.status === 'OK', node: <PositionSize card={cards.positionSize} /> },
+      { title: 'Charges drag', ok: cards.chargesDrag.status === 'OK', node: <ChargesDrag card={cards.chargesDrag} /> },
+    ]
+      .filter((x) => x.ok)
+      .map(({ title, node }) => ({ title, node })),
     ...(view.comparison ? [{ title: 'What changed', node: <WhatChanged comparison={view.comparison} currentLabel={view.period.label} /> }] : []),
     {
       title: 'Your year',
@@ -115,13 +127,17 @@ export function Story({ result, files, onClear }: Props) {
               })}
             </select>
           </label>
-          <span>
+          <span className="meta-actions">
             <span data-testid="slide-count">
               {index + 1} / {slides.length}
             </span>
-            {' · '}
-            <button type="button" className="link" onClick={onClear}>
-              Clear data
+            {index < last && (
+              <button type="button" className="link" onClick={() => setIndex(last)} aria-label="Skip to end">
+                Skip ›
+              </button>
+            )}
+            <button type="button" className="link" onClick={onClear} aria-label="Clear data">
+              Clear
             </button>
           </span>
         </div>

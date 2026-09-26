@@ -1,7 +1,11 @@
 import type { ChargesBreakdown } from './charges/types';
+import { computeExtraCards, type ExtraCards } from './cardsExtra';
 import { formatInr, formatPct } from './format';
+import { median } from './stats';
 import { istMinuteOfDay } from './time';
-import type { EpochMs, Fill, IstDate, Paise, RoundTrip } from './types';
+
+export { median };
+import type { EpochMs, Exchange, Fill, IstDate, Paise, RoundTrip } from './types';
 
 export type CardResult<T> =
   | { status: 'OK'; data: T; notes: string[] }
@@ -29,7 +33,7 @@ export interface Totals {
   excludedUnclosedCount: number;
 }
 
-export interface CardSet {
+export interface CardSet extends ExtraCards {
   theNumber: CardResult<{ netPnlPaise: Paise; totalTrades: number; tradedValuePaise: Paise; estimated: boolean }>;
   whereMoneyWent: CardResult<{ grossPnlPaise: Paise; chargesPaise: Paise; chargesPctOfGrossProfit: number | null; estimated: boolean }>;
   rightButBroke: CardResult<{ winRate: number; avgWinPaise: number; avgLossPaise: number; wins: number; losses: number }>;
@@ -61,13 +65,6 @@ const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 const isWin = (rt: RoundTrip) => rt.grossPnlPaise > 0;
 const isLoss = (rt: RoundTrip) => rt.grossPnlPaise < 0;
 
-/** Middle value; for an even count the mean of the two middle values, rounded half up. */
-export function median(values: readonly number[]): number {
-  const s = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid]! : Math.floor((s[mid - 1]! + s[mid]! + 1) / 2);
-}
-
 export function computeCards(input: {
   roundTrips: readonly RoundTrip[];
   fills: readonly Fill[];
@@ -75,6 +72,8 @@ export function computeCards(input: {
   samvat: string | null;
   /** Summary heading for this period, e.g. 'Samvat 2082' or 'FY 2025-26'. */
   periodTitle?: string;
+  /** Underlyings charged at index rates; used by the underlyings card. */
+  indexUnderlyings?: Record<Exchange, readonly string[]>;
   siteUrl: string;
 }): CardSet {
   const { roundTrips: rts, fills, totals } = input;
@@ -121,6 +120,7 @@ export function computeCards(input: {
   const summaryHeadlines = headlines(theNumber, whereMoneyWent, rightButBrokeCard(rts), totals, rts.length, daysTraded);
 
   return {
+    ...computeExtraCards({ roundTrips: rts, totals, indexUnderlyings: input.indexUnderlyings ?? { NSE: [], BSE: [] } }),
     theNumber,
     whereMoneyWent,
     rightButBroke: rightButBrokeCard(rts),

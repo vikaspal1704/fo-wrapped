@@ -155,7 +155,15 @@ function buildView(
   };
   const title = isAll ? (ctx.samvat ? `Samvat ${ctx.samvat}` : null) ?? 'All trades' : period.label;
   const samvatOfView = period.kind === 'SAMVAT' ? period.label.replace('Samvat ', '') : isAll ? ctx.samvat : null;
-  const cards = computeCards({ roundTrips, fills, totals, samvat: samvatOfView, periodTitle: title, siteUrl: ctx.siteUrl });
+  const cards = computeCards({
+    roundTrips,
+    fills,
+    totals,
+    samvat: samvatOfView,
+    periodTitle: title,
+    indexUnderlyings: ctx.rates.indexUnderlyings,
+    siteUrl: ctx.siteUrl,
+  });
 
   const warnings: string[] = [];
   if (charges) warnings.push('Charges are estimated from published rates.');

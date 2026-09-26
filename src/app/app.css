@@ -699,3 +699,10 @@ h1 {
 .changes td.now {
   font-weight: 700;
 }
+
+.meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
