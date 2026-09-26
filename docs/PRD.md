@@ -9,7 +9,7 @@
 
 ## 1. One-liner
 
-A free, no-signup web app. An Indian F&O trader drops in their broker tradebook and gets a set of honest, shareable “Wrapped”-style cards about their trading year. Everything runs in the browser, and **no data ever leaves the device**.
+A free, no-signup web app. An Indian F&O trader drops in their broker’s trade file (Zerodha, Angel One, Upstox or Dhan) and gets a set of honest, shareable “Wrapped”-style cards about their trading year. Everything runs in the browser, and **no data ever leaves the device**.
 
 ## 2. Goals
 
@@ -74,6 +74,7 @@ A free, no-signup web app. An Indian F&O trader drops in their broker tradebook 
 | F-IN-3 | **MUST** optionally accept the Console **P&L statement**. When present, its realized P&L and charges totals are the **source of truth** for totals; the tradebook is used only for pattern analysis. |
 | F-IN-4 | **MUST** validate every row with **Zod**. An unrecognised file is rejected with a human-readable error. **Never guess** at a column, format, or value. |
 | F-IN-5 | **MUST** reject files from unsupported segments (equity, currency, commodity) with a message naming the right Console download. |
+| F-IN-7 | **SHOULD** accept other brokers’ F&O exports (ROADMAP X1): Angel One Trades History, the Upstox trade report and Dhan’s Global Transaction Report, each only in a layout recorded in [`BROKERS.md`](BROKERS.md). When a broker’s file carries its own charges, those are used instead of an estimate. A broker whose F&O layout hasn’t been seen (Groww) is recognised and explained, never guessed. |
 | F-IN-6 | **MUST NOT** upload, persist (localStorage / IndexedDB / cookies), or transmit any file contents or derived data. |
 
 ### 7.2 Engine (the part that must be correct)
@@ -159,3 +160,5 @@ The source spec leaves the items below open. Each has a **proposed default** tha
 | D-19 | Extra cards with too little data | Hidden, not shown as “not enough” (the core 8 always show). |
 | D-20 | Language preference | From `?lang=` or the browser; never stored. Hindi copy to be reviewed by a native speaker before launch. |
 | D-21 | Per-card share images | Contain exactly what the card shows, plus the period and site URL; never file names or account IDs. |
+| D-22 | Files without trade times (Angel One, Dhan) | The cards that need times or an opening direction (your clock, revenge trades, holding time, busy days, buyer or seller) are **hidden**, with one note on the first card saying why. A “trade” becomes one contract’s activity on one day. Totals are unaffected. See [`BROKERS.md`](BROKERS.md) §3. |
+| D-23 | Positions at different brokers | Never netted: FIFO runs per broker and contract. Charges come from each broker’s own file when it has them, else from that broker’s rates, and the card says which (“broker’s own figures”, “estimated”, or “partly each”). |

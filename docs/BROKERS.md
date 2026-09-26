@@ -32,6 +32,8 @@ Every parser still needs a check against a real export from a user before launch
 | **F&O rows seen in a real file** | yes | yes | options (`OPTIDX`, `OPTSTK`, `BSXOPT`) | options (`European Call/Put`) | options and futures (`OPT …`, `FUT …`) | **no** |
 | **Supported in F&O Wrapped** | ✅ | ✅ (P&L statement) | ✅ beta | ✅ beta, options only | ✅ beta | ❌ recognised, not supported yet |
 
+A file is recognised by its **header row** (or, for the P&L statement, its title), never by its name: `readBrokerFile()` in `src/engine/parse/readFile.ts`. Checked on 2026-09-26 against every redacted real export listed in §1: each supported layout parsed (Dhan: all 1,400+ rows’ charges add up to their `Gross Amount`), and every other file (ledgers, tax P&Ls, other brokers) was rejected with a message.
+
 ### 2.1 Angel One: Trades History
 
 - **Where:** Angel One app → Reports → Trades History → download XLSX.
@@ -48,7 +50,9 @@ Every parser still needs a check against a real export from a user before launch
 - **Layout:** a 10-row preamble (company, UCC, name, PAN, `Report Time Period`, `Generated On`), then:
   `Date | Company | Amount | Exchange | Segment | Scrip Code | Instrument Type | Strike Price | Expiry | Trade Num | Trade Time | Side | Quantity | Price`
 - **Options:** `Instrument Type` = `European Call` / `European Put`; `Strike Price` is a number; `Expiry` is `dd-mm-yyyy`; `Company` holds the underlying; SENSEX appears as BSE’s contract code `BSX` on exchange `FOB`.
-- **Not seen:** futures rows, and NSE F&O exchange and segment labels. Futures are rejected; an option row is accepted on its `Instrument Type`, whatever the exchange label, with BSE detected by `FOB` or `BSX`.
+- **F&O rows:** `Segment` = `FO`; `Exchange` = `FON` (NSE) or `FOB` (BSE); `Scrip Code` = the underlying (`NIFTY`), except BSE’s code `BSX` for SENSEX. Other segments (`EQ`) are skipped; any other exchange label is rejected.
+- **Checks:** `Amount` must equal `Quantity × Price` (to the paisa); `Expiry` must not be before the trade date.
+- **Not seen:** futures rows, and stock options. Futures are rejected until a real row is seen.
 - **No order IDs**, so brokerage (per executed order) is estimated by treating fills of the same contract and side in the same second as one order, and labelled *estimated*.
 
 ### 2.3 Dhan: Global Transaction Report
@@ -56,7 +60,7 @@ Every parser still needs a check against a real export from a user before launch
 - **Where:** Dhan web → Reports → Global Transaction Report → download CSV.
 - **Layout:** `Global transction report,From dd-mm-yyyy to dd-mm-yyyy` (sic), 5 preamble lines, then:
   `Date,Scrip Name,Exchange,Bill No.,Buy Qty.,Buy Value,Sell Qty.,Sell Value,Brokerage,GST,STT,SEBI Fees,Stamp Duty,Txn. Charges,Oth. Charges,Gross Amount`
-- **Rows:** one row per contract per day, totals only; `Date` is `dd-mm-yyyy 00:00`. `OPT NIFTY 07 Apr 2026 23000 CE`, `OPT SENSEX 20 Aug 2026 77600 CE` (BSE), `FUT WIPRO 28 Apr 2026`. Equity and MCX rows are skipped.
+- **Rows:** one row per contract per day, totals only; `Date` is `dd-mm-yyyy 00:00`. `Gross Amount` = sell value − buy value − all charges, and every row is checked against it. `OPT NIFTY 07 Apr 2026 23000 CE`, `OPT SENSEX 20 Aug 2026 77600 CE` (BSE), `FUT WIPRO 28 Apr 2026`. Equity and MCX rows are skipped.
 - **Footer:** `Net P&L,…,Brokerage,…,Gross P&L,…,Total Charges,…` and a `NOTE : This sheet was downloaded at …` line.
 
 ### 2.4 Zerodha: Console P&L statement
@@ -66,9 +70,13 @@ Every parser still needs a check against a real export from a user before launch
   `Symbol | ISIN | Quantity | Buy Value | Sell Value | Realized P&L | Realized P&L Pct. | Previous Closing Price | Open Quantity | Open Quantity Type | Open Value | Unrealized P&L | Unrealized P&L Pct.`
 - **Values** carry up to 4 decimals (e.g. `20099.9999`) and are rounded to the nearest paise on import.
 
+### 2.4a Zerodha: XLSX tradebook
+
+- Redacted real **equity** XLSX tradebooks show the layout: `Client ID`, a `Tradebook for <segment> from … to …` title, data from column B, and headers in Title Case with spaces (`Trade Date`, `Order Execution Time`). The parser treats `Trade Date` and `trade_date` as the same header. An F&O XLSX (with `Expiry Date`) is still to be checked.
+
 ### 2.5 Groww: not supported yet
 
-Every public sample found is **stocks only**: an order history (`Stock name | Symbol | ISIN | Type | Quantity | Value | Exchange | Exchange Order Id | Execution date and time | Order status`, one row per order, time to the minute) and a stocks P&L. Groww’s F&O P&L report exists ([help page](https://groww.in/help/stocks,-f&o,-ipo-&-mtf/sx-reports/what-is-a-f-o-p-l-report--10)) but its layout hasn’t been seen. F&O Wrapped recognises Groww files and explains that F&O support needs a real F&O export, which can be shared through the “New broker export” issue template.
+Every public sample found is **stocks only**: an order history (`Stock name | Symbol | ISIN | Type | Quantity | Value | Exchange | Exchange Order Id | Execution date and time | Order status`, one row per order, time to the minute) and a stocks P&L. Groww’s F&O P&L report exists ([help page](https://groww.in/help/stocks,-f&o,-ipo-&-mtf/sx-reports/what-is-a-f-o-p-l-report--10)) but its layout hasn’t been seen. Groww reports open with a `Name` / `Unique Client Code` preamble, and the order history has `Exchange Order Id` and `Execution date and time` columns; F&O Wrapped recognises either and explains that F&O support needs a real F&O export, which can be shared through the “New broker export” issue template. Groww’s Trade API was not used: it would need a login, and the app never connects to a broker (ROADMAP P1).
 
 ---
 

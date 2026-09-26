@@ -92,8 +92,8 @@
 | `flags_future_expiry_position_as_open` | Expiry after last trade date | `OPEN`; excluded |
 | `position_still_open_on_its_expiry_day_is_settled` | Expiry == last trade date, no closing fill | `SETTLED_AT_EXPIRY` |
 | `excluded_positions_are_reported` | 2 unclosed | `totals.excludedUnclosedCount = 2`; card 1 note present |
-| `values_settled_position_from_pnl_statement` ⏳ *pending sample export* | Settled CE + statement per-symbol row | RT with `exitKind: 'EXPIRY'`, gross = statement − closed part |
-| `settled_position_without_symbol_row_stays_excluded` ⏳ *pending sample export* | Statement with `perSymbol = null` | Excluded; warning present |
+| `values_settled_position_from_pnl_statement` | Settled CE + statement per-symbol row | RT with `exitKind: 'EXPIRY'`, gross = statement − closed part |
+| `settled_position_without_symbol_row_stays_excluded` | Statement with no row for the symbol | Excluded; warning present |
 | `as_of_is_last_trade_date_not_today` | Fake system clock far in the future | Same classification |
 
 ### Charges
@@ -111,10 +111,10 @@
 | `uses_rate_window_for_trade_date` | Fills either side of a rate change | Each charged at its own window’s rate |
 | `missing_rate_window_throws` | Fill before earliest window | `ChargesUnavailableError` |
 | `charges_marked_estimated_without_statement` | No statement | `totals.source = 'ESTIMATED'`; card notes say *estimated* |
-| `statement_totals_override_calculator` ⏳ *pending sample export* | With statement | `totals` equal statement values; `source = 'PNL_STATEMENT'` |
+| `statement_totals_override_calculator` | With statement | `totals` equal statement values; `source = 'PNL_STATEMENT'` |
 | `analyzes_synthetic_fixture_end_to_end` | `analyze()` on the synthetic fixture | Totals, Samvat 2082, date range, expected card statuses |
 | `charges_unavailable_keeps_other_cards` | Trades before the first rate window | `charges = null`, cards 1–2 insufficient, warning present, gross still computed |
-| `rejects_statement_with_non_overlapping_period` ⏳ *pending sample export* | Statement 2022, tradebook 2024 | `PeriodMismatchError` |
+| `rejects_statement_with_non_overlapping_period` | Statement 2022, tradebook 2024 | Rejected; the message shows both ranges |
 
 ### Cards
 
@@ -162,6 +162,53 @@
 | `rejects_corrupt_xlsx` | Zip header, no archive | `UnrecognizedFileError` |
 | `rejects_legacy_xls_with_message` | OLE2 `.xls` bytes | Plain-language “old .xls” message |
 | `csv_path_unchanged_through_parseTradebookFile` | CSV via the async entry point | Same fills as `parseTradebook` |
+| `parses_xlsx_with_console_headers` | Title Case headers (`Trade Date`), data from column B | Same fills as the CSV |
+| `rejects_equity_xlsx_tradebook` | Real equity XLSX layout (no `Expiry Date`) | “is an Equity tradebook” |
+
+### P&L statement (API_CONTRACT §3)
+
+| Test | Setup | Expect |
+|------|-------|--------|
+| `rounds_statement_values_to_paise` | `20099.9999`, `-0.005`, `1,234.565` | Nearest paise, halves away from zero |
+| `parses_console_pnl_statement` | Synthetic statement in the real layout | Period, realised P&L, charges by head (clearing + IPFT → other), per-symbol rows |
+| `rejects_equity_pnl_statement` | Title “for Equity” | Message names the segment |
+| `rejects_statement_whose_charges_dont_add_up` | Heads ≠ printed total | Rejected |
+| `warns_when_tradebook_and_statement_differ` | Tradebook P&L 1% off | Warning; statement used |
+| `statement_never_split_across_periods` | Statement spans two FYs | Applies to “All” only; FY views estimated with a note |
+
+### Brokers (docs/BROKERS.md)
+
+| Test | Setup | Expect |
+|------|-------|--------|
+| `positions_at_different_brokers_never_net` | Buy at Zerodha, sell at Angel One | Two open positions, no round trip |
+| `same_trade_id_at_different_brokers_is_not_a_duplicate` | Same trade ID, two brokers | Both kept |
+| `date_only_fills_aggregate_per_contract_day_side` | 3 buys, 2 sells, one day | One BUY and one SELL fill |
+| `date_only_reduces_carried_position_first` | Long carried in; buy and sell next day | Sell applied first |
+| `date_only_totals_match_any_intraday_order` | Same fills, shuffled | Same gross |
+| `value_based_fifo_keeps_averaged_rows_exact` | Daily-total rows with odd values | Gross equals value difference exactly |
+| `reported_charges_replace_estimates` | Angel One fills + records | `source = 'BROKER'`, charges = records |
+| `mixed_brokers_label_charges_mixed` | Zerodha + Angel One | `source = 'MIXED'` |
+| `time_cards_hidden_without_trade_times` | Date-only fills | Clock, revenge, holding, busy days, buyer/seller: `code = 'NO_TRADE_TIMES'` |
+| `upstox_brokerage_groups_same_second_fills` | Upstox fills, no order IDs | One order per contract, side and second |
+| `parses_angelone_trades_history` | Synthetic file in the real layout | F&O fills (date only), equity skipped, brokerage rows as charges |
+| `angelone_charges_are_exact_in_analysis` | Angel One file | `source = 'BROKER'`; clock card hidden |
+| `rejects_angelone_futures` | `FUTIDX …` row | “Futures from Angel One aren’t supported yet” |
+| `rejects_angelone_file_without_fno_rows` | Equity rows only | “has no F&O trades” |
+| `parses_upstox_trade_report` | Synthetic file in the real layout | `FON`/`FOB`, `BSX` → SENSEX, times to the second, no order IDs |
+| `upstox_charges_are_estimated_with_upstox_brokerage` | Upstox file | ₹20 per order; no “add your Zerodha statement” note |
+| `rejects_upstox_futures` | Future row | Rejected |
+| `rejects_upstox_row_whose_amount_doesnt_match` | Amount ≠ qty × price | Rejected with the row |
+| `parses_dhan_global_transaction_report` | Synthetic CSV in the real layout | Options and futures; equity, MCX and footer skipped |
+| `dhan_totals_match_the_report` | Two rows | Net = Σ `Gross Amount` |
+| `dhan_overlapping_files_count_once` | Same rows in two files | Fills and charges counted once |
+| `rejects_dhan_row_that_doesnt_add_up` | `Gross Amount` off by ₹3 | Rejected with the row |
+| `rejects_unreadable_dhan_contract` | Unseen contract grammar | `UnknownInstrumentError` naming it |
+| `recognises_groww_file_and_explains` | Groww order history | “looks like a Groww file” |
+| `routes_zerodha_tradebook` | Console CSV | `broker = 'zerodha'`, estimated charges |
+| `rejects_unrecognized_file_naming_supported_brokers` | Any other CSV | Message lists the supported files |
+| `verify_real_passes_within_tolerance` | Harness on a synthetic account | Percentages only; PASS when ≤ 0.5% |
+| `verify_real_fails_outside_tolerance` | Statement 7% off | FAIL |
+| `verify_real_needs_one_statement` | No statement | Error |
 
 ### Periods and comparison
 
@@ -204,7 +251,7 @@
 |------|--------|
 | `perf_20k_fills_under_budget` | `analyze()` on 20,000 fills finishes in < 1.5 s on CI (NF-4 proxy) |
 
-Tests marked ⏳ wait on real XLSX and P&L statement exports (API_CONTRACT §2–§3). They are required before launch, not before merge.
+Parsers are tested on synthetic files that mirror layouts seen in redacted real exports. Before launch each must also be checked against a user’s own export (ACCEPTANCE §A).
 
 ## 3. Required e2e tests (Playwright)
 
@@ -237,6 +284,14 @@ Tests marked ⏳ wait on real XLSX and P&L statement exports (API_CONTRACT §2�
 | `e2e_choose_summary_stats` | Swap “Win rate” for “Trades” | Export disabled at 2 picks; summary and image show the chosen 3 |
 | `a11y_landing_privacy_and_every_card` | axe-core, WCAG 2.1 AA | No violations on landing, privacy and every card |
 | `a11y_keyboard_only_navigation` | Tab to “Next card”, Enter | Advances |
+
+### Added with more brokers (ROADMAP X1)
+
+| Test | Flow | Expect |
+|------|------|--------|
+| `e2e_file_without_times_hides_time_cards` | Upload a synthetic Dhan report | One note on card 1; clock, revenge and holding cards absent; “broker’s own figures” |
+| `e2e_groww_file_is_explained` | Upload a Groww-style file | “looks like a Groww file” |
+| `e2e_broker_guides` | Landing page | A guide for each of Zerodha, Angel One, Upstox, Dhan, Groww |
 
 ## 4. Launch-gate verification (manual, local only)
 

@@ -86,7 +86,8 @@ fo-wrapped/
 │   └── e2e/
 ├── scripts/
 │   ├── make-synthetic-year.mjs # regenerates tests/fixtures/synthetic-year.csv
-│   └── verify-real.ts         # local-only launch-gate harness (see §9; lands with the P&L statement parser)
+│   ├── verify-real.ts         # local-only launch-gate harness (see §9)
+│   └── run-verify-real.mjs    # runs it through Vite (npm run verify:real)
 └── docs/
 ```
 

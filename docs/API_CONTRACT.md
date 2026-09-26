@@ -2,7 +2,7 @@
 
 **Normative.** Implementations MUST match these types and behaviours.
 
-> **Implementation status (engine 0.2.0):** everything here is implemented except the **P&L statement** (§3), which waits on a real sample export. Until it lands, `Totals.source` is always `'ESTIMATED'` and `analyze()` takes no `pnlStatement`. XLSX is implemented (§2.3) but not yet checked against a real XLSX export. The TypeScript sources in `src/engine/` are the exact shapes; this document explains them.  
+> **Implementation status (engine 0.3.0):** everything here is implemented, including the Zerodha **P&L statement** (§3) and the **Angel One, Upstox and Dhan** exports (§3A, [`BROKERS.md`](BROKERS.md)). Layouts were established from redacted real exports; each still needs a check against a user’s own export before launch (ACCEPTANCE §A). The TypeScript sources in `src/engine/` are the exact shapes; this document explains them.  
 Import path: `src/engine/index.ts` (re-exports everything below). The engine is pure TypeScript with no DOM access.
 
 ---
@@ -30,7 +30,9 @@ export type InstrumentKind = 'FUT' | 'CE' | 'PE';
 
 > **Verification status**
 > - ✅ **CSV, Sep 2026 export:** header row and value formats confirmed against one real Console F&O tradebook (NSE + BSE rows). Recorded below.
-> - ⏳ **Still needed:** 2–3 more exports, including a real **XLSX** (to confirm the preamble and cell types assumed in §2.3) and an **older year** (to catch header variants), and one **P&L statement** (§3).
+> - ✅ **XLSX layout (from redacted real Console exports, equity segment):** a preamble with `Client ID` and a `Tradebook for <segment> from … to …` title, data starting in **column B**, and headers written **Title Case with spaces** (`Trade Date`, `Order Execution Time`). Header matching normalises both forms (below).
+> - ✅ **P&L statement (§3):** layout recorded from a redacted real Console F&O export.
+> - ⏳ **Still needed:** a real F&O **XLSX** tradebook and an **older year** (to catch header variants).
 >
 > Confirmed CSV header row, in this exact order:
 >
@@ -59,28 +61,36 @@ CSV reading rules (confirmed): no preamble rows; comma-separated; a trailing emp
 
 **Never convert `trade_id` or `order_id` to `number`.** A 19-digit `order_id` silently loses precision, which would merge distinct orders for brokerage.
 
-Header matching: trim, lowercase, and compare exactly. A small **explicit** alias map is allowed (e.g. `"trade type" → "trade_type"`) only for variants seen in real exports and recorded here. No fuzzy matching.
+Header matching: trim, lowercase, turn runs of spaces into `_`, and compare exactly. So `Trade Date` (XLSX) and `trade_date` (CSV) are the same header; that is the only variant seen in real exports. No fuzzy matching. A tradebook with every header except `expiry_date` is another segment’s tradebook and is rejected with `UnsupportedSegmentError` naming it.
 
 XLSX: Console puts a preamble (client id, date range) above the header row. Find the header row by locating the first row that contains **all** required headers, and give up after 30 rows.
 
 ### 2.1 Parsed fill
 
 ```ts
+export type BrokerId = 'zerodha' | 'angelone' | 'upstox' | 'dhan';
+export type TimePrecision = 'second' | 'date';   // 'date': the export has no trade times
+
 export interface Fill {
+  broker: BrokerId;
   tradeId: string;
-  orderId: string;
+  orderId: string | null;  // null when the export has no order IDs (Upstox, Dhan)
   instrument: Instrument;
   exchange: Exchange;
   side: Side;
   auction: boolean;
-  qty: number;           // positive integer, units
-  pricePaise: Paise;     // positive
+  qty: number;             // positive integer, units
+  pricePaise: Paise;       // per unit; for daily-total rows the rounded average (display only)
+  valuePaise: Paise;       // exact traded value; the engine computes with this
   tradeDate: IstDate;
-  executedAt: EpochMs;
-  sourceFile: string;    // file name, for error messages only
-  sourceRow: number;     // 1-based row in that file
+  executedAt: EpochMs;     // for 'date' precision, midnight IST (order set by the engine)
+  timePrecision: TimePrecision;
+  sourceFile: string;      // file name, for error messages only
+  sourceRow: number;       // 1-based row in that file
 }
 ```
+
+FIFO runs per **broker + instrument** (positions at different brokers never net) and allocates exact values, so rows that are daily totals stay exact. Fills with `timePrecision: 'date'` are first combined per contract, day and side, and the side that reduces the position carried in is applied first (`prepareDateOnlyFills`, [`BROKERS.md`](BROKERS.md) §3).
 
 ### 2.2 Instrument (from Zerodha trading symbol)
 
@@ -116,7 +126,7 @@ Parsing the underlying: take the longest leading run of `A–Z` / `&` / `-` char
 | Topic | Rule |
 |-------|------|
 | Reader | `read-excel-file` (the official SheetJS build can’t be installed from here, and npm’s `xlsx` 0.18 has known CVEs for crafted files) |
-| Sheet | The first sheet that has any non-empty cell |
+| Sheet | The first sheet in a recognised layout (§3A), else the first sheet with any non-empty cell |
 | Header row | The first row, within the first 30, that contains every required header (exports have a preamble) |
 | Numbers | Kept as the **exact text** stored in the file (`parseNumber` is the identity). A number with more than 15 integer digits, or in exponent form, was rounded by Excel when saved, so it is rejected (this protects 19-digit order IDs stored as numbers) |
 | Dates | Date cells are wall-clock times with no zone. They are rounded to the nearest second (Excel stores fractional days) and formatted as `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm:ss` |
@@ -125,23 +135,57 @@ Parsing the underlying: take the longest leading run of `A–Z` / `&` / `-` char
 
 ## 3. Input: Console P&L statement (optional)
 
-> **Verify before coding** against real exports. Record the confirmed layout here.
+✅ Layout recorded from a redacted real Console F&O export: [`BROKERS.md`](BROKERS.md) §2.4. Recognised by its title `P&L Statement for <segment> from YYYY-MM-DD to YYYY-MM-DD`; a segment other than F&O is rejected by name.
 
 ```ts
 export interface PnlStatement {
+  broker: 'zerodha';
   periodFrom: IstDate;
   periodTo: IstDate;
-  realizedPnlPaise: Paise;      // broker's realized P&L for F&O
-  charges: ChargesBreakdown;    // broker's own charges
-  netRealizedPnlPaise: Paise;   // realized − total charges, as reported (or computed if not reported)
-  perSymbol: { tradingSymbol: string; realizedPnlPaise: Paise }[] | null;  // null if the export has no per-symbol rows
+  realizedPnlPaise: Paise;           // Console's realised P&L, before charges
+  charges: ChargesBreakdown;         // by account head; clearing and IPFT go to `other`
+  otherCreditDebitPaise: Paise;      // shown in a note, never netted
+  perSymbol: { tradingSymbol: string; realizedPnlPaise: Paise; openQuantity: number }[];
+  unmappedHeads: string[];           // account heads we don't know (added to `other`)
 }
 ```
 
 Rules:
-- The statement’s period MUST overlap the tradebook’s date range; otherwise reject it with a message showing both ranges.
-- **Settled-at-expiry valuation (PRD F-EN-2):** for a `SETTLED_AT_EXPIRY` position, if `perSymbol` has a row for its symbol, its value = that row’s `realizedPnlPaise` − Σ `grossPnlPaise` of round trips already closed by trades in the same symbol. It then becomes a `RoundTrip` with `exitKind: 'EXPIRY'`, `exitAt` = expiry date 15:30 IST. If `perSymbol` is `null` or has no row for it, the position stays excluded from per-trade cards, and a warning says so. Totals (cards 1–2) still use the statement totals, which already include it.
-- If the statement’s period does not cover the whole tradebook range, cards 1–2 show the statement’s totals **with the period stated** and the note *“P&L statement covers {from}–{to}; tradebook covers {from}–{to}.”*
+- Values carry up to 4 decimals and are **rounded to the nearest paise** (`decimalToPaiseRounded`). The account heads must add up to the printed `Charges` total (1 paise of drift per head), else the file is rejected.
+- `checkStatementCoverage`: the statement is rejected if there is no Zerodha tradebook, or its period doesn’t overlap the tradebook’s dates (the message shows both ranges).
+- **Where it applies:** a period view uses the statement only when the view holds exactly the Zerodha trades the statement covers. It is never split across periods; elsewhere charges stay estimated with the note *“Your P&L statement covers {from} to {to}, which doesn’t match this period.”*
+- When it applies: gross P&L = the other brokers’ round trips + the statement’s realised P&L; charges = the statement’s; `Totals.source = 'PNL_STATEMENT'` (or `'MIXED'` with other brokers). If the tradebook’s own P&L differs from the statement by more than 0.5%, a warning says so and the statement is used.
+- **Settled-at-expiry valuation (PRD F-EN-2):** for a Zerodha `SETTLED_AT_EXPIRY` position whose expiry is inside the statement period, if `perSymbol` has a row for its symbol, its value = that row’s `realizedPnlPaise` − Σ `grossPnlPaise` of round trips already closed by trades in the same symbol within the period. It then becomes a `RoundTrip` with `exitKind: 'EXPIRY'`, `exitAt` = expiry date 15:30 IST. Without a row, it stays excluded, with a warning.
+
+## 3A. Input: other brokers
+
+`readBrokerFile(fileName, bytes)` reads any supported file and recognises its layout by its header row, never by the file name. Layouts, sources and limits: [`BROKERS.md`](BROKERS.md).
+
+```ts
+export type BrokerFile =
+  | { kind: 'fills'; broker: BrokerId; fills: Fill[]; charges: ChargeRecord[] | null }  // null: estimate charges
+  | { kind: 'pnlStatement'; statement: PnlStatement };
+
+/** A broker's own charges for one trade, order or bill (Angel One, Dhan). */
+export interface ChargeRecord {
+  broker: BrokerId;
+  id: string;        // stable across exports, so overlapping files count it once
+  date: IstDate;
+  charges: ChargesBreakdown;
+}
+export interface ReportedCharges { broker: BrokerId; records: ChargeRecord[] }
+```
+
+| File | Recognised by | Fills | Charges |
+|------|---------------|-------|---------|
+| Zerodha tradebook (CSV/XLSX) | §2 headers | one per row, to the second | estimated (Zerodha rates) |
+| Zerodha P&L statement (XLSX) | title row (§3) | – | the statement’s |
+| Angel One Trades History (XLSX) | its 19-column header | one per trade row, date only | Angel One’s, per row; brokerage rows (qty 0) add charges only |
+| Upstox trade report (XLSX) | its 14-column header | one per row, to the second; options only | estimated (Upstox rates; orders = same contract, side and second) |
+| Dhan Global Transaction Report (CSV) | its 16-column header | up to two per row (the day’s buys and sells), date only | Dhan’s, per row, checked against `Gross Amount` |
+| Groww | `Unique Client Code` preamble / order-history header | rejected with a “not supported yet” message | – |
+
+Rows from other segments (equity, commodity) in mixed files are skipped. Contracts are parsed only in the grammar seen in real exports; futures from Angel One and Upstox are rejected until seen. Dates-only brokers hide the cards that need trade times (`CardResult.code = 'NO_TRADE_TIMES'`, PRD D-22).
 
 ---
 
@@ -220,14 +264,15 @@ export class RowValidationError extends FoWrappedError {
 export class ConflictingDuplicateError extends FoWrappedError {} // same exchange + trade_id, different fields
 export class UnknownInstrumentError extends FoWrappedError {}    // symbol/expiry cannot be determined
 export class ChargesUnavailableError extends FoWrappedError {}   // no rate window for a date
-export class PeriodMismatchError extends FoWrappedError {}       // P&L statement doesn't overlap
+// Other rejections (a P&L statement that doesn't overlap, a Groww file, a Dhan row
+// that doesn't add up, no F&O rows) are plain FoWrappedError with their own message.
 ```
 
 Required user messages (wording can be polished; meaning cannot change):
 
 | Error | Message |
 |-------|---------|
-| `UnrecognizedFileError` | “{file} doesn’t look like a Zerodha Console tradebook. In Console go to Reports → Tradebook, choose segment F&O, and download CSV or XLSX.” |
+| `UnrecognizedFileError` | “{file} isn’t a file we can read. We read the Zerodha tradebook and P&L statement, Angel One Trades History, the Upstox trade report and Dhan’s Global Transaction Report. See “How to download” for each broker.” |
 | `UnsupportedSegmentError` | “{file} is an {segment} tradebook. F&O Wrapped needs the F&O segment.” |
 | `RowValidationError` | “{file}, row {row}: {field} ‘{value}’ isn’t valid. The file may have been edited. Please download a fresh copy.” |
 | `ConflictingDuplicateError` | “Trade {trade_id} appears in two files with different details. Please re-download both files.” |
@@ -242,7 +287,9 @@ Validation is **all-or-nothing per file**: one bad row rejects that file. Other 
 export type PositionSide = 'LONG' | 'SHORT';
 
 export interface RoundTrip {
-  id: number;                     // 1..n, ordered by exitAt then instrument key
+  id: number;                     // 1..n, ordered by exitAt, broker, then instrument key
+  broker: BrokerId;
+  timePrecision: TimePrecision;   // 'date': one contract's activity on one day (no trade times)
   instrument: Instrument;
   side: PositionSide;             // LONG = opened by BUY
   entryAt: EpochMs;               // first opening fill
@@ -260,6 +307,7 @@ export interface RoundTrip {
 export type UnclosedStatus = 'OPEN' | 'SETTLED_AT_EXPIRY';
 
 export interface UnclosedPosition {
+  broker: BrokerId;
   instrument: Instrument;
   side: PositionSide;
   qty: number;
@@ -269,8 +317,10 @@ export interface UnclosedPosition {
 }
 
 export interface Totals {
-  source: 'ESTIMATED';             // 'PNL_STATEMENT' arrives with §3
-  grossPnlPaise: Paise;            // Σ roundTrip.gross
+  // ESTIMATED: from published rates · BROKER: the broker's own file (§3A)
+  // PNL_STATEMENT: Zerodha P&L statement (§3) · MIXED: more than one of these
+  source: 'ESTIMATED' | 'BROKER' | 'PNL_STATEMENT' | 'MIXED';
+  grossPnlPaise: Paise;            // Σ roundTrip.gross (Zerodha part from the statement when it applies)
   charges: ChargesBreakdown | null;        // null when any fill has no rate window
   netPnlPaise: Paise | null;               // gross − charges.total; null with charges
   chargesUnavailableReason: string | null; // user message when charges is null
@@ -334,7 +384,7 @@ Every card is either computed or explicitly insufficient. `null` numbers are nev
 ```ts
 export type CardResult<T> =
   | { status: 'OK'; data: T; notes: string[] }
-  | { status: 'INSUFFICIENT_DATA'; reason: string };
+  | { status: 'INSUFFICIENT_DATA'; reason: string; code?: 'NO_TRADE_TIMES' };  // the UI hides NO_TRADE_TIMES cards (PRD D-22)
 
 export interface CardSet extends ExtraCards {   // ExtraCards: ARCHITECTURE §7.3
   theNumber: CardResult<{ netPnlPaise: Paise; totalTrades: number; tradedValuePaise: Paise; estimated: boolean }>;
@@ -373,12 +423,16 @@ export const RATES: ChargeRateTable;   // the versioned table from src/engine/ch
 export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[];                    // CSV only; throws FoWrappedError
 export function parseTradebookFile(fileName: string, bytes: ArrayBuffer): Promise<Fill[]>;      // CSV or XLSX (§2.3)
 export function withLocale<T>(locale: 'en' | 'hi', fn: () => T | Promise<T>): Promise<T>;       // engine strings in that language
-// parsePnlStatement(fileName, bytes): PnlStatement arrives with §3.
+export function readBrokerFile(fileName: string, bytes: ArrayBuffer): Promise<BrokerFile>;      // any supported file (§3A)
+export function parsePnlStatement(fileName: string, bytes: ArrayBuffer): Promise<PnlStatement>; // §3
+export function checkStatementCoverage(fileName: string, st: PnlStatement, zerodhaTradeDates: readonly IstDate[]): void;
 export function mergeFills(files: readonly Fill[][]): { fills: Fill[]; duplicatesDropped: number };
 export function buildRoundTrips(fills: readonly Fill[], asOf: IstDate): { roundTrips: RoundTrip[]; unclosed: UnclosedPosition[] };
 export function calculateCharges(fills: readonly Fill[], rates: ChargeRateTable): ChargesBreakdown;
 export function analyze(input: {
   tradebooks: readonly Fill[][];
+  reportedCharges?: readonly ReportedCharges[];  // brokers whose files carry charges (never estimated)
+  pnlStatements?: readonly PnlStatement[];       // Zerodha P&L statements (§3)
   rates: ChargeRateTable;
   siteUrl: string;
 }): AnalysisResult;
@@ -386,7 +440,7 @@ export function analyze(input: {
 
 - `asOf` for `buildRoundTrips` is the **last `tradeDate` in the data**, never the current date (determinism, PRD F-EN-6).
 - Every user-facing engine string (notes, reasons, warnings, labels, errors) comes from `engine/i18n.ts` in the current locale. Numbers never depend on the locale.
-- `mergeFills` sorts output by `(executedAt, exchange, tradeId)`, comparing trade IDs numerically without converting them to numbers.
+- `mergeFills` dedupes by `broker + exchange + tradeId` and sorts output by `(executedAt, broker, exchange, tradeId)`, comparing trade IDs numerically without converting them to numbers.
 
 ---
 
@@ -398,7 +452,7 @@ export type WorkerRequest =
 
 export type WorkerResponse =
   | { type: 'progress'; stage: 'reading' | 'validating' | 'matching' | 'cards'; pct: number }
-  | { type: 'fileAccepted'; name: string; rows: number }
+  | { type: 'fileAccepted'; name: string; broker: BrokerId; rows: number; statement?: { from: IstDate; to: IstDate } }
   | { type: 'fileRejected'; name: string; message: Localized }
   | { type: 'result'; results: Record<'en' | 'hi', AnalysisResult> }   // analysed once per language
   | { type: 'error'; message: Localized };
@@ -406,7 +460,7 @@ export type WorkerResponse =
 type Localized = Record<'en' | 'hi', string>;
 ```
 
-The worker parses each file itself; the UI never inspects file contents. A rejected file is reported and skipped, and analysis continues with the accepted files (PRD D-15). If none is accepted, the worker posts `error`. The UI terminates the worker as soon as `result` or `error` arrives, and keeps one fresh, empty spare worker ready (ARCHITECTURE §8).
+The worker reads each file itself with `readBrokerFile`; the UI never inspects file contents. P&L statements are accepted after the tradebooks, once `checkStatementCoverage` passes. A rejected file is reported and skipped, and analysis continues with the accepted files (PRD D-15). If none is accepted, the worker posts `error`. The UI terminates the worker as soon as `result` or `error` arrives, and keeps one fresh, empty spare worker ready (ARCHITECTURE §8).
 
 ---
 

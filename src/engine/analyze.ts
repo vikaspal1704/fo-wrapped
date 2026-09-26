@@ -16,7 +16,7 @@ import { buildRoundTrips } from './roundTrips';
 import { istDateOf, istMinuteOfDay } from './time';
 import type { Fill, IstDate, Paise, RoundTrip, UnclosedPosition } from './types';
 
-export const ENGINE_VERSION = '0.2.0';
+export const ENGINE_VERSION = '0.3.0';
 
 export interface ComparisonRow {
   key: 'netPnl' | 'grossPnl' | 'charges' | 'trades' | 'winRate' | 'revengeTrades' | 'loserHoldMs';

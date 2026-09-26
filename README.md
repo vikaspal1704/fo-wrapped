@@ -2,13 +2,13 @@
 
 Your F&O trading year, **Wrapped**, with honest numbers.
 
-A free, no-signup web app. An Indian F&O trader drops in their Zerodha tradebook and gets 8 shareable, story-style cards about their trading year. **Everything runs in the browser. No data ever leaves the device.**
+A free, no-signup web app. An Indian F&O trader drops in their broker’s trade file (Zerodha, Angel One, Upstox or Dhan) and gets shareable, story-style cards about their trading year. **Everything runs in the browser. No data ever leaves the device.**
 
 Built by **Vikas Pal** (Software Engineer, Fintech).
 
 | | |
 |---|---|
-| **Status** | v0.2: Zerodha F&O tradebooks (CSV and XLSX), 14 cards, period views, English and हिंदी, and it works offline. Pre-launch: the P&L statement import and the ±0.5% accuracy check |
+| **Status** | v0.3: Zerodha tradebooks and P&L statement, Angel One, Upstox and Dhan (beta), 14 cards, period views, English and हिंदी, and it works offline. Pre-launch: the ±0.5% accuracy check on real accounts |
 | **Stack** | Vite · React · TypeScript · Web Worker · Zod · installable (PWA) |
 | **Live** | https://vikaspal1704.github.io/fo-wrapped/ |
 | **Hosting** | GitHub Pages (static, no backend) |
@@ -19,7 +19,7 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 
 ## What it does
 
-1. You download your **tradebook** from Zerodha Console, as CSV or XLSX.
+1. You download your trades from your broker: the Zerodha **tradebook** (plus the P&L statement for exact charges), Angel One **Trades History**, the Upstox **trade report** or Dhan’s **Global Transaction Report**. The landing page has steps for each, and [`docs/BROKERS.md`](docs/BROKERS.md) says what each file can and can’t tell us.
 2. You drop one or more files onto the page. Yearly files are merged, and duplicate trades are removed.
 3. A Web Worker parses, validates and analyses them on your device, and the page works offline after your first visit.
 4. You pick a period (a **Samvat year**, a **financial year** or a **calendar year**) and swipe through the cards:
@@ -45,14 +45,15 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 
 - Not a tax tool, not advice, not a broker integration
 - No accounts, no server, no analytics
-- v1 supports Zerodha F&O only (NSE/BSE equity derivatives)
+- F&O on NSE and BSE only (no equity, currency or commodity). Brokers: Zerodha, Angel One, Upstox and Dhan; Groww waits on a real F&O export
 
 ## Why you can trust the numbers
 
-- FIFO round-trip matching per instrument, with integer-paise arithmetic and IST timestamps
-- Charges come from a versioned rate table with effective dates, and are labelled **estimated** unless you add your P&L statement
+- FIFO round-trip matching per broker and instrument, with integer-paise arithmetic and IST timestamps
+- Charges come from the broker’s own file when it has them (Angel One, Dhan, the Zerodha P&L statement). Otherwise they come from a versioned rate table with effective dates and are labelled **estimated**
+- A file format is never guessed: each parser reads only a layout seen in a real export ([`docs/BROKERS.md`](docs/BROKERS.md))
 - Expired or open positions are **never** given an invented value. They're taken from your P&L statement or excluded, and the card says so
-- **Launch gate:** net P&L must match Console within **0.5%** on at least 5 real accounts
+- **Launch gate:** net P&L must match Console within **0.5%** on at least 5 real accounts (`npm run verify:real`)
 
 ---
 
@@ -102,14 +103,15 @@ npm run brand        # regenerate the link-preview image and icons
 | XLSX tradebooks | ✅ (still to check against a real XLSX export) |
 | Period views, year-over-year, 6 extra cards, per-card share, chosen headline stats | ✅ |
 | Hindi, installable offline app, privacy page, link previews, accessibility (axe) | ✅ |
-| Console P&L statement (exact charges) | ⏳ waiting on a sample export |
-| Launch gate: ±0.5% vs Console on ≥ 5 real accounts | ⏳ |
+| Console P&L statement (exact charges, expired positions valued) | ✅ (still to check against the owner’s own export) |
+| Angel One, Upstox (options), Dhan | ✅ beta: built from redacted real layouts; Groww recognised, not supported yet |
+| Launch gate: ±0.5% vs Console on ≥ 5 real accounts | ◐ harness ready (`npm run verify:real`); needs real accounts |
 
 ## Project layout
 
 ```
 src/engine/            # pure TypeScript, no DOM: runs in the worker and in Node tests
-  parse/               # CSV and XLSX → Fill[] (Zod); trading symbol → Instrument
+  parse/               # every broker's file → Fill[] (Zod-style checks); P&L statement; symbol → Instrument
   merge.ts             # merge files, dedupe by exchange + trade_id
   roundTrips.ts        # FIFO round trips + open / settled-at-expiry positions
   charges/             # dated rate table + calculator
@@ -126,7 +128,7 @@ public/                # manifest, icons, link-preview image
 tests/unit/            # Vitest, named per docs/TEST_PLAN.md
 tests/e2e/             # Playwright (incl. offline, privacy and axe accessibility)
 tests/fixtures/        # synthetic Console-format files only
-scripts/               # fixture and brand-image generators
+scripts/               # fixture and brand-image generators; verify-real.ts (launch gate)
 ```
 
 ## Privacy

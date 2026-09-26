@@ -50,13 +50,13 @@ flowchart LR
 
 ## 2. Pipeline
 
-1. **Classify** each file by its headers: F&O tradebook, P&L statement, or unrecognised (`UnrecognizedFileError`). Equity / currency / commodity tradebooks → `UnsupportedSegmentError`.
-2. **Parse + validate** every row with Zod (`API_CONTRACT.md` §2). One bad row rejects its file.
-3. **Merge + dedupe** across tradebook files by `exchange + trade_id` (PRD D-14). Identical duplicates are dropped and counted. Duplicates with different fields → `ConflictingDuplicateError`.
-4. **Sort** by `(executedAt, tradeId)`.
-5. **Build round trips** per instrument with FIFO (§4).
-6. **Classify unclosed** positions as `OPEN` or `SETTLED_AT_EXPIRY` (§5).
-7. **Charges:** from the P&L statement if present, else the calculator (§6), marked *estimated*.
+1. **Classify** each file by its header row (`readBrokerFile`, `API_CONTRACT.md` §3A): Zerodha tradebook or P&L statement, Angel One, Upstox, Dhan, Groww (explained, not supported), or unrecognised (`UnrecognizedFileError`). Other segments’ Zerodha tradebooks → `UnsupportedSegmentError`; other segments’ rows in mixed files are skipped.
+2. **Parse + validate** every row (`API_CONTRACT.md` §2, §3A). One bad row rejects its file. Brokers with their own charges also yield `ChargeRecord`s.
+3. **Merge + dedupe** across files by `broker + exchange + trade_id` (PRD D-14). Identical duplicates are dropped and counted. Duplicates with different fields → `ConflictingDuplicateError`. Charge records are deduped by `broker + id`.
+4. **Prepare date-only fills** (Angel One, Dhan): one BUY and one SELL per contract and day, reducing side first (`BROKERS.md` §3). **Sort** by `(executedAt, broker, exchange, tradeId)`.
+5. **Build round trips** per broker and instrument with value-based FIFO (§4).
+6. **Classify unclosed** positions as `OPEN` or `SETTLED_AT_EXPIRY` (§5); value settled Zerodha positions from a P&L statement’s per-symbol rows.
+7. **Charges**, per period view: the P&L statement’s when it covers exactly the view’s Zerodha trades; the broker’s own records for Angel One and Dhan; else the calculator (§6), marked *estimated*. `Totals.source` says which (`MIXED` for more than one).
 8. **Totals** (`API_CONTRACT.md` §6).
 9. **Cards** (§7).
 

@@ -4,18 +4,19 @@ Binary checklist. v1 is **done** only when every box is true. v1 may **launch** 
 
 ---
 
-## Status (v0.2)
+## Status (v0.3)
 
-- **B–F:** implemented and passing (105 unit, 20 e2e including axe accessibility), except the ⏳ P&L statement tests.
+- **B–F:** implemented and passing (146 unit, 23 e2e including axe accessibility).
 - **E:** CI and Pages are live. Make `main` the default branch so pushes to `main` deploy.
-- **A:** not started. It needs real P&L statement exports and primary-source rate checks.
+- **A:** the harness is built (`npm run verify:real`). The run needs the owner’s real accounts and P&L statements, and the rates need primary-source checks.
 
 ## A. Launch gate (blocking)
 
 - [ ] On **≥ 5 real Zerodha accounts**, estimated net P&L (tradebook only, no P&L statement) is within **±0.5%** of the Console P&L statement’s net P&L (`npm run verify:real`, TEST_PLAN §4)
 - [ ] Results recorded in the launch PR as account alias + % difference only (no amounts, no symbols)
 - [ ] Tradebook headers verified against 3–4 real exports and recorded in `API_CONTRACT.md` §2 (1 of 4 done: CSV, Sep 2026; XLSX and an older year still needed)
-- [ ] P&L statement layout verified and recorded in `API_CONTRACT.md` §3
+- [x] P&L statement layout verified and recorded in `API_CONTRACT.md` §3 (redacted real export; [`BROKERS.md`](BROKERS.md) §2.4)
+- [ ] Each other broker’s parser (Angel One, Upstox, Dhan) checked against at least one user’s own export before its “beta” label is dropped
 - [ ] Every row of the charges rate table has `source` and `verifiedOn` filled (ARCHITECTURE §6.2)
 - [ ] Samvat boundaries verified (ARCHITECTURE §7.1)
 - [ ] PRD §10 decisions confirmed by the owner (or changed, and the docs updated)
@@ -28,7 +29,8 @@ Binary checklist. v1 is **done** only when every box is true. v1 may **launch** 
 |--------|-----------|---------------|
 | F-IN-1 | F&O tradebook CSV + XLSX accepted | `parses_zerodha_csv_tradebook`, `parses_xlsx_with_preamble` |
 | F-IN-2 | Multi-file merge, dedupe by trade_id, conflicts rejected | `dedupes_overlapping_files_by_trade_id`, `rejects_conflicting_duplicate`, `merge_is_file_order_independent` |
-| F-IN-3 | P&L statement totals are the source of truth | `statement_totals_override_calculator`, `rejects_statement_with_non_overlapping_period` |
+| F-IN-3 | P&L statement totals are the source of truth | `statement_totals_override_calculator`, `rejects_statement_with_non_overlapping_period`, `statement_never_split_across_periods` |
+| F-IN-7 | Other brokers, only in recorded layouts; broker charges used when present | TEST_PLAN “Brokers” tests, `e2e_file_without_times_hides_time_cards`, `e2e_groww_file_is_explained` |
 | F-IN-4 | Zod on every row; human-readable rejection; never guess | `rejects_unrecognized_file`, `rejects_invalid_row_with_location`, `rejects_unknown_symbol_shape`, `rejects_monthly_symbol_without_expiry_source` |
 | F-IN-5 | Unsupported segments rejected | `rejects_equity_tradebook`, `e2e_rejects_wrong_file_with_message` |
 | F-IN-6 | No upload / storage | `e2e_no_network_during_analysis`, `e2e_no_storage_writes` |
