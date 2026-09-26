@@ -148,3 +148,25 @@ test('e2e_privacy_page', async ({ page }) => {
   await page.getByRole('button', { name: '← Back' }).click();
   await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
 });
+
+test('e2e_upload_xlsx', async ({ page }) => {
+  const { default: writeExcelFile } = await import('write-excel-file/node');
+  const [header, ...rows] = readFileSync(YEAR, 'utf8').trim().split('\n').map((l) => l.split(','));
+  const typed = rows.map((r) =>
+    r.map((v, i) => {
+      const name = header![i];
+      if (v === '') return null;
+      if (name === 'trade_date' || name === 'expiry_date') return { value: new Date(`${v}T00:00:00Z`), type: Date, format: 'yyyy-mm-dd' };
+      if (name === 'order_execution_time') return { value: new Date(`${v}Z`), type: Date, format: 'yyyy-mm-dd hh:mm:ss' };
+      if (name === 'quantity' || name === 'price') return Number(v);
+      return v;
+    }),
+  );
+  const buffer: Buffer = await writeExcelFile([['Tradebook'], [], header!, ...typed] as never).toBuffer();
+  await page.goto('./');
+  await page.getByTestId('file-input').setInputFiles({ name: 'tradebook-FO.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer });
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  // Same numbers as the CSV version of the same year.
+  await toSummary(page);
+  await expect(page.getByText('−₹4,491').first()).toBeVisible();
+});

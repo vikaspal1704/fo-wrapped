@@ -78,35 +78,56 @@ const rowSchema = z.object({
   expiry_date: refine(parseIstDate, 'expected a YYYY-MM-DD date'),
 });
 
-/**
- * Parses a Zerodha Console F&O tradebook (CSV). Validation is all-or-nothing:
- * the first invalid row rejects the whole file (API_CONTRACT §5).
- */
-export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[] {
-  if (isZip(bytes)) {
-    // XLSX is a zip container. Its layout is not verified yet (API_CONTRACT §2).
-    throw new FoWrappedError(
-      `${fileName} is an Excel file. Excel tradebooks aren’t supported yet. ` +
-        'Please download the CSV version from Console.',
-    );
-  }
+/** Rows scanned for the header row (XLSX exports put a preamble above it). */
+const MAX_HEADER_SEARCH_ROWS = 30;
 
+/**
+ * Parses a Zerodha Console F&O tradebook, CSV or XLSX. Validation is
+ * all-or-nothing: the first invalid row rejects the whole file
+ * (API_CONTRACT §5).
+ */
+export async function parseTradebookFile(fileName: string, bytes: ArrayBuffer): Promise<Fill[]> {
+  if (isLegacyXls(bytes)) {
+    throw new FoWrappedError(`${fileName} is an old .xls file. Please download the tradebook from Console as CSV or XLSX.`);
+  }
+  if (!isZip(bytes)) return parseTradebook(fileName, bytes);
+  const { readXlsxRows } = await import('./xlsx');
+  return parseTradebookRows(fileName, await readXlsxRows(fileName, bytes));
+}
+
+/** Parses a Console F&O tradebook CSV (synchronous; XLSX goes through parseTradebookFile). */
+export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[] {
+  if (isZip(bytes)) throw new RangeError('XLSX input: use parseTradebookFile');
   // TextDecoder strips a leading byte-order mark by default.
   const text = new TextDecoder('utf-8').decode(bytes);
   const { data } = Papa.parse<string[]>(text, { header: false, dynamicTyping: false, skipEmptyLines: false });
+  return parseTradebookRows(fileName, data);
+}
 
-  // A single trailing empty line is normal; blank lines elsewhere are not.
+/**
+ * Validates tradebook rows (all cells as strings). The header row is the
+ * first row, within the first 30, that contains every required header.
+ * Row numbers in errors are 1-based positions in the file.
+ */
+export function parseTradebookRows(fileName: string, data: readonly (readonly string[])[]): Fill[] {
+  // Trailing empty rows are normal; blank rows between data rows are not.
   const rows = data.slice();
   while (rows.length > 0 && isBlank(rows[rows.length - 1]!)) rows.pop();
 
-  const header = rows[0]?.map((h) => h.trim().toLowerCase()) ?? [];
-  const index = new Map(header.map((h, i) => [h, i]));
-  if (!TRADEBOOK_HEADERS.every((h) => index.has(h))) {
-    throw UnrecognizedFileError.forFile(fileName);
+  let headerAt = -1;
+  let index = new Map<string, number>();
+  for (let r = 0; r < Math.min(rows.length, MAX_HEADER_SEARCH_ROWS); r++) {
+    const candidate = new Map(rows[r]!.map((h, i) => [h.trim().toLowerCase(), i]));
+    if (TRADEBOOK_HEADERS.every((h) => candidate.has(h))) {
+      headerAt = r;
+      index = candidate;
+      break;
+    }
   }
+  if (headerAt === -1) throw UnrecognizedFileError.forFile(fileName);
 
   const fills: Fill[] = [];
-  for (let r = 1; r < rows.length; r++) {
+  for (let r = headerAt + 1; r < rows.length; r++) {
     const line = r + 1;
     const cells = rows[r]!;
     const get = (h: (typeof TRADEBOOK_HEADERS)[number]) => (cells[index.get(h)!] ?? '').trim();
@@ -146,11 +167,17 @@ export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[] {
   return fills;
 }
 
-function isBlank(cells: string[]): boolean {
+function isBlank(cells: readonly string[]): boolean {
   return cells.every((c) => c.trim() === '');
 }
 
 function isZip(bytes: ArrayBuffer): boolean {
   const b = new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength));
   return b.length === 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
+}
+
+/** OLE2 compound file: the pre-2007 binary .xls format. */
+function isLegacyXls(bytes: ArrayBuffer): boolean {
+  const b = new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength));
+  return b.length === 4 && b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0;
 }

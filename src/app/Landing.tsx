@@ -42,7 +42,7 @@ export function Landing({ onFiles, onPrivacy, files, error }: Props) {
       <input
         ref={input}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         multiple
         hidden
         data-testid="file-input"
@@ -75,7 +75,7 @@ export function Landing({ onFiles, onPrivacy, files, error }: Props) {
             Choose segment <strong>F&amp;O</strong> and a date range of up to 365 days.
           </li>
           <li>
-            Download as <strong>CSV</strong>. For more than a year, repeat and drop all the files together.
+            Download as <strong>CSV</strong> or <strong>XLSX</strong>. For more than a year, repeat and drop all the files together.
           </li>
         </ol>
       </section>

@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { FoWrappedError, RATES, analyze, parseTradebook, type Fill } from '../engine';
+import { FoWrappedError, RATES, analyze, parseTradebookFile, type Fill } from '../engine';
 import { SITE_URL } from '../config';
 import type { WorkerRequest, WorkerResponse } from './protocol';
 
@@ -7,21 +7,21 @@ import type { WorkerRequest, WorkerResponse } from './protocol';
 // per-file status and the final AnalysisResult are posted back.
 const post = (msg: WorkerResponse) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg);
 
-self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const { files } = event.data;
   try {
     post({ type: 'progress', stage: 'validating', pct: 10 });
     const tradebooks: Fill[][] = [];
-    files.forEach((file, i) => {
+    for (const [i, file] of files.entries()) {
       try {
-        const fills = parseTradebook(file.name, file.bytes);
+        const fills = await parseTradebookFile(file.name, file.bytes);
         tradebooks.push(fills);
         post({ type: 'fileAccepted', name: file.name, rows: fills.length });
       } catch (e) {
         post({ type: 'fileRejected', name: file.name, message: messageOf(e) });
       }
       post({ type: 'progress', stage: 'validating', pct: 10 + Math.round((50 * (i + 1)) / files.length) });
-    });
+    }
 
     if (tradebooks.length === 0) {
       post({ type: 'error', message: 'None of the files could be read. See the details above.' });
