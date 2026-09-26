@@ -239,13 +239,60 @@ The label is the Samvat year of the RT exit dates. If they span more than one ye
 
 ---
 
+### 7.2 Period views
+
+`periods.ts` lists every period that contains a trade date. These are: **All trades**, each **Samvat year** (§7.1), each **calendar year**, and each **financial year** (1 Apr – 31 Mar, labelled `FY 2025-26`).
+
+FIFO matching (§4) runs **once over all data**. Each view then takes:
+
+| Item | Rule |
+|------|------|
+| Round trips | those whose **exit date** is in the period (realised P&L, as Console reports it) |
+| Charges, traded value | fills whose **trade date** is in the period (charges belong to when they were paid) |
+| Excluded positions | unclosed positions **opened** in the period |
+
+So a trade entered on 31 Mar and closed on 1 Apr counts in the new financial year, and its buy-side charges count in the old one. Charges being unavailable (§6.2) affects only the periods whose fills lack a rate window.
+
+- **Default view:** the latest Samvat year with ≥ 10 closed trades; otherwise *All trades*.
+- **Comparison (“What changed”):** each non-*All* view is compared with the previous period **of the same kind** when both have trades. The rows are net P&L (P&L before charges if either period lacks charges), charges, trades, win rate, revenge trades and median loser hold. A value a period can’t support (its card is `INSUFFICIENT_DATA`) is `null` and shows as “—”, never 0. The card shows facts only, with no verdict words.
+
+### 7.3 Extra cards (roadmap phase Next)
+
+These cards appear in the story **only when they have data**. Their `INSUFFICIENT_DATA` reasons exist for completeness and tests, but aren’t shown. All use **gross** P&L, except Charges drag.
+
+| Card | Formula | Minimum data |
+|------|---------|--------------|
+| Buyer or seller | Option round trips only (futures excluded), split by opening side: LONG = bought, SHORT = sold. Σ gross and count per side | ≥ 5 option trades, both sides present |
+| What you traded | Σ gross per underlying; best = max, worst = min (ties → alphabetical). Index vs stock split (index = `rates.indexUnderlyings` for the exchange) shown when both exist | ≥ 2 underlyings |
+| Busy days | Group by exit date; `m = median(trades per day)`; busy days have `> m` trades. Average daily gross for busy days vs the rest | ≥ 8 trading days; at least one busy day |
+| Day of the week | Σ gross and count by exit weekday. Best and worst are among weekdays with ≥ 3 trades (ties → earlier weekday) | ≥ 10 trades on ≥ 3 weekdays |
+| Position size | Entry value `= qty × avgEntry`; `m = median(entry value)`. Bigger = `> m`. Average gross and win rate per group | ≥ 10 trades; at least one bigger |
+| Charges drag | `charges ÷ average winning trade`, and `charges ÷ trades` | Charges available; ≥ 1 win |
+
+UI labels stay honest when both extremes have the same sign. The worst underlying is called *Weakest* if it still made money, and the best is called *Least bad* if it lost.
+
 ## 8. UI architecture
 
-- Screens: `Landing → Progress → Cards → (Error)`, controlled by a single reducer in `src/app`.
-- Cards: horizontally paged, story-style. Tap right half = next, left half = previous; swipe; arrow keys. Progress bars at the top.
+- Screens: `Landing → Progress → Cards`, with a `#privacy` page. They’re controlled by a single reducer in `src/app`.
+- Worker lifecycle: an **empty spare worker** starts on page load, so its script is already downloaded and analysis works offline. Each upload uses the spare; that worker is **terminated as soon as it posts its result**, and a new empty spare is started. *Clear data* resets state and does the same.
+- Cards: story-style. Tap the right two-thirds for next and the left third for previous; swipe; use the arrow keys (the listener is attached in a layout effect, so no key is lost on the first frame). Progress bars at the top. A period picker (§7.2) and a compact “n / N · Skip › · Clear” bar sit above the card.
+- Order: the core 8 cards, the extra cards that have data (§7.3), then “What changed” (when a comparison exists), then the summary.
 - Every card renders its `notes` (e.g. *estimated*, *before charges*, exclusions) in small text on the card itself. Notes are never hidden behind a tooltip.
-- Share: render `SummaryCard` off-screen at 1080×1920, `toPng` → `Blob` → `File`, then `navigator.share({ files })` when `canShare`, else an `<a download>` click.
-- Clear data: reducer reset, `worker.terminate()`, new worker, revoke object URLs.
+- **Share:** the summary renders a dedicated 1080×1920 image (3 headlines, period, site URL). Every other card has a *Share* button that renders that card, scaled 2.5×, into a 1080×1920 frame with the period and URL. The frame is **mounted only while exporting**, so there is never a duplicate card in the DOM. `html-to-image` → `Blob` → `navigator.share({ files })` when `canShare`, else a download. File names use ASCII ids (`fo-wrapped-<period-id>[-<card>].png`).
+
+### 8.1 Languages
+
+- Engine strings come from `engine/i18n.ts`, and UI strings from `app/i18n.tsx`. English is the source; Hindi is typed against it, so a missing key is a compile error.
+- The worker runs `analyze()` once per language and returns both results (and file errors in both), so switching language never needs the file again.
+- The language comes from `?lang=en|hi`, otherwise the browser’s language. It is **never stored**. `<html lang>` follows it.
+- Digits stay Latin with Indian grouping in both languages. Month and weekday names are translated.
+
+### 8.2 Offline and install
+
+- `manifest.webmanifest` + icons make the app installable.
+- `build/swPlugin.ts` generates `sw.js` at build time with the exact list of built files. Its cache name is a hash of that list, so each deploy replaces the cache.
+- The service worker only handles **same-origin GET**. Navigation is network-first with the cached `index.html` as the offline fallback. Assets are cache-first. Lookups use `ignoreVary`, because module scripts are requested with `crossorigin` and servers may send `Vary: Origin`.
+- It never caches files the user picks, and never sees trade data.
 
 ---
 

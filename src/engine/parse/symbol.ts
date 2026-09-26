@@ -1,4 +1,5 @@
 import { UnknownInstrumentError } from '../errors';
+import { m } from '../i18n';
 import { decimalToPaise } from '../money';
 import type { Exchange, Instrument, InstrumentKind, IstDate } from '../types';
 
@@ -36,16 +37,16 @@ export function parseSymbol(tradingSymbol: string, exchange: Exchange, expiry: I
         candidates.push({ underlying, kind: 'FUT', strike: null });
         continue;
       }
-      const m = OPTION_TAIL.exec(tail);
-      if (m) candidates.push({ underlying, kind: m[2] as InstrumentKind, strike: m[1]! });
+      const match = OPTION_TAIL.exec(tail);
+      if (match) candidates.push({ underlying, kind: match[2] as InstrumentKind, strike: match[1]! });
     }
   }
 
   if (candidates.length === 0) {
-    throw new UnknownInstrumentError(tradingSymbol, `It doesn’t match its expiry date ${expiry}.`);
+    throw new UnknownInstrumentError(tradingSymbol, m().symbolExpiryMismatch(expiry));
   }
   if (candidates.length > 1) {
-    throw new UnknownInstrumentError(tradingSymbol, 'The symbol can be read in more than one way.');
+    throw new UnknownInstrumentError(tradingSymbol, m().symbolAmbiguous);
   }
 
   const { underlying, kind, strike } = candidates[0]!;
@@ -53,7 +54,7 @@ export function parseSymbol(tradingSymbol: string, exchange: Exchange, expiry: I
   if (strike !== null) {
     strikePaise = decimalToPaise(strike);
     if (strikePaise === null || strikePaise <= 0) {
-      throw new UnknownInstrumentError(tradingSymbol, `Strike “${strike}” isn’t valid.`);
+      throw new UnknownInstrumentError(tradingSymbol, m().symbolBadStrike(strike));
     }
   }
 

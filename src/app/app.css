@@ -94,7 +94,7 @@ h1 {
   padding: 1.1rem;
   border: 0;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), #a855f7);
+  background: linear-gradient(135deg, #7050f5, #8b3fd9);
   color: #fff;
   font-size: 1.15rem;
   font-weight: 700;
@@ -415,7 +415,18 @@ h1 {
   height: 5.5rem;
 }
 
+.heatmap {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.heatmap li {
+  display: flex;
+}
+
 .heatmap .cell {
+  flex: 1;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -513,7 +524,8 @@ h1 {
 
 .primary {
   border: 0;
-  background: var(--accent);
+  /* Darker than --accent so white text meets 4.5:1 (5.05:1). */
+  background: #7050f5;
   color: #fff;
 }
 
@@ -592,4 +604,216 @@ h1 {
   .progress > div {
     transition: none;
   }
+}
+
+/* ---------- Privacy & about ---------- */
+
+.page h1 {
+  margin-top: 1rem;
+  font-size: 2rem;
+}
+
+.page h2 {
+  margin: 1.75rem 0 0.5rem;
+  font-size: 1.1rem;
+  color: var(--accent-2);
+}
+
+.page ul,
+.page ol {
+  padding-left: 1.25rem;
+}
+
+.page li {
+  margin-bottom: 0.5rem;
+}
+
+.page a,
+.footnote a {
+  color: var(--accent-2);
+}
+
+.footnote p {
+  margin: 0.25rem 0;
+}
+
+.version {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+/* ---------- Period picker & comparison ---------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.period-picker select {
+  max-width: 11rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.changes {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.changes caption {
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+.changes th,
+.changes td {
+  padding: 0.55rem 0.25rem;
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.changes th[scope='row'] {
+  color: var(--muted);
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+}
+
+.changes thead th {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.changes td.now {
+  font-weight: 700;
+}
+
+.meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
+
+/* ---------- Per-card share (above the tap zones) ---------- */
+
+.card-share {
+  position: absolute;
+  top: 1.1rem;
+  right: 1rem;
+  z-index: 3;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--accent-2);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 0.8rem;
+}
+
+.card-share-status {
+  position: absolute;
+  top: 3.2rem;
+  right: 1rem;
+  z-index: 3;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* 1080×1920 frame; the 432px-wide card is scaled 2.5× to fill it. */
+.share-frame {
+  position: fixed;
+  left: -20000px;
+  top: 0;
+  width: 1080px;
+  height: 1920px;
+  padding: 90px 0 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background:
+    radial-gradient(90% 50% at 100% 0%, #5a3fd6, transparent 65%),
+    #0b0c10;
+  color: #f4f5f7;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.share-frame-card {
+  display: flex;
+  width: 400px;
+  height: 660px; /* × 2.5 = 1650px, ending at 1740px */
+  padding: 1.5rem 1.25rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  transform: scale(2.5);
+  transform-origin: top center;
+}
+
+.share-frame .si-url {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 70px;
+  text-align: center;
+}
+
+/* ---------- Language ---------- */
+
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lang-toggle {
+  font-size: 0.95rem;
+}
+
+/* ---------- Choose headline stats ---------- */
+
+.choose {
+  margin-bottom: 0.75rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.chips p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.chip {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--surface-2);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: 0.85rem;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent-2);
+  background: color-mix(in oklab, var(--accent) 35%, var(--surface));
+}
+
+.chip:disabled {
+  opacity: 0.5;
 }

@@ -110,7 +110,7 @@ Exact formulas, thresholds and edge-case copy: [`ARCHITECTURE.md`](ARCHITECTURE.
 |----|-------------|
 | F-SH-1 | “Download image” exports the summary card as a PNG (1080×1920). |
 | F-SH-2 | “Share” uses the Web Share API with the image file when `navigator.canShare({ files })` is true; otherwise falls back to download. |
-| F-SH-3 | The share image contains only the 3 headline stats, the Samvat year, and the site URL — no trade list, symbols, or account identifiers. |
+| F-SH-3 | The summary share image contains only the 3 headline stats, the period, and the site URL. Per-card images (D-21) contain only what that card shows, plus the period and URL. Never file names or account identifiers. |
 | F-CL-1 | “Clear data” terminates the worker, drops all references to parsed data, resets UI to the landing page, and revokes any object URLs. |
 
 ## 8. Non-functional requirements
@@ -154,3 +154,8 @@ The source spec leaves the items below open. Each has a **proposed default** tha
 | D-14 | Dedupe key | **`exchange + trade_id`**. Trade IDs are issued by each exchange, and one file has both NSE and BSE rows, so a bare `trade_id` could collide across exchanges and raise a false conflict. Otherwise this is the spec’s “dedupe by `trade_id`”. |
 | D-15 | Some files valid, some not | Analyse the valid files and show the skipped ones, with reasons, on the first card. If none are valid, stay on the landing page with the errors. |
 | D-16 | Charges can’t be estimated for some dates | Cards 1–2 show *not enough data* with the reason, the summary uses *P&L before charges*, and cards 3–8 still render. |
+| D-17 | Which period does a trade and its charges belong to? | Trades count by **exit date**; charges by the **trade date** of each fill (ARCHITECTURE §7.2). |
+| D-18 | Default period on the cards screen | Latest Samvat year with ≥ 10 closed trades, else all trades. |
+| D-19 | Extra cards with too little data | Hidden, not shown as “not enough” (the core 8 always show). |
+| D-20 | Language preference | From `?lang=` or the browser; never stored. Hindi copy to be reviewed by a native speaker before launch. |
+| D-21 | Per-card share images | Contain exactly what the card shows, plus the period and site URL; never file names or account IDs. |

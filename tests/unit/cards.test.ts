@@ -188,6 +188,13 @@ describe('cards', () => {
     expect(JSON.stringify(s)).not.toMatch(/percentile|%ile|top \d+%|better than/i);
   });
 
+  it('summary_headline_options_start_with_defaults', () => {
+    const rts = [...[1, 2, 3, 4, 5, 6].map((x) => rt(x * 100)), rt(-50), rt(-150), rt(-100), rt(0)];
+    const s = cards(rts, totals(160_000, 10_000)).summary;
+    expect(s.headlineOptions.slice(0, 3)).toEqual(s.headlines);
+    expect(s.headlineOptions.map((h) => h.label)).toEqual(['Net P&L', 'Charges paid', 'Win rate', 'Trades', 'Traded value', 'P&L before charges', 'Days traded']);
+  });
+
   it('summary_always_has_three_distinct_headlines', () => {
     const s = cards([rt(5)], totals(500, null)).summary;
     expect(new Set(s.headlines.map((h) => h.label)).size).toBe(3);

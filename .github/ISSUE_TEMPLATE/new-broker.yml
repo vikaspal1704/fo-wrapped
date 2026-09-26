@@ -1,0 +1,28 @@
+name: New broker export
+description: Ask for (or help add) support for another broker's tradebook.
+title: "Broker: "
+labels: [broker]
+body:
+  - type: input
+    id: broker
+    attributes:
+      label: Broker
+    validations:
+      required: true
+  - type: textarea
+    id: headers
+    attributes:
+      label: Header row of the export
+      description: Paste **only the header row**, not any data rows.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: formats
+    attributes:
+      label: Value formats
+      description: Describe the formats with made-up examples (e.g. dates "2026-09-22", times "10:12:00", quantities "65.000000"). Don't paste real rows.
+  - type: input
+    id: where
+    attributes:
+      label: Where in the broker app is it downloaded?

@@ -4,9 +4,9 @@ import type { IstDate, Paise } from '../engine';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** '2026-09-22' → '22 Sep 2026' (no Date parsing, so no time-zone drift). */
-export function formatDate(d: IstDate): string {
+export function formatDate(d: IstDate, months: readonly string[] = MONTHS): string {
   const [y, m, day] = d.split('-');
-  return `${Number(day)} ${MONTHS[Number(m) - 1]} ${y}`;
+  return `${Number(day)} ${months[Number(m) - 1]} ${y}`;
 }
 
 /** Signed rupees: +₹1,712 / −₹923 / ₹0. */

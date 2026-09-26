@@ -1,4 +1,5 @@
 import { ChargesUnavailableError } from '../errors';
+import { m } from '../i18n';
 import { safeMul } from '../money';
 import type { Fill, IstDate, Paise } from '../types';
 import type { ChargeRateTable, ChargesBreakdown, Rational, RateWindow } from './types';
@@ -46,12 +47,12 @@ function chargesForDay(date: IstDate, fills: readonly Fill[], rates: ChargeRateT
     const isIndex = rates.indexUnderlyings[f.exchange].includes(f.instrument.underlying);
     const txn = rates.exchangeTxn[f.exchange];
 
-    add('exchangeTxn', pick(isFuture ? txn.futures : isIndex ? txn.indexOptions : txn.stockOptions, date, `${f.exchange} transaction charges`), value);
-    add('sebi', pick(rates.sebi, date, 'SEBI fees'), value);
+    add('exchangeTxn', pick(isFuture ? txn.futures : isIndex ? txn.indexOptions : txn.stockOptions, date, m().chargeTxn(f.exchange)), value);
+    add('sebi', pick(rates.sebi, date, m().chargeSebi), value);
     if (f.side === 'SELL') {
-      add('stt', pick(isFuture ? rates.stt.futuresSell : rates.stt.optionsSellOnPremium, date, 'STT'), value);
+      add('stt', pick(isFuture ? rates.stt.futuresSell : rates.stt.optionsSellOnPremium, date, m().chargeStt), value);
     } else {
-      add('stampDuty', pick(isFuture ? rates.stampDutyBuy.futures : rates.stampDutyBuy.options, date, 'stamp duty'), value);
+      add('stampDuty', pick(isFuture ? rates.stampDutyBuy.futures : rates.stampDutyBuy.options, date, m().chargeStamp), value);
     }
 
     const order = orders.get(f.orderId) ?? { isFuture, value: 0 };
@@ -64,14 +65,14 @@ function chargesForDay(date: IstDate, fills: readonly Fill[], rates: ChargeRateT
 
   for (const order of orders.values()) {
     if (order.isFuture) {
-      const { capPaise, pct } = pick(rates.brokerage.futuresPerOrder, date, 'brokerage');
+      const { capPaise, pct } = pick(rates.brokerage.futuresPerOrder, date, m().chargeBrokerage);
       day.brokerage += Math.min(capPaise, applyRate(BigInt(order.value), pct));
     } else {
-      day.brokerage += pick(rates.brokerage.optionsPerOrderPaise, date, 'brokerage');
+      day.brokerage += pick(rates.brokerage.optionsPerOrderPaise, date, m().chargeBrokerage);
     }
   }
 
-  day.gst = applyRate(BigInt(day.brokerage + day.exchangeTxn + day.sebi), pick(rates.gst, date, 'GST'));
+  day.gst = applyRate(BigInt(day.brokerage + day.exchangeTxn + day.sebi), pick(rates.gst, date, m().chargeGst));
   return day;
 }
 

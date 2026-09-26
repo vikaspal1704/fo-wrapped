@@ -1,27 +1,29 @@
 import { formatDuration } from '../engine/format';
 import type { CardSet } from '../engine';
 import { Card, CompareBars } from './Card';
+import { useT } from '../app/i18n';
 
 export function HoldingTime({ card }: { card: CardSet['holdingTime'] }) {
+  const t = useT();
   return (
-    <Card title="Diamond hands, paper hands" result={card}>
+    <Card title={t.tHolding} result={card}>
       {(d) => {
         const ratio = d.medianWinnerMs > 0 ? d.medianLoserMs / d.medianWinnerMs : null;
         return (
           <>
-            <p className="lead">Median time you held…</p>
+            <p className="lead">{t.medianHeld}</p>
             <CompareBars
               rows={[
-                { label: 'Winners', value: d.medianWinnerMs, text: formatDuration(d.medianWinnerMs), tone: 'profit' },
-                { label: 'Losers', value: d.medianLoserMs, text: formatDuration(d.medianLoserMs), tone: 'loss' },
+                { label: t.winners, value: d.medianWinnerMs, text: formatDuration(d.medianWinnerMs), tone: 'profit' },
+                { label: t.losers, value: d.medianLoserMs, text: formatDuration(d.medianLoserMs), tone: 'loss' },
               ]}
             />
             <p className="headline">
               {ratio !== null && ratio >= 1.1
-                ? `You hold losers ${ratio.toFixed(1)}× longer than winners.`
+                ? t.holdRatio(ratio.toFixed(1))
                 : ratio !== null && ratio <= 0.9
-                  ? 'You cut losers faster than you take profits.'
-                  : 'You hold winners and losers for about the same time.'}
+                  ? t.cutLosersFaster
+                  : t.holdSame}
             </p>
           </>
         );

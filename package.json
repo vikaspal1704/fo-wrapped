@@ -1,7 +1,7 @@
 {
   "name": "fo-wrapped",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Your F&O trading year, Wrapped \u2014 runs entirely in the browser.",
   "license": "MIT",
   "author": "Vikas Pal",
@@ -19,16 +19,19 @@
     "test:tz": "TZ=America/New_York vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "fixtures": "node scripts/make-synthetic-year.mjs"
+    "fixtures": "node scripts/make-synthetic-year.mjs && node scripts/make-synthetic-year.mjs 480 tests/fixtures/synthetic-two-fy.csv",
+    "brand": "node scripts/make-brand-images.mjs"
   },
   "dependencies": {
     "html-to-image": "^1.11.13",
     "papaparse": "^5.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "read-excel-file": "^9.3.10",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.4",
@@ -41,6 +44,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.1",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "write-excel-file": "^4.1.1"
   }
 }

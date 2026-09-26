@@ -23,6 +23,10 @@ export default tseslint.config(
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser } },
+    rules: {
+      // Omitting fields with a rest pattern (`{ a: _a, ...rest }`) is intentional.
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true, varsIgnorePattern: '^_' }],
+    },
   },
   {
     files: ['src/engine/**/*.ts', 'src/worker/**/*.ts'],
@@ -58,7 +62,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts', '*.config.{js,ts}', 'scripts/**/*.mjs'],
+    files: ['build/sw-template.js'],
+    languageOptions: { globals: { ...globals.serviceworker, __PRECACHE__: 'readonly' } },
+  },
+  {
+    files: ['tests/**/*.ts', '*.config.{js,ts}', 'scripts/**/*.mjs', 'build/**/*.ts'],
     languageOptions: { globals: { ...globals.node } },
   },
 );

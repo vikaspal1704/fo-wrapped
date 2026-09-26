@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { CardResult } from '../engine';
+import { useT } from '../app/i18n';
 
 interface Props<T> {
   title: string;
@@ -9,6 +10,7 @@ interface Props<T> {
 
 /** Frame for one card: title, body (or the reason there isn't one), notes. */
 export function Card<T>({ title, result, children }: Props<T>) {
+  const t = useT();
   return (
     <div className="card-body">
       <h2 className="card-title">{title}</h2>
@@ -25,7 +27,7 @@ export function Card<T>({ title, result, children }: Props<T>) {
         </>
       ) : (
         <div className="card-main insufficient">
-          <p className="big-muted">Not enough trades to say.</p>
+          <p className="big-muted">{t.notEnough}</p>
           <p className="muted">{result.reason}</p>
         </div>
       )}

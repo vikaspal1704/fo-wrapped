@@ -2,7 +2,7 @@
 
 **Normative.** Implementations MUST match these types and behaviours.
 
-> **Implementation status (v0.1):** everything here is implemented except the **P&L statement** (§3) and **XLSX** tradebooks, which wait on verified sample exports. Until they land, `Totals.source` is always `'ESTIMATED'` and `analyze()` takes no `pnlStatement`. The TypeScript sources in `src/engine/` are the exact shapes; this document explains them.  
+> **Implementation status (engine 0.2.0):** everything here is implemented except the **P&L statement** (§3), which waits on a real sample export. Until it lands, `Totals.source` is always `'ESTIMATED'` and `analyze()` takes no `pnlStatement`. XLSX is implemented (§2.3) but not yet checked against a real XLSX export. The TypeScript sources in `src/engine/` are the exact shapes; this document explains them.  
 Import path: `src/engine/index.ts` (re-exports everything below). The engine is pure TypeScript with no DOM access.
 
 ---
@@ -30,7 +30,7 @@ export type InstrumentKind = 'FUT' | 'CE' | 'PE';
 
 > **Verification status**
 > - ✅ **CSV, Sep 2026 export:** header row and value formats confirmed against one real Console F&O tradebook (NSE + BSE rows). Recorded below.
-> - ⏳ **Still needed before coding the parser:** 2–3 more exports, including **XLSX** and an **older year** (to catch header variants), and one **P&L statement** (§3).
+> - ⏳ **Still needed:** 2–3 more exports, including a real **XLSX** (to confirm the preamble and cell types assumed in §2.3) and an **older year** (to catch header variants), and one **P&L statement** (§3).
 >
 > Confirmed CSV header row, in this exact order:
 >
@@ -108,6 +108,20 @@ Symbol shapes (✅ = seen in a real export):
 Parsing the underlying: take the longest leading run of `A–Z` / `&` / `-` characters before the 2-digit year. Strike = the digits between the date part and `CE`/`PE`. A symbol matching none of the shapes → `UnknownInstrumentError`. Never guess an expiry.
 
 ---
+
+### 2.3 XLSX tradebooks
+
+`parseTradebookFile(fileName, bytes): Promise<Fill[]>` accepts CSV or XLSX (detected by the zip signature). Both paths go through `parseTradebookRows()`, so the header rules, Zod schema and errors are identical.
+
+| Topic | Rule |
+|-------|------|
+| Reader | `read-excel-file` (the official SheetJS build can’t be installed from here, and npm’s `xlsx` 0.18 has known CVEs for crafted files) |
+| Sheet | The first sheet that has any non-empty cell |
+| Header row | The first row, within the first 30, that contains every required header (exports have a preamble) |
+| Numbers | Kept as the **exact text** stored in the file (`parseNumber` is the identity). A number with more than 15 integer digits, or in exponent form, was rounded by Excel when saved, so it is rejected (this protects 19-digit order IDs stored as numbers) |
+| Dates | Date cells are wall-clock times with no zone. They are rounded to the nearest second (Excel stores fractional days) and formatted as `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm:ss` |
+| Row numbers | 1-based spreadsheet rows (preamble included) |
+| Legacy `.xls` | Plain-language error asking for CSV or XLSX |
 
 ## 3. Input: Console P&L statement (optional)
 
@@ -273,10 +287,45 @@ export interface AnalysisResult {
   roundTrips: RoundTrip[];
   unclosed: UnclosedPosition[];
   totals: Totals;
-  cards: CardSet;
+  cards: CardSet;                  // totals, cards and warnings are those of the 'all' view
   warnings: string[];              // user-facing notices (estimated charges, exclusions, out-of-session fills)
+  views: PeriodView[];             // views[0] is 'all'; then Samvat, calendar and financial years with trades
+  defaultViewId: string;           // latest Samvat year with ≥ 10 closed trades, else 'all'
+}
+
+export interface Period {
+  id: string;                      // 'all' | 'samvat-2082' | 'cy-2026' | 'fy-2026' (FY 2026-27)
+  kind: 'ALL' | 'SAMVAT' | 'CALENDAR' | 'FY';
+  label: string;                   // localised, e.g. 'Samvat 2082' / 'संवत 2082'
+  from: IstDate;
+  to: IstDate;
+}
+
+export interface PeriodView {
+  period: Period;
+  title: string;                   // summary heading for the period
+  dateRange: { from: IstDate; to: IstDate };
+  roundTripCount: number;
+  fillCount: number;
+  totals: Totals;
+  cards: CardSet;
+  warnings: string[];
+  comparison: Comparison | null;   // vs the previous period of the same kind, when both have trades
+}
+
+export interface Comparison {
+  previous: Period;
+  rows: {
+    key: 'netPnl' | 'grossPnl' | 'charges' | 'trades' | 'winRate' | 'revengeTrades' | 'loserHoldMs';
+    label: string;
+    unit: 'paise' | 'count' | 'ratio' | 'ms';
+    current: number | null;        // null = not enough data (shown as —, never 0)
+    previous: number | null;
+  }[];
 }
 ```
+
+View rules (which trades and charges fall in a period): [`ARCHITECTURE.md`](ARCHITECTURE.md) §7.2.
 
 ### 6.1 Cards
 
@@ -287,7 +336,7 @@ export type CardResult<T> =
   | { status: 'OK'; data: T; notes: string[] }
   | { status: 'INSUFFICIENT_DATA'; reason: string };
 
-export interface CardSet {
+export interface CardSet extends ExtraCards {   // ExtraCards: ARCHITECTURE §7.3
   theNumber: CardResult<{ netPnlPaise: Paise; totalTrades: number; tradedValuePaise: Paise; estimated: boolean }>;
   whereMoneyWent: CardResult<{ grossPnlPaise: Paise; chargesPaise: Paise; chargesPctOfGrossProfit: number | null; estimated: boolean }>;
   rightButBroke: CardResult<{ winRate: number; avgWinPaise: number; avgLossPaise: number; wins: number; losses: number }>;
@@ -296,7 +345,17 @@ export interface CardSet {
   revengeTrades: CardResult<{ count: number; combinedPnlPaise: Paise; medianLossPaise: Paise; triggers: number }>;
   holdingTime: CardResult<{ medianWinnerMs: number; medianLoserMs: number; winners: number; losers: number }>;
   bestWorstDay: CardResult<{ best: { date: IstDate; pnlPaise: Paise }; worst: { date: IstDate; pnlPaise: Paise } }>;
-  summary: { headlines: [Headline, Headline, Headline]; samvat: string | null; siteUrl: string };
+  summary: { headlines: [Headline, Headline, Headline]; headlineOptions: Headline[]; samvat: string | null; periodTitle: string; siteUrl: string };
+  // headlineOptions: every honest stat, defaults first; the user may pick any 3 for the image.
+}
+
+export interface ExtraCards {
+  buyerVsSeller: CardResult<{ buyerPnlPaise: Paise; buyerTrades: number; sellerPnlPaise: Paise; sellerTrades: number }>;
+  underlyings: CardResult<{ best: UnderlyingStat; worst: UnderlyingStat; split: { indexPnlPaise: Paise; indexTrades: number; stockPnlPaise: Paise; stockTrades: number } | null }>;
+  busyDays: CardResult<{ busyThreshold: number; busyDays: number; busyAvgPnlPaise: number; otherDays: number; otherAvgPnlPaise: number }>;
+  weekday: CardResult<{ days: WeekdayStat[]; best: WeekdayStat | null; worst: WeekdayStat | null }>;
+  positionSize: CardResult<{ medianEntryValuePaise: number; big: SizeGroup; small: SizeGroup }>;
+  chargesDrag: CardResult<{ chargesPaise: Paise; avgWinPaise: number; winsToCover: number; chargesPerTradePaise: number }>;
 }
 
 export interface ClockBucket { startMinuteIst: number; trades: number; pnlPaise: Paise; }
@@ -311,7 +370,9 @@ Formulas and thresholds: [`ARCHITECTURE.md`](ARCHITECTURE.md) §7. When charges 
 
 ```ts
 export const RATES: ChargeRateTable;   // the versioned table from src/engine/charges/rates.ts
-export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[];          // throws FoWrappedError
+export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[];                    // CSV only; throws FoWrappedError
+export function parseTradebookFile(fileName: string, bytes: ArrayBuffer): Promise<Fill[]>;      // CSV or XLSX (§2.3)
+export function withLocale<T>(locale: 'en' | 'hi', fn: () => T | Promise<T>): Promise<T>;       // engine strings in that language
 // parsePnlStatement(fileName, bytes): PnlStatement arrives with §3.
 export function mergeFills(files: readonly Fill[][]): { fills: Fill[]; duplicatesDropped: number };
 export function buildRoundTrips(fills: readonly Fill[], asOf: IstDate): { roundTrips: RoundTrip[]; unclosed: UnclosedPosition[] };
@@ -324,6 +385,7 @@ export function analyze(input: {
 ```
 
 - `asOf` for `buildRoundTrips` is the **last `tradeDate` in the data**, never the current date (determinism, PRD F-EN-6).
+- Every user-facing engine string (notes, reasons, warnings, labels, errors) comes from `engine/i18n.ts` in the current locale. Numbers never depend on the locale.
 - `mergeFills` sorts output by `(executedAt, exchange, tradeId)`, comparing trade IDs numerically without converting them to numbers.
 
 ---
@@ -337,12 +399,14 @@ export type WorkerRequest =
 export type WorkerResponse =
   | { type: 'progress'; stage: 'reading' | 'validating' | 'matching' | 'cards'; pct: number }
   | { type: 'fileAccepted'; name: string; rows: number }
-  | { type: 'fileRejected'; name: string; message: string }
-  | { type: 'result'; result: AnalysisResult }
-  | { type: 'error'; message: string };
+  | { type: 'fileRejected'; name: string; message: Localized }
+  | { type: 'result'; results: Record<'en' | 'hi', AnalysisResult> }   // analysed once per language
+  | { type: 'error'; message: Localized };
+
+type Localized = Record<'en' | 'hi', string>;
 ```
 
-The worker parses each file itself; the UI never inspects file contents. A rejected file is reported and skipped, and analysis continues with the accepted files (PRD D-15). If none is accepted, the worker posts `error`. The UI terminates the worker as soon as `result` or `error` arrives.
+The worker parses each file itself; the UI never inspects file contents. A rejected file is reported and skipped, and analysis continues with the accepted files (PRD D-15). If none is accepted, the worker posts `error`. The UI terminates the worker as soon as `result` or `error` arrives, and keeps one fresh, empty spare worker ready (ARCHITECTURE §8).
 
 ---
 

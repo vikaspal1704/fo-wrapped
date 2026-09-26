@@ -88,11 +88,6 @@ describe('tradebook parsing & validation', () => {
     expectRowError(() => parseTradebook('tb.csv', csv(HEADER, csvRow(), '', csvRow({ trade_id: '2' }))), 3, 'row');
   });
 
-  it('rejects_xlsx_until_supported', () => {
-    const zip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0]).buffer;
-    expect(() => parseTradebook('tb.xlsx', zip)).toThrow(/Excel/);
-  });
-
   it('parses_price_to_paise_exactly', () => {
     expect(decimalToPaise('0.05')).toBe(5);
     expect(decimalToPaise('123.45')).toBe(12345);

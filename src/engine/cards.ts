@@ -1,7 +1,12 @@
 import type { ChargesBreakdown } from './charges/types';
+import { m } from './i18n';
+import { computeExtraCards, type ExtraCards } from './cardsExtra';
 import { formatInr, formatPct } from './format';
+import { median } from './stats';
 import { istMinuteOfDay } from './time';
-import type { EpochMs, Fill, IstDate, Paise, RoundTrip } from './types';
+
+export { median };
+import type { EpochMs, Exchange, Fill, IstDate, Paise, RoundTrip } from './types';
 
 export type CardResult<T> =
   | { status: 'OK'; data: T; notes: string[] }
@@ -29,7 +34,7 @@ export interface Totals {
   excludedUnclosedCount: number;
 }
 
-export interface CardSet {
+export interface CardSet extends ExtraCards {
   theNumber: CardResult<{ netPnlPaise: Paise; totalTrades: number; tradedValuePaise: Paise; estimated: boolean }>;
   whereMoneyWent: CardResult<{ grossPnlPaise: Paise; chargesPaise: Paise; chargesPctOfGrossProfit: number | null; estimated: boolean }>;
   rightButBroke: CardResult<{ winRate: number; avgWinPaise: number; avgLossPaise: number; wins: number; losses: number }>;
@@ -38,7 +43,14 @@ export interface CardSet {
   revengeTrades: CardResult<{ count: number; combinedPnlPaise: Paise; medianLossPaise: Paise; triggers: number }>;
   holdingTime: CardResult<{ medianWinnerMs: number; medianLoserMs: number; winners: number; losers: number }>;
   bestWorstDay: CardResult<{ best: { date: IstDate; pnlPaise: Paise }; worst: { date: IstDate; pnlPaise: Paise } }>;
-  summary: { headlines: [Headline, Headline, Headline]; samvat: string | null; siteUrl: string };
+  summary: {
+    headlines: [Headline, Headline, Headline];
+    /** Every available headline (≥ 3), default ones first; the user may pick any 3 (ROADMAP X6). */
+    headlineOptions: Headline[];
+    samvat: string | null;
+    periodTitle: string;
+    siteUrl: string;
+  };
 }
 
 /** Card thresholds (ARCHITECTURE §7). */
@@ -53,7 +65,6 @@ export const THRESHOLDS = {
 
 const SESSION_START_MIN = 9 * 60 + 15;
 export const CLOCK_BUCKETS = 25;
-const BEFORE_CHARGES = 'Before charges.';
 
 const insufficient = (reason: string) => ({ status: 'INSUFFICIENT_DATA' as const, reason });
 const ok = <T>(data: T, notes: string[] = []) => ({ status: 'OK' as const, data, notes });
@@ -61,34 +72,29 @@ const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 const isWin = (rt: RoundTrip) => rt.grossPnlPaise > 0;
 const isLoss = (rt: RoundTrip) => rt.grossPnlPaise < 0;
 
-/** Middle value; for an even count the mean of the two middle values, rounded half up. */
-export function median(values: readonly number[]): number {
-  const s = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid]! : Math.floor((s[mid - 1]! + s[mid]! + 1) / 2);
-}
-
 export function computeCards(input: {
   roundTrips: readonly RoundTrip[];
   fills: readonly Fill[];
   totals: Totals;
   samvat: string | null;
+  /** Summary heading for this period, e.g. 'Samvat 2082' or 'FY 2025-26'. */
+  periodTitle?: string;
+  /** Underlyings charged at index rates; used by the underlyings card. */
+  indexUnderlyings?: Record<Exchange, readonly string[]>;
   siteUrl: string;
 }): CardSet {
   const { roundTrips: rts, fills, totals } = input;
   const estimatedNotes = [
-    'Charges are estimated from published rates. Add your P&L statement for exact numbers (coming soon).',
-    ...(totals.excludedUnclosedCount > 0
-      ? [`${totals.excludedUnclosedCount} position${totals.excludedUnclosedCount === 1 ? '' : 's'} that expired or are still open aren’t included.`]
-      : []),
+    m().chargesEstimatedAddStatement,
+    ...(totals.excludedUnclosedCount > 0 ? [m().excludedPositions(totals.excludedUnclosedCount)] : []),
   ];
-  const noTrades = 'No closed trades yet.';
+  const noTrades = m().noClosedTrades;
 
   const theNumber: CardSet['theNumber'] =
     rts.length === 0
       ? insufficient(noTrades)
       : totals.netPnlPaise === null
-        ? insufficient(totals.chargesUnavailableReason ?? 'Charges unavailable.')
+        ? insufficient(totals.chargesUnavailableReason ?? m().chargesUnavailable)
         : ok(
             {
               netPnlPaise: totals.netPnlPaise,
@@ -103,7 +109,7 @@ export function computeCards(input: {
     rts.length === 0
       ? insufficient(noTrades)
       : totals.charges === null
-        ? insufficient(totals.chargesUnavailableReason ?? 'Charges unavailable.')
+        ? insufficient(totals.chargesUnavailableReason ?? m().chargesUnavailable)
         : ok(
             {
               grossPnlPaise: totals.grossPnlPaise,
@@ -116,9 +122,11 @@ export function computeCards(input: {
           );
 
   const daysTraded = new Set(fills.map((f) => f.tradeDate)).size;
-  const summaryHeadlines = headlines(theNumber, whereMoneyWent, rightButBrokeCard(rts), totals, rts.length, daysTraded);
+  // Every honest stat, in default order; the first 3 are the default headlines (PRD D-13).
+  const headlineOptions = headlines(theNumber, whereMoneyWent, rightButBrokeCard(rts), totals, rts.length, daysTraded);
 
   return {
+    ...computeExtraCards({ roundTrips: rts, totals, indexUnderlyings: input.indexUnderlyings ?? { NSE: [], BSE: [] } }),
     theNumber,
     whereMoneyWent,
     rightButBroke: rightButBrokeCard(rts),
@@ -127,7 +135,13 @@ export function computeCards(input: {
     revengeTrades: revengeCard(rts),
     holdingTime: holdingCard(rts),
     bestWorstDay: bestWorstDayCard(rts),
-    summary: { headlines: summaryHeadlines, samvat: input.samvat, siteUrl: input.siteUrl },
+    summary: {
+      headlines: [headlineOptions[0]!, headlineOptions[1]!, headlineOptions[2]!],
+      headlineOptions,
+      samvat: input.samvat,
+      periodTitle: input.periodTitle ?? (input.samvat ? m().samvat(input.samvat) : m().allTrades),
+      siteUrl: input.siteUrl,
+    },
   };
 }
 
@@ -135,7 +149,7 @@ function rightButBrokeCard(rts: readonly RoundTrip[]): CardSet['rightButBroke'] 
   const wins = rts.filter(isWin);
   const losses = rts.filter(isLoss);
   if (rts.length < THRESHOLDS.minTradesWinRate || wins.length === 0 || losses.length === 0) {
-    return insufficient(`Needs at least ${THRESHOLDS.minTradesWinRate} closed trades with at least one win and one loss.`);
+    return insufficient(m().needsWinsAndLosses(THRESHOLDS.minTradesWinRate));
   }
   return ok(
     {
@@ -145,7 +159,7 @@ function rightButBrokeCard(rts: readonly RoundTrip[]): CardSet['rightButBroke'] 
       wins: wins.length,
       losses: losses.length,
     },
-    [BEFORE_CHARGES, 'Break-even trades aren’t counted as wins or losses.'],
+    [m().beforeCharges, m().scratchNote],
   );
 }
 
@@ -154,7 +168,7 @@ function expiryDayCard(rts: readonly RoundTrip[]): CardSet['expiryDay'] {
   const other = rts.filter((r) => r.exitDate !== r.instrument.expiry);
   if (onExpiry.length === 0 || other.length === 0) {
     return insufficient(
-      onExpiry.length === 0 ? 'None of your trades closed on an expiry day.' : 'All of your trades closed on expiry day.',
+      onExpiry.length === 0 ? m().noExpiryTrades : m().allExpiryTrades,
     );
   }
   return ok(
@@ -164,7 +178,7 @@ function expiryDayCard(rts: readonly RoundTrip[]): CardSet['expiryDay'] {
       otherPnlPaise: sum(other.map((r) => r.grossPnlPaise)) as Paise,
       otherTrades: other.length,
     },
-    [BEFORE_CHARGES, 'A trade counts as expiry-day if it closed on its contract’s expiry date.'],
+    [m().beforeCharges, m().expiryNote],
   );
 }
 
@@ -175,7 +189,7 @@ export function clockBucketOf(at: EpochMs): number {
 
 function clockCard(rts: readonly RoundTrip[]): CardSet['yourClock'] {
   if (rts.length < THRESHOLDS.minTradesClock) {
-    return insufficient(`Needs at least ${THRESHOLDS.minTradesClock} closed trades.`);
+    return insufficient(m().needsClosedTrades(THRESHOLDS.minTradesClock));
   }
   const buckets: ClockBucket[] = Array.from({ length: CLOCK_BUCKETS }, (_, i) => ({
     startMinuteIst: SESSION_START_MIN + i * 15,
@@ -195,16 +209,16 @@ function clockCard(rts: readonly RoundTrip[]): CardSet['yourClock'] {
     if (worstIndex === null || b.pnlPaise < buckets[worstIndex]!.pnlPaise) worstIndex = i;
   });
   return ok({ buckets, bestIndex, worstIndex }, [
-    BEFORE_CHARGES,
-    'Trades are placed by when you entered, in 15-minute slots (IST).',
-    `Best and worst slots need at least ${THRESHOLDS.minTradesPerClockSlot} trades.`,
+    m().beforeCharges,
+    m().clockEntryNote,
+    m().clockMinNote(THRESHOLDS.minTradesPerClockSlot),
   ]);
 }
 
 function revengeCard(rts: readonly RoundTrip[]): CardSet['revengeTrades'] {
   const losses = rts.filter(isLoss);
   if (losses.length < THRESHOLDS.minLossesRevenge) {
-    return insufficient(`Needs at least ${THRESHOLDS.minLossesRevenge} losing trades.`);
+    return insufficient(m().needsLosses(THRESHOLDS.minLossesRevenge));
   }
   const medianLoss = median(losses.map((r) => -r.grossPnlPaise));
   const triggers = losses.filter((r) => -r.grossPnlPaise > medianLoss);
@@ -221,7 +235,7 @@ function revengeCard(rts: readonly RoundTrip[]): CardSet['revengeTrades'] {
   const combined = sum(rts.filter((r) => revenge.has(r.id)).map((r) => r.grossPnlPaise));
   return ok(
     { count: revenge.size, combinedPnlPaise: combined as Paise, medianLossPaise: medianLoss as Paise, triggers: triggers.length },
-    [BEFORE_CHARGES, `A revenge trade is any new entry within 15 minutes after a loss bigger than your median loss (${formatInr(medianLoss)}).`],
+    [m().beforeCharges, m().revengeNote(medianLoss)],
   );
 }
 
@@ -240,7 +254,7 @@ function holdingCard(rts: readonly RoundTrip[]): CardSet['holdingTime'] {
   const wins = rts.filter(isWin);
   const losses = rts.filter(isLoss);
   if (wins.length < THRESHOLDS.minEachHolding || losses.length < THRESHOLDS.minEachHolding) {
-    return insufficient(`Needs at least ${THRESHOLDS.minEachHolding} winning and ${THRESHOLDS.minEachHolding} losing trades.`);
+    return insufficient(m().needsWinnersAndLosers(THRESHOLDS.minEachHolding));
   }
   return ok(
     {
@@ -249,14 +263,14 @@ function holdingCard(rts: readonly RoundTrip[]): CardSet['holdingTime'] {
       winners: wins.length,
       losers: losses.length,
     },
-    ['Holding time is the quantity-weighted time each unit was held (FIFO).'],
+    [m().holdingNote],
   );
 }
 
 function bestWorstDayCard(rts: readonly RoundTrip[]): CardSet['bestWorstDay'] {
   const byDay = new Map<IstDate, number>();
   for (const r of rts) byDay.set(r.exitDate, (byDay.get(r.exitDate) ?? 0) + r.grossPnlPaise);
-  if (byDay.size < 2) return insufficient('Needs trades closed on at least 2 different days.');
+  if (byDay.size < 2) return insufficient(m().needsTwoDays);
   const days = [...byDay.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
   let best = days[0]!;
   let worst = days[0]!;
@@ -269,7 +283,7 @@ function bestWorstDayCard(rts: readonly RoundTrip[]): CardSet['bestWorstDay'] {
       best: { date: best[0], pnlPaise: best[1] as Paise },
       worst: { date: worst[0], pnlPaise: worst[1] as Paise },
     },
-    [BEFORE_CHARGES, 'Each trade counts on the day it closed.'],
+    [m().beforeCharges, m().dayCloseNote],
   );
 }
 
@@ -281,16 +295,17 @@ function headlines(
   totals: Totals,
   trades: number,
   daysTraded: number,
-): [Headline, Headline, Headline] {
+): Headline[] {
   const candidates: Headline[] = [];
-  if (theNumber.status === 'OK') candidates.push({ label: 'Net P&L', value: formatInr(theNumber.data.netPnlPaise) });
-  else candidates.push({ label: 'P&L before charges', value: formatInr(totals.grossPnlPaise) });
-  if (money.status === 'OK') candidates.push({ label: 'Charges paid', value: formatInr(money.data.chargesPaise) });
-  if (winRate.status === 'OK') candidates.push({ label: 'Win rate', value: formatPct(winRate.data.winRate) });
-  candidates.push({ label: 'Trades', value: String(trades) });
-  if (theNumber.status === 'OK') candidates.push({ label: 'Traded value', value: formatInr(theNumber.data.tradedValuePaise) });
-  candidates.push({ label: 'P&L before charges', value: formatInr(totals.grossPnlPaise) });
-  candidates.push({ label: 'Days traded', value: String(daysTraded) });
+  const t = m();
+  if (theNumber.status === 'OK') candidates.push({ label: t.hNetPnl, value: formatInr(theNumber.data.netPnlPaise) });
+  else candidates.push({ label: t.hGrossPnl, value: formatInr(totals.grossPnlPaise) });
+  if (money.status === 'OK') candidates.push({ label: t.hCharges, value: formatInr(money.data.chargesPaise) });
+  if (winRate.status === 'OK') candidates.push({ label: t.hWinRate, value: formatPct(winRate.data.winRate) });
+  candidates.push({ label: t.hTrades, value: String(trades) });
+  if (theNumber.status === 'OK') candidates.push({ label: t.hTradedValue, value: formatInr(theNumber.data.tradedValuePaise) });
+  candidates.push({ label: t.hGrossPnl, value: formatInr(totals.grossPnlPaise) });
+  candidates.push({ label: t.hDaysTraded, value: String(daysTraded) });
   const unique = candidates.filter((h, i) => candidates.findIndex((x) => x.label === h.label) === i);
-  return [unique[0]!, unique[1]!, unique[2]!];
+  return unique;
 }

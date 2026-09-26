@@ -1,13 +1,18 @@
 import { useRef, useState, type DragEvent } from 'react';
+import { LanguageToggle, useLocale, useT } from './i18n';
 import type { FileStatus } from './useAnalysis';
 
 interface Props {
   onFiles: (files: File[]) => void;
+  onPrivacy: () => void;
   files: FileStatus[];
   error: string | null;
 }
 
-export function Landing({ onFiles, files, error }: Props) {
+const bold = (s: string) => <strong>{s}</strong>;
+
+export function Landing({ onFiles, onPrivacy, files, error }: Props) {
+  const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -31,17 +36,20 @@ export function Landing({ onFiles, files, error }: Props) {
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
     >
-      <p className="eyebrow">Your trading year, Wrapped</p>
+      <div className="top-row">
+        <p className="eyebrow">{t.eyebrow}</p>
+        <LanguageToggle />
+      </div>
       <h1>F&amp;O Wrapped</h1>
-      <p className="tagline">Honest, shareable cards about your F&amp;O year: charges, win rate, expiry days, revenge trades and more.</p>
+      <p className="tagline">{t.tagline}</p>
 
       <button type="button" className="drop" onClick={() => input.current?.click()}>
-        Drop your tradebook
+        {t.drop}
       </button>
       <input
         ref={input}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         multiple
         hidden
         data-testid="file-input"
@@ -51,7 +59,11 @@ export function Landing({ onFiles, files, error }: Props) {
         }}
       />
       <p className="privacy">
-        <span aria-hidden="true">🔒 </span>Files are processed on your device and never uploaded.
+        <span aria-hidden="true">🔒 </span>
+        {t.privacyLine}{' '}
+        <button type="button" className="link" onClick={onPrivacy}>
+          {t.howToCheck}
+        </button>
       </p>
 
       {error && (
@@ -62,33 +74,35 @@ export function Landing({ onFiles, files, error }: Props) {
       {files.length > 0 && <FileList files={files} />}
 
       <section aria-labelledby="how" className="how">
-        <h2 id="how">How to download from Zerodha Console</h2>
+        <h2 id="how">{t.howTitle}</h2>
         <ol>
-          <li>
-            Open <strong>console.zerodha.com</strong> and go to <strong>Reports → Tradebook</strong>.
-          </li>
-          <li>
-            Choose segment <strong>F&amp;O</strong> and a date range of up to 365 days.
-          </li>
-          <li>
-            Download as <strong>CSV</strong>. For more than a year, repeat and drop all the files together.
-          </li>
+          <li>{t.how1(bold)}</li>
+          <li>{t.how2(bold)}</li>
+          <li>{t.how3(bold)}</li>
         </ol>
       </section>
 
       <footer className="footnote">
-        Free and open source. No sign-up, no tracking. Not investment or tax advice.
+        <p>{t.footer1}</p>
+        <p>
+          {t.footer2}{' '}
+          <button type="button" className="link" onClick={onPrivacy}>
+            {t.privacyAbout}
+          </button>
+        </p>
       </footer>
     </main>
   );
 }
 
 export function FileList({ files }: { files: FileStatus[] }) {
+  const t = useT();
+  const { locale } = useLocale();
   return (
-    <ul className="files" aria-label="Files">
+    <ul className="files" aria-label={t.filesLabel}>
       {files.map((f) => (
         <li key={f.name} className={f.ok ? 'ok' : 'bad'}>
-          <span aria-hidden="true">{f.ok ? '✓' : '✕'}</span> <strong>{f.name}</strong>: {f.detail}
+          <span aria-hidden="true">{f.ok ? '✓' : '✕'}</span> <strong>{f.name}</strong>: {f.ok ? t.tradesRead(f.rows ?? 0) : f.message?.[locale]}
         </li>
       ))}
     </ul>

@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-import type { AnalysisResult } from '../engine';
-import type { Stage, WorkerRequest, WorkerResponse } from '../worker/protocol';
+import type { AnalysisResult, Locale } from '../engine';
+import type { Localized, Stage, WorkerRequest, WorkerResponse } from '../worker/protocol';
 
 export interface FileStatus {
   name: string;
   ok: boolean;
-  detail: string;
+  /** Trades read, for accepted files. */
+  rows?: number;
+  /** Why it was rejected, in each language. */
+  message?: Localized;
 }
 
 export type State =
-  | { screen: 'landing'; files: FileStatus[]; error: string | null }
+  | { screen: 'landing'; files: FileStatus[]; error: Localized | null }
   | { screen: 'working'; stage: Stage; pct: number; files: FileStatus[] }
-  | { screen: 'cards'; result: AnalysisResult; files: FileStatus[] };
+  | { screen: 'cards'; results: Record<Locale, AnalysisResult>; files: FileStatus[] };
 
 type Action =
   | { type: 'start' }
@@ -33,11 +36,11 @@ function reducer(state: State, action: Action): State {
         case 'progress':
           return { ...state, stage: msg.stage, pct: msg.pct };
         case 'fileAccepted':
-          return { ...state, files: [...state.files, { name: msg.name, ok: true, detail: `${msg.rows} trades read` }] };
+          return { ...state, files: [...state.files, { name: msg.name, ok: true, rows: msg.rows }] };
         case 'fileRejected':
-          return { ...state, files: [...state.files, { name: msg.name, ok: false, detail: msg.message }] };
+          return { ...state, files: [...state.files, { name: msg.name, ok: false, message: msg.message }] };
         case 'result':
-          return { screen: 'cards', result: msg.result, files: state.files };
+          return { screen: 'cards', results: msg.results, files: state.files };
         case 'error':
           return { screen: 'landing', files: state.files, error: msg.message };
       }
@@ -45,43 +48,71 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-/** Owns the analysis worker; `clear` terminates it so no data survives. */
+const newWorker = () => new Worker(new URL('../worker/analysis.worker.ts', import.meta.url), { type: 'module' });
+
+/**
+ * Owns the analysis worker. A fresh, empty worker is started as soon as the
+ * page loads, so its script is already downloaded and the app keeps working
+ * if the network drops. Each worker analyses one upload and is then
+ * terminated, so no trade data outlives a run; `clear` resets everything.
+ */
 export function useAnalysis() {
   const [state, dispatch] = useReducer(reducer, initial);
-  const workerRef = useRef<Worker | null>(null);
+  const activeRef = useRef<Worker | null>(null);
+  const spareRef = useRef<Worker | null>(null);
 
-  const stopWorker = useCallback(() => {
-    workerRef.current?.terminate();
-    workerRef.current = null;
+  const stopActive = useCallback(() => {
+    activeRef.current?.terminate();
+    activeRef.current = null;
   }, []);
 
-  useEffect(() => stopWorker, [stopWorker]);
+  const ensureSpare = useCallback(() => {
+    spareRef.current ??= newWorker();
+  }, []);
+
+  useEffect(() => {
+    ensureSpare();
+    return () => {
+      stopActive();
+      spareRef.current?.terminate();
+      spareRef.current = null;
+    };
+  }, [ensureSpare, stopActive]);
 
   const start = useCallback(
     async (files: File[]) => {
-      stopWorker();
+      stopActive();
       dispatch({ type: 'start' });
-      const worker = new Worker(new URL('../worker/analysis.worker.ts', import.meta.url), { type: 'module' });
-      workerRef.current = worker;
+      const worker = spareRef.current ?? newWorker();
+      spareRef.current = null;
+      activeRef.current = worker;
+      const finish = () => {
+        stopActive();
+        ensureSpare();
+      };
       worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
         dispatch({ type: 'message', msg: e.data });
-        if (e.data.type === 'result' || e.data.type === 'error') stopWorker();
+        if (e.data.type === 'result' || e.data.type === 'error') finish();
       };
       worker.onerror = () => {
-        dispatch({ type: 'message', msg: { type: 'error', message: 'Something went wrong. Please try again.' } });
-        stopWorker();
+        dispatch({
+          type: 'message',
+          msg: { type: 'error', message: { en: 'Something went wrong. Please try again.', hi: 'कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।' } },
+        });
+        finish();
       };
       const payload = await Promise.all(files.map(async (f) => ({ name: f.name, bytes: await f.arrayBuffer() })));
       const request: WorkerRequest = { type: 'analyze', files: payload };
       worker.postMessage(request, payload.map((p) => p.bytes));
     },
-    [stopWorker],
+    [stopActive, ensureSpare],
   );
 
   const clear = useCallback(() => {
-    stopWorker();
+    stopActive();
+    ensureSpare();
     dispatch({ type: 'reset' });
-  }, [stopWorker]);
+  }, [stopActive, ensureSpare]);
 
   return { state, start, clear };
 }

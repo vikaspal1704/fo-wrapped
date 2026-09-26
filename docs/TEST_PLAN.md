@@ -33,7 +33,7 @@
 | Test | Setup | Expect |
 |------|-------|--------|
 | `parses_zerodha_csv_tradebook` | Synthetic CSV with expected headers | `Fill[]` with correct paise, IST epoch, side |
-| `parses_xlsx_with_preamble` ⏳ *pending sample export* | XLSX with 10 preamble rows before headers | Same fills as the CSV equivalent |
+| `parses_xlsx_with_preamble` | XLSX with 10 preamble rows before headers | Same fills as the CSV equivalent |
 | `rejects_unrecognized_file` | CSV of random columns | `UnrecognizedFileError` |
 | `rejects_equity_tradebook` | Valid headers, equity segment | `UnsupportedSegmentError` |
 | `rejects_invalid_row_with_location` | Row 7 has `quantity = -5` | `RowValidationError` with file, row 7, field `quantity` |
@@ -44,7 +44,6 @@
 | `ignores_trailing_blank_line` | File ends with an empty line | No error; row count excludes it |
 | `rejects_blank_line_between_rows` | Empty line between two data rows | `RowValidationError` on that line |
 | `parses_file_with_byte_order_mark` | UTF-8 BOM before the header | Parses normally |
-| `rejects_xlsx_until_supported` | Zip (XLSX) bytes | Plain-language error asking for CSV. Replaced by `parses_xlsx_with_preamble` once XLSX is verified |
 | `parses_price_to_paise_exactly` | `price = "0.05"`, `"123.45"`, `"19999.95"` | `5`, `12345`, `1999995` (no float drift) |
 | `parses_times_as_ist_regardless_of_tz` | Run with `TZ=America/New_York` | Same epoch as with `TZ=Asia/Kolkata` |
 
@@ -136,6 +135,7 @@
 | `card7_median_holding_even_count` | Holding values [1,2,3,4] ms | 3 (2.5 rounded half up) |
 | `card8_best_worst_day_ties_earliest` | Two days with equal P&L | Earlier date |
 | `summary_has_three_headlines_and_no_percentiles` | Any | 3 headlines, Samvat, site URL; no “%ile” / “percentile” / “top X%” text |
+| `summary_headline_options_start_with_defaults` | Wins, losses, charges | Options list begins with the 3 default headlines |
 | `summary_always_has_three_distinct_headlines` | Sparse data, no charges | 3 headlines with distinct labels |
 | `samvat_label_spans_years` | Exits in 2081 and 2082 | `2081–82` |
 
@@ -149,6 +149,54 @@
 | `engine_is_deterministic` | Two runs → deep-equal results |
 
 ---
+
+### XLSX
+
+| Test | Setup | Expect |
+|------|-------|--------|
+| `xlsx_keeps_19_digit_text_order_id_exact` | `order_id` stored as text | Exact 19-digit string |
+| `rejects_xlsx_order_id_rounded_by_excel` | 19-digit `order_id` stored as a number | `RowValidationError` on `order_id` (rounded by Excel) |
+| `parses_xlsx_price_stored_as_number_exactly` | `price` cell 0.29 | 29 paise |
+| `xlsx_time_rounding_to_nearest_second` | Execution times :00–:59 as date cells | Every second survives (Excel fractional days) |
+| `rejects_xlsx_without_tradebook_headers` | Sheet without the headers | `UnrecognizedFileError` |
+| `rejects_corrupt_xlsx` | Zip header, no archive | `UnrecognizedFileError` |
+| `rejects_legacy_xls_with_message` | OLE2 `.xls` bytes | Plain-language “old .xls” message |
+| `csv_path_unchanged_through_parseTradebookFile` | CSV via the async entry point | Same fills as `parseTradebook` |
+
+### Periods and comparison
+
+| Test | Setup | Expect |
+|------|-------|--------|
+| `periods_for_dates` | Dates across Samvat, FY and calendar boundaries | All / Samvat / calendar / FY ids and labels, newest first |
+| `previous_period_is_same_kind` | Two FYs | FY 2026-27 → FY 2025-26; `all` has none |
+| `view_counts_trade_where_it_closed_and_charges_where_paid` | Enter 31 Mar, exit 1 Apr | Trade in the new FY; buy charges in the old FY; FY charges sum to the total |
+| `default_view_is_latest_samvat_with_10_trades` | 12 trades in 2081, 3 in 2082 | `samvat-2081`; `all` when no Samvat has 10 |
+| `comparison_against_previous_same_kind_period` | Two FYs | Rows hold both values; `null` (—) when a period lacks data, never 0 |
+| `charges_unavailable_only_affects_its_period` | 2024 and 2025 trades | Old FY and `all` have no charges; the new FY does |
+| `summary_title_follows_period` | One trade | Titles per view |
+
+### Extra cards (ARCHITECTURE §7.3)
+
+| Test | Expect |
+|------|--------|
+| `card_buyer_vs_seller` | Options only, split by opening side |
+| `card_buyer_vs_seller_needs_both_sides` | All-buy → `INSUFFICIENT_DATA` with reason |
+| `card_underlyings_best_worst_and_split` | Best/worst underlying; index vs stock split |
+| `card_underlyings_single_underlying_insufficient` | One underlying → `INSUFFICIENT_DATA` |
+| `card_busy_days_split_by_median` | Busy = more trades than the median day |
+| `card_weekday_best_worst_min_trades` | Best/worst weekday need ≥ 3 trades |
+| `card_position_size_split_by_median_entry_value` | Above vs at-or-below median entry value |
+| `card_charges_drag_wins_to_cover` | charges ÷ average win; charges per trade |
+| `card_charges_drag_needs_charges` | No charges → `INSUFFICIENT_DATA` |
+
+### Languages
+
+| Test | Expect |
+|------|--------|
+| `hindi_result_has_no_english_copy` | Every engine string in Hindi results contains Devanagari |
+| `english_is_default_and_locale_is_restored` | Default `en`; restored after `withLocale`, even on throw |
+| `numbers_do_not_depend_on_locale` | Identical totals and round trips in both languages |
+| `errors_are_translated` | Same error, both languages |
 
 ### Performance
 
@@ -171,6 +219,24 @@ Tests marked ⏳ wait on real XLSX and P&L statement exports (API_CONTRACT §2�
 | `e2e_mobile_viewport_swipe` | 360×780 viewport, swipe gestures | Cards advance / go back |
 
 ---
+
+### Added in roadmap phase Next
+
+| Test | Flow | Expect |
+|------|------|--------|
+| `e2e_upload_xlsx` | Upload an XLSX version of the synthetic year | Same net P&L as the CSV |
+| `e2e_skip_to_end` | “Skip ›” on card 1 | Summary card |
+| `e2e_works_offline_after_load` | Load, go offline, analyse | Cards render (worker pre-warmed) |
+| `e2e_pwa_reload_offline` | Service worker controls page; reload offline | App loads from cache and analyses |
+| `e2e_manifest_is_installable` | Fetch the manifest | Name, standalone, 192/512 icons |
+| `e2e_privacy_page` | Open privacy & about | Heading, not-affiliated text, `#privacy` URL, back |
+| `e2e_period_picker_and_comparison` | Two-FY fixture, pick FY 2026-27 | “What changed” card, then summary titled FY 2026-27 |
+| `e2e_share_single_card` | Share “Right but broke” | 1080×1920 PNG `fo-wrapped-samvat-2082-right-but-broke.png`; frame removed |
+| `e2e_hindi_toggle_and_url` | Toggle to हिंदी | `?lang=hi`, `<html lang="hi-IN">`, Hindi cards; nothing stored |
+| `e2e_hindi_follows_browser_language` | Browser locale hi-IN | Hindi landing and Hindi file error |
+| `e2e_choose_summary_stats` | Swap “Win rate” for “Trades” | Export disabled at 2 picks; summary and image show the chosen 3 |
+| `a11y_landing_privacy_and_every_card` | axe-core, WCAG 2.1 AA | No violations on landing, privacy and every card |
+| `a11y_keyboard_only_navigation` | Tab to “Next card”, Enter | Advances |
 
 ## 4. Launch-gate verification (manual, local only)
 
