@@ -15,13 +15,17 @@ export function Privacy({ onBack }: { onBack: () => void }) {
         <li>All the maths runs in a background thread (a Web Worker) inside this tab. The worker is shut down as soon as your cards are ready.</li>
         <li>Nothing is saved: no cookies, no local storage, no database. Closing the tab or pressing <strong>Clear data</strong> removes everything.</li>
         <li>There are no analytics, trackers, ads or third-party scripts.</li>
+        <li>
+          To work offline, your browser keeps a copy of this app’s own code (its HTML, scripts and icons). Your files and results are never put
+          in that cache.
+        </li>
       </ul>
 
       <h2>Check it yourself</h2>
       <ol>
         <li>
           <strong>Airplane-mode test:</strong> open this site, then switch off Wi-Fi and mobile data. Drop your tradebook: it still works, because
-          nothing needs the internet.
+          nothing needs the internet. After your first visit you can even open the site offline, or install it to your home screen.
         </li>
         <li>
           <strong>Network tab:</strong> on a computer, open the browser’s developer tools (F12) → Network, then drop your file. You’ll see no request

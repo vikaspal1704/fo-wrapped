@@ -230,3 +230,26 @@ test('e2e_share_single_card', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('heading', { name: 'Expiry day' })).toBeVisible();
 });
+
+test('e2e_pwa_reload_offline', async ({ page, context }) => {
+  await page.goto('./');
+  // Wait for the service worker to install and control the page.
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
+  await page.getByTestId('file-input').setInputFiles(YEAR);
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  await context.setOffline(false);
+});
+
+test('e2e_manifest_is_installable', async ({ page, request }) => {
+  await page.goto('./');
+  const href = await page.locator('link[rel="manifest"]').getAttribute('href');
+  const manifest = await (await request.get(new URL(href!, page.url()).toString())).json();
+  expect(manifest).toMatchObject({ name: 'F&O Wrapped', display: 'standalone', start_url: './' });
+  expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
+});

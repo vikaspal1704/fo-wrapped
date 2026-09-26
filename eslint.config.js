@@ -62,7 +62,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts', '*.config.{js,ts}', 'scripts/**/*.mjs'],
+    files: ['build/sw-template.js'],
+    languageOptions: { globals: { ...globals.serviceworker, __PRECACHE__: 'readonly' } },
+  },
+  {
+    files: ['tests/**/*.ts', '*.config.{js,ts}', 'scripts/**/*.mjs', 'build/**/*.ts'],
     languageOptions: { globals: { ...globals.node } },
   },
 );
