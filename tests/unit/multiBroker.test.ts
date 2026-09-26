@@ -60,7 +60,7 @@ describe('multi-broker engine', () => {
 
   it('reported_charges_replace_estimates', () => {
     const tb: Fill[] = [dated('BUY', 65, '10', '2025-11-20'), dated('SELL', 65, '12', '2025-11-20')];
-    const r = analyze({ tradebooks: [tb], reportedCharges: [{ broker: 'angelone', records: [{ broker: 'angelone', date: '2025-11-20' as IstDate, charges: charges(4321) }] }], rates: RATES, siteUrl: SITE });
+    const r = analyze({ tradebooks: [tb], reportedCharges: [{ broker: 'angelone', records: [{ broker: 'angelone', id: 'T1', date: '2025-11-20' as IstDate, charges: charges(4321) }] }], rates: RATES, siteUrl: SITE });
     expect(r.totals).toMatchObject({ source: 'BROKER', netPnlPaise: 65 * 200 - 4321 });
     expect(r.totals.charges!.total).toBe(4321);
     expect(r.cards.theNumber.status === 'OK' && r.cards.theNumber.data.estimated).toBe(false);
@@ -69,7 +69,7 @@ describe('multi-broker engine', () => {
   it('mixed_brokers_label_charges_mixed', () => {
     const z = [fill({ side: 'BUY', qty: 65, price: '10', at: '2025-11-20T10:00:00' }), fill({ side: 'SELL', qty: 65, price: '12', at: '2025-11-20T10:05:00' })];
     const a = [dated('BUY', 65, '10', '2025-11-20'), dated('SELL', 65, '12', '2025-11-20')];
-    const r = analyze({ tradebooks: [z, a], reportedCharges: [{ broker: 'angelone', records: [{ broker: 'angelone', date: '2025-11-20' as IstDate, charges: charges(1000) }] }], rates: RATES, siteUrl: SITE });
+    const r = analyze({ tradebooks: [z, a], reportedCharges: [{ broker: 'angelone', records: [{ broker: 'angelone', id: 'T1', date: '2025-11-20' as IstDate, charges: charges(1000) }] }], rates: RATES, siteUrl: SITE });
     expect(r.totals.source).toBe('MIXED');
     expect(r.totals.charges!.total).toBe(1000 + calculateCharges(z, RATES).total);
   });

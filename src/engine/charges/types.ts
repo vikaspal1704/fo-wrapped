@@ -68,3 +68,21 @@ export interface ChargeRateTable {
   /** Applied to brokerage + exchange transaction charges + SEBI fees. */
   gst: RateWindow<Rational>[];
 }
+
+/** Charges a broker's own file reports, for one day (Angel One, Dhan). */
+export interface ChargeRecord {
+  broker: BrokerId;
+  /**
+   * Stable within the broker's exports (e.g. a trade or bill number), so a
+   * record in two overlapping files is counted once.
+   */
+  id: string;
+  date: IstDate;
+  charges: ChargesBreakdown;
+}
+
+/** A broker whose export carries its own charges; its fills are never estimated. */
+export interface ReportedCharges {
+  broker: BrokerId;
+  records: ChargeRecord[];
+}

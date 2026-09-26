@@ -93,7 +93,9 @@ export function computeCards(input: {
         ? m().chargesFromStatement
         : totals.source === 'MIXED'
           ? m().chargesMixed
-          : m().chargesEstimatedAddStatement,
+          : fills.some((f) => f.broker === 'zerodha')
+            ? m().chargesEstimatedAddStatement
+            : m().chargesEstimated,
     ...(totals.excludedUnclosedCount > 0 ? [m().excludedPositions(totals.excludedUnclosedCount)] : []),
   ];
   const noTrades = m().noClosedTrades;

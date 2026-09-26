@@ -53,3 +53,16 @@ export function decimalToPaiseRounded(value: string): Paise | null {
   if (!Number.isSafeInteger(paise)) return null;
   return (sign === '-' && paise !== 0 ? -paise : paise) as Paise;
 }
+
+/**
+ * Parses a price read from an XLSX number cell. The cell text can carry
+ * binary float noise (e.g. "2.2000000000000002" or "44.199999999999996");
+ * that noise is removed, but anything else past whole paise is rejected.
+ */
+export function cellToPaise(value: string): Paise | null {
+  const match = DECIMAL.exec(value.trim());
+  if (!match) return null;
+  const extra = (match[2] ?? '').slice(2);
+  if (extra !== '' && !/^0*$/.test(extra) && !/^(?:0{6,}|9{6,})\d*$/.test(extra)) return null;
+  return decimalToPaiseRounded(value);
+}

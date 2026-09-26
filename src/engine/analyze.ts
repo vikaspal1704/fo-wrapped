@@ -1,6 +1,8 @@
 import { calculateCharges } from './charges/calculate';
 import { m } from './i18n';
-import type { ChargeRateTable, ChargesBreakdown } from './charges/types';
+import type { ChargeRateTable, ChargesBreakdown, ChargeRecord, ReportedCharges } from './charges/types';
+
+export type { ChargeRecord, ReportedCharges };
 import { prepareDateOnlyFills } from './dateOnly';
 import type { PnlStatement } from './parse/pnlStatement';
 import { formatInr } from './format';
@@ -12,22 +14,9 @@ import { mergeFills } from './merge';
 import { inPeriod, periodsFor, previousPeriod, type Period } from './periods';
 import { buildRoundTrips } from './roundTrips';
 import { istDateOf, istMinuteOfDay } from './time';
-import type { BrokerId, Fill, IstDate, Paise, RoundTrip, UnclosedPosition } from './types';
+import type { Fill, IstDate, Paise, RoundTrip, UnclosedPosition } from './types';
 
 export const ENGINE_VERSION = '0.2.0';
-
-/** Charges a broker's own file reports, for one day (Angel One, Dhan). */
-export interface ChargeRecord {
-  broker: BrokerId;
-  date: IstDate;
-  charges: ChargesBreakdown;
-}
-
-/** A broker whose export carries its own charges; its fills are never estimated. */
-export interface ReportedCharges {
-  broker: BrokerId;
-  records: ChargeRecord[];
-}
 
 export interface ComparisonRow {
   key: 'netPnl' | 'grossPnl' | 'charges' | 'trades' | 'winRate' | 'revengeTrades' | 'loserHoldMs';
@@ -109,7 +98,7 @@ export function analyze(input: {
   const samvat = samvatLabel(roundTrips.length > 0 ? roundTrips.map((r) => r.exitDate) : dates);
 
   const periods = periodsFor(dates);
-  const reported = input.reportedCharges ?? [];
+  const reported = dedupeChargeRecords(input.reportedCharges ?? []);
   const views = periods.map((period) =>
     buildView(period, { fills, roundTrips, unclosed, samvat, reported, statements, rates: input.rates, siteUrl: input.siteUrl }),
   );
@@ -250,6 +239,7 @@ function buildView(
   const open = unclosed.length - settled;
   if (open > 0) warnings.push(t.openExcluded(open));
   const outOfSession = fills.filter((f) => {
+    if (f.timePrecision === 'date') return false;
     const m = istMinuteOfDay(f.executedAt);
     return m < 9 * 60 + 15 || m > 15 * 60 + 30;
   }).length;
@@ -287,6 +277,20 @@ function compare(current: PeriodView, previous: PeriodView): Comparison {
   };
 }
 
+
+/** Keeps the first record for each broker + id (overlapping files repeat them). */
+function dedupeChargeRecords(reported: readonly ReportedCharges[]): ReportedCharges[] {
+  const seen = new Set<string>();
+  return reported.map((r) => ({
+    broker: r.broker,
+    records: r.records.filter((rec) => {
+      const key = `${rec.broker}|${rec.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  }));
+}
 
 function sumCharges(parts: readonly ChargesBreakdown[]): ChargesBreakdown {
   const keys = ['brokerage', 'stt', 'exchangeTxn', 'sebi', 'stampDuty', 'gst', 'other', 'total'] as const;
