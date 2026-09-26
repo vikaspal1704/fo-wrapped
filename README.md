@@ -57,6 +57,7 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 | Doc | Audience | Purpose |
 |-----|----------|---------|
 | [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) | **AI coding agents** | Primary build instructions. Read this first |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Everyone | Product direction: principles, the Diwali launch, Now / Next / Later |
 | [`docs/PRD.md`](docs/PRD.md) | Product / recruiters | Goals, flow, cards, requirements, open decisions |
 | [`docs/TRD.md`](docs/TRD.md) | Implementers | Stack, layout, numeric and time model, privacy controls, CI |
 | [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | Implementers | Input schemas, engine types, errors, worker protocol |
