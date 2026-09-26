@@ -1,4 +1,5 @@
 import { SAMVAT_YEARS } from './config/samvat';
+import { m } from './i18n';
 import type { IstDate } from './types';
 
 export type PeriodKind = 'ALL' | 'SAMVAT' | 'CALENDAR' | 'FY';
@@ -26,11 +27,11 @@ export function periodsFor(dates: readonly IstDate[]): Period[] {
   const to = dates.reduce((a, b) => (b > a ? b : a));
   const has = (p: { from: IstDate; to: IstDate }) => dates.some((x) => p.from <= x && x <= p.to);
 
-  const out: Period[] = [{ id: 'all', kind: 'ALL', label: 'All trades', from, to }];
+  const out: Period[] = [{ id: 'all', kind: 'ALL', label: m().allTrades, from, to }];
 
   for (const s of [...SAMVAT_YEARS].reverse()) {
     const p = { from: s.from, to: s.to ?? d('9999-12-31') };
-    if (has(p)) out.push({ id: `samvat-${s.year}`, kind: 'SAMVAT', label: `Samvat ${s.year}`, ...p });
+    if (has(p)) out.push({ id: `samvat-${s.year}`, kind: 'SAMVAT', label: m().samvat(s.year), ...p });
   }
 
   const firstYear = Number(from.slice(0, 4));
@@ -43,7 +44,7 @@ export function periodsFor(dates: readonly IstDate[]): Period[] {
   // FY y-(y+1) runs 1 Apr y – 31 Mar y+1.
   for (let y = lastYear; y >= firstYear - 1; y--) {
     const p = { from: d(`${y}-04-01`), to: d(`${y + 1}-03-31`) };
-    if (has(p)) out.push({ id: `fy-${y}`, kind: 'FY', label: `FY ${y}-${String(y + 1).slice(2)}`, ...p });
+    if (has(p)) out.push({ id: `fy-${y}`, kind: 'FY', label: m().fy(y, String(y + 1).slice(2)), ...p });
   }
   return out;
 }

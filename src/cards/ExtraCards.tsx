@@ -2,6 +2,7 @@ import { formatInr, formatPct } from '../engine/format';
 import type { CardSet } from '../engine';
 import { signedInr, tone } from '../app/format';
 import { Card, CompareBars } from './Card';
+import { useT } from '../app/i18n';
 
 const bar = (label: string, pnl: number, suffix = '') => ({
   label,
@@ -11,18 +12,19 @@ const bar = (label: string, pnl: number, suffix = '') => ({
 });
 
 export function BuyerVsSeller({ card }: { card: CardSet['buyerVsSeller'] }) {
+  const t = useT();
   return (
-    <Card title="Buyer or seller" result={card}>
+    <Card title={t.tBuyerSeller} result={card}>
       {(d) => (
         <>
-          <p className="lead">Your option trades, by how they opened</p>
-          <CompareBars rows={[bar(`Bought (${d.buyerTrades})`, d.buyerPnlPaise), bar(`Sold (${d.sellerTrades})`, d.sellerPnlPaise)]} />
+          <p className="lead">{t.byHowOpened}</p>
+          <CompareBars rows={[bar(t.bought(d.buyerTrades), d.buyerPnlPaise), bar(t.sold(d.sellerTrades), d.sellerPnlPaise)]} />
           <p className="headline">
             {d.buyerPnlPaise === d.sellerPnlPaise
-              ? 'Buying and selling options ended level.'
+              ? t.bsLevel
               : d.buyerPnlPaise > d.sellerPnlPaise
-                ? 'Buying options did better than selling them.'
-                : 'Selling options did better than buying them.'}
+                ? t.bsBuyBetter
+                : t.bsSellBetter}
           </p>
         </>
       )}
@@ -31,27 +33,28 @@ export function BuyerVsSeller({ card }: { card: CardSet['buyerVsSeller'] }) {
 }
 
 export function Underlyings({ card }: { card: CardSet['underlyings'] }) {
+  const t = useT();
   return (
-    <Card title="What you traded" result={card}>
+    <Card title={t.tUnderlyings} result={card}>
       {(d) => (
         <>
           <div className="tiles">
             <div className="tile">
-              <p className="tile-label">{d.best.pnlPaise >= 0 ? 'Best underlying' : 'Least bad underlying'}</p>
+              <p className="tile-label">{d.best.pnlPaise >= 0 ? t.bestUnderlying : t.leastBadUnderlying}</p>
               <p className="tile-value">{d.best.underlying}</p>
               <p className={tone(d.best.pnlPaise)}>{signedInr(d.best.pnlPaise)}</p>
-              <p className="muted">{d.best.trades} trades</p>
+              <p className="muted">{t.nTrades(d.best.trades)}</p>
             </div>
             <div className="tile">
-              <p className="tile-label">{d.worst.pnlPaise < 0 ? 'Worst underlying' : 'Weakest underlying'}</p>
+              <p className="tile-label">{d.worst.pnlPaise < 0 ? t.worstUnderlying : t.weakestUnderlying}</p>
               <p className="tile-value">{d.worst.underlying}</p>
               <p className={tone(d.worst.pnlPaise)}>{signedInr(d.worst.pnlPaise)}</p>
-              <p className="muted">{d.worst.trades} trades</p>
+              <p className="muted">{t.nTrades(d.worst.trades)}</p>
             </div>
           </div>
           {d.split && (
             <CompareBars
-              rows={[bar(`Index (${d.split.indexTrades})`, d.split.indexPnlPaise), bar(`Stocks (${d.split.stockTrades})`, d.split.stockPnlPaise)]}
+              rows={[bar(t.indexN(d.split.indexTrades), d.split.indexPnlPaise), bar(t.stocksN(d.split.stockTrades), d.split.stockPnlPaise)]}
             />
           )}
         </>
@@ -61,21 +64,22 @@ export function Underlyings({ card }: { card: CardSet['underlyings'] }) {
 }
 
 export function BusyDays({ card }: { card: CardSet['busyDays'] }) {
+  const t = useT();
   return (
-    <Card title="Busy days" result={card}>
+    <Card title={t.tBusy} result={card}>
       {(d) => (
         <>
-          <p className="lead">Average P&amp;L per day</p>
+          <p className="lead">{t.avgPerDay}</p>
           <CompareBars
             rows={[
-              bar(`Busy days (${d.busyDays})`, d.busyAvgPnlPaise),
-              bar(`Other days (${d.otherDays})`, d.otherAvgPnlPaise),
+              bar(t.busyN(d.busyDays), d.busyAvgPnlPaise),
+              bar(t.otherN(d.otherDays), d.otherAvgPnlPaise),
             ]}
           />
           <p className="headline">
             {d.busyAvgPnlPaise < d.otherAvgPnlPaise
-              ? 'Your busiest days were worse on average than your quieter ones.'
-              : 'Your busiest days were better on average than your quieter ones.'}
+              ? t.busyWorse
+              : t.busyBetter}
           </p>
         </>
       )}
@@ -84,14 +88,16 @@ export function BusyDays({ card }: { card: CardSet['busyDays'] }) {
 }
 
 export function Weekday({ card }: { card: CardSet['weekday'] }) {
+  const t = useT();
+  const name = (w: string) => t.weekdayNames[w] ?? w;
   return (
-    <Card title="Day of the week" result={card}>
+    <Card title={t.tWeekday} result={card}>
       {(d) => (
         <>
-          <CompareBars rows={d.days.map((x) => bar(`${x.weekday} (${x.trades})`, x.pnlPaise))} />
+          <CompareBars rows={d.days.map((x) => bar(`${name(x.weekday)} (${x.trades})`, x.pnlPaise))} />
           {d.best && d.worst && d.best !== d.worst && (
             <p className="headline">
-              Best on <span className="profit">{d.best.weekday}</span>, worst on <span className="loss">{d.worst.weekday}</span>.
+              {t.bestWorstWeekday(<span className="profit">{name(d.best.weekday)}</span>, <span className="loss">{name(d.worst.weekday)}</span>)}
             </p>
           )}
         </>
@@ -101,25 +107,26 @@ export function Weekday({ card }: { card: CardSet['weekday'] }) {
 }
 
 export function PositionSize({ card }: { card: CardSet['positionSize'] }) {
+  const t = useT();
   return (
-    <Card title="Position size" result={card}>
+    <Card title={t.tSize} result={card}>
       {(d) => (
         <>
-          <p className="lead">Average P&amp;L per trade</p>
+          <p className="lead">{t.avgPerTrade}</p>
           <CompareBars
-            rows={[bar(`Bigger (${d.big.trades})`, d.big.avgPnlPaise), bar(`Smaller (${d.small.trades})`, d.small.avgPnlPaise)]}
+            rows={[bar(t.biggerN(d.big.trades), d.big.avgPnlPaise), bar(t.smallerN(d.small.trades), d.small.avgPnlPaise)]}
           />
           <dl className="stats">
             <div>
-              <dt>Win rate, bigger</dt>
+              <dt>{t.winRateBigger}</dt>
               <dd>{formatPct(d.big.winRate)}</dd>
             </div>
             <div>
-              <dt>Win rate, smaller</dt>
+              <dt>{t.winRateSmaller}</dt>
               <dd>{formatPct(d.small.winRate)}</dd>
             </div>
           </dl>
-          <p className="muted">Median position: {formatInr(d.medianEntryValuePaise)}</p>
+          <p className="muted">{t.medianPosition(formatInr(d.medianEntryValuePaise))}</p>
         </>
       )}
     </Card>
@@ -127,15 +134,14 @@ export function PositionSize({ card }: { card: CardSet['positionSize'] }) {
 }
 
 export function ChargesDrag({ card }: { card: CardSet['chargesDrag'] }) {
+  const t = useT();
   return (
-    <Card title="Charges drag" result={card}>
+    <Card title={t.tDrag} result={card}>
       {(d) => (
         <>
           <p className="hero">{d.winsToCover >= 10 ? Math.round(d.winsToCover) : d.winsToCover.toFixed(1)}</p>
-          <p className="lead">
-            average winning trades ({formatInr(d.avgWinPaise)} each) went just to pay {formatInr(d.chargesPaise)} in charges.
-          </p>
-          <p className="headline">That’s {formatInr(d.chargesPerTradePaise)} per trade.</p>
+          <p className="lead">{t.dragLine(formatInr(d.avgWinPaise), formatInr(d.chargesPaise))}</p>
+          <p className="headline">{t.perTrade(formatInr(d.chargesPerTradePaise))}</p>
         </>
       )}
     </Card>

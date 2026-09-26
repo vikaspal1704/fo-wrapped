@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CardSet, ClockBucket } from '../engine';
 import { minuteLabel, signedInr } from '../app/format';
 import { Card } from './Card';
+import { useT } from '../app/i18n';
 
 const slot = (b: ClockBucket) => `${minuteLabel(b.startMinuteIst)}–${minuteLabel(b.startMinuteIst + 15)}`;
 
@@ -13,9 +14,10 @@ function fill(b: ClockBucket, max: number): string {
 }
 
 export function YourClock({ card }: { card: CardSet['yourClock'] }) {
+  const t = useT();
   const [picked, setPicked] = useState<number | null>(null);
   return (
-    <Card title="Your clock" result={card}>
+    <Card title={t.tClock} result={card}>
       {(d) => {
         const max = Math.max(...d.buckets.map((b) => Math.abs(b.pnlPaise)), 1);
         const shown = picked ?? d.bestIndex;
@@ -23,14 +25,14 @@ export function YourClock({ card }: { card: CardSet['yourClock'] }) {
         const worst = d.worstIndex !== null ? d.buckets[d.worstIndex]! : null;
         return (
           <>
-            <ul className="heatmap" aria-label="P&L by entry time, 15-minute slots">
+            <ul className="heatmap" aria-label={t.clockAria}>
               {d.buckets.map((b, i) => (
                 <li key={b.startMinuteIst}>
                   <button
                     type="button"
                     className={`cell${i === shown ? ' picked' : ''}`}
                     style={{ background: fill(b, max) }}
-                    aria-label={`${slot(b)}: ${b.trades} trades, ${signedInr(b.pnlPaise)}`}
+                    aria-label={t.slotLine(slot(b), b.trades, signedInr(b.pnlPaise))}
                     aria-pressed={i === shown}
                     title={`${slot(b)} · ${b.trades} trades · ${signedInr(b.pnlPaise)}`}
                     onClick={() => setPicked(i)}
@@ -52,13 +54,11 @@ export function YourClock({ card }: { card: CardSet['yourClock'] }) {
               <span>15:30</span>
             </div>
             {shown !== null && (
-              <p className="readout">
-                {slot(d.buckets[shown]!)}: {d.buckets[shown]!.trades} trades, {signedInr(d.buckets[shown]!.pnlPaise)}
-              </p>
+              <p className="readout">{t.slotLine(slot(d.buckets[shown]!), d.buckets[shown]!.trades, signedInr(d.buckets[shown]!.pnlPaise))}</p>
             )}
             <dl className="stats">
               <div>
-                <dt>Best slot</dt>
+                <dt>{t.bestSlot}</dt>
                 <dd>
                   {best ? (
                     <>
@@ -71,7 +71,7 @@ export function YourClock({ card }: { card: CardSet['yourClock'] }) {
                 </dd>
               </div>
               <div>
-                <dt>Worst slot</dt>
+                <dt>{t.worstSlot}</dt>
                 <dd>
                   {worst ? (
                     <>

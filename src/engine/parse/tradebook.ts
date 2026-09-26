@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { m } from '../i18n';
 import { z } from 'zod';
 import {
   FoWrappedError,
@@ -88,7 +89,7 @@ const MAX_HEADER_SEARCH_ROWS = 30;
  */
 export async function parseTradebookFile(fileName: string, bytes: ArrayBuffer): Promise<Fill[]> {
   if (isLegacyXls(bytes)) {
-    throw new FoWrappedError(`${fileName} is an old .xls file. Please download the tradebook from Console as CSV or XLSX.`);
+    throw new FoWrappedError(m().legacyXls(fileName));
   }
   if (!isZip(bytes)) return parseTradebook(fileName, bytes);
   const { readXlsxRows } = await import('./xlsx');

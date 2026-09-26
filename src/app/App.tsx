@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Story } from '../cards/Story';
+import { LocaleProvider, useLocale } from './i18n';
 import { Landing } from './Landing';
 import { Privacy } from './Privacy';
 import { Progress } from './Progress';
@@ -22,17 +23,26 @@ function usePrivacyRoute(): [boolean, (open: boolean) => void] {
   return [open, set];
 }
 
-export function App() {
+function Screens() {
   const { state, start, clear } = useAnalysis();
+  const { locale } = useLocale();
   const [privacy, setPrivacy] = usePrivacyRoute();
 
   if (privacy && state.screen === 'landing') return <Privacy onBack={() => setPrivacy(false)} />;
   switch (state.screen) {
     case 'landing':
-      return <Landing onFiles={start} onPrivacy={() => setPrivacy(true)} files={state.files} error={state.error} />;
+      return <Landing onFiles={start} onPrivacy={() => setPrivacy(true)} files={state.files} error={state.error?.[locale] ?? null} />;
     case 'working':
       return <Progress stage={state.stage} pct={state.pct} />;
     case 'cards':
-      return <Story result={state.result} files={state.files} onClear={clear} />;
+      return <Story result={state.results[locale]} files={state.files} onClear={clear} />;
   }
+}
+
+export function App() {
+  return (
+    <LocaleProvider>
+      <Screens />
+    </LocaleProvider>
+  );
 }

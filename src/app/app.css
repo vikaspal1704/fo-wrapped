@@ -767,3 +767,16 @@ h1 {
   bottom: 70px;
   text-align: center;
 }
+
+/* ---------- Language ---------- */
+
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lang-toggle {
+  font-size: 0.95rem;
+}

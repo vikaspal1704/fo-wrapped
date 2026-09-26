@@ -1,4 +1,5 @@
 import { calculateCharges } from './charges/calculate';
+import { m } from './i18n';
 import type { ChargeRateTable } from './charges/types';
 import { computeCards, type CardSet, type Totals } from './cards';
 import { samvatLabel } from './config/samvat';
@@ -153,8 +154,8 @@ function buildView(
     from: viewDates.length ? viewDates.reduce((a, b) => (b < a ? b : a)) : period.from,
     to: viewDates.length ? viewDates.reduce((a, b) => (b > a ? b : a)) : period.to,
   };
-  const title = isAll ? (ctx.samvat ? `Samvat ${ctx.samvat}` : null) ?? 'All trades' : period.label;
-  const samvatOfView = period.kind === 'SAMVAT' ? period.label.replace('Samvat ', '') : isAll ? ctx.samvat : null;
+  const title = isAll ? (ctx.samvat ? m().samvat(ctx.samvat) : m().allTrades) : period.label;
+  const samvatOfView = period.kind === 'SAMVAT' ? period.id.replace('samvat-', '') : isAll ? ctx.samvat : null;
   const cards = computeCards({
     roundTrips,
     fills,
@@ -166,22 +167,23 @@ function buildView(
   });
 
   const warnings: string[] = [];
-  if (charges) warnings.push('Charges are estimated from published rates.');
+  const t = m();
+  if (charges) warnings.push(t.chargesEstimated);
   if (chargesUnavailableReason) warnings.push(chargesUnavailableReason);
   const settled = unclosed.filter((u) => u.status === 'SETTLED_AT_EXPIRY').length;
   if (settled > 0) {
-    warnings.push(`${settled} position${settled === 1 ? '' : 's'} expired without a closing trade and ${settled === 1 ? 'isn’t' : 'aren’t'} counted in P&L.`);
+    warnings.push(t.settledExcluded(settled));
   }
   const open = unclosed.length - settled;
-  if (open > 0) warnings.push(`${open} position${open === 1 ? ' is' : 's are'} still open and not counted in P&L.`);
+  if (open > 0) warnings.push(t.openExcluded(open));
   const outOfSession = fills.filter((f) => {
     const m = istMinuteOfDay(f.executedAt);
     return m < 9 * 60 + 15 || m > 15 * 60 + 30;
   }).length;
   if (outOfSession > 0) {
-    warnings.push(`${outOfSession} fill${outOfSession === 1 ? ' was' : 's were'} outside 09:15–15:30 and placed in the nearest time slot.`);
+    warnings.push(t.outOfSession(outOfSession));
   }
-  if (!isAll) warnings.push('Trades count in the period they closed; charges count in the period they were paid.');
+  if (!isAll) warnings.push(t.periodNote);
 
   return { period, title, dateRange, roundTripCount: roundTrips.length, fillCount: fills.length, totals, cards, warnings, comparison: null };
 }
@@ -201,13 +203,13 @@ function compare(current: PeriodView, previous: PeriodView): Comparison {
     previous: previous.period,
     rows: [
       bothNet
-        ? row('netPnl', 'Net P&L', 'paise', (v) => v.totals.netPnlPaise)
-        : row('grossPnl', 'P&L before charges', 'paise', (v) => v.totals.grossPnlPaise),
-      row('charges', 'Charges', 'paise', (v) => v.totals.charges?.total ?? null),
-      row('trades', 'Trades', 'count', (v) => v.roundTripCount),
-      row('winRate', 'Win rate', 'ratio', (v) => ok<{ winRate: number }>(v.cards.rightButBroke)?.winRate ?? null),
-      row('revengeTrades', 'Revenge trades', 'count', (v) => ok<{ count: number }>(v.cards.revengeTrades)?.count ?? null),
-      row('loserHoldMs', 'Median time holding losers', 'ms', (v) => ok<{ medianLoserMs: number }>(v.cards.holdingTime)?.medianLoserMs ?? null),
+        ? row('netPnl', m().cNetPnl, 'paise', (v) => v.totals.netPnlPaise)
+        : row('grossPnl', m().cGrossPnl, 'paise', (v) => v.totals.grossPnlPaise),
+      row('charges', m().cCharges, 'paise', (v) => v.totals.charges?.total ?? null),
+      row('trades', m().cTrades, 'count', (v) => v.roundTripCount),
+      row('winRate', m().cWinRate, 'ratio', (v) => ok<{ winRate: number }>(v.cards.rightButBroke)?.winRate ?? null),
+      row('revengeTrades', m().cRevenge, 'count', (v) => ok<{ count: number }>(v.cards.revengeTrades)?.count ?? null),
+      row('loserHoldMs', m().cLoserHold, 'ms', (v) => ok<{ medianLoserMs: number }>(v.cards.holdingTime)?.medianLoserMs ?? null),
     ],
   };
 }

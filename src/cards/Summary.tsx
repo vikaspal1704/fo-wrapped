@@ -3,6 +3,7 @@ import type { CardSet, PeriodView } from '../engine';
 import { SITE_LABEL } from '../config';
 import { formatDate } from '../app/format';
 import { download, renderPng, shareOrDownload } from '../share/exportImage';
+import { useT } from '../app/i18n';
 
 interface Props {
   summary: CardSet['summary'];
@@ -11,16 +12,20 @@ interface Props {
   onClear: () => void;
 }
 
-function yearLabel(view: PeriodView): string {
-  return view.title !== 'All trades' ? view.title : `${formatDate(view.dateRange.from)} – ${formatDate(view.dateRange.to)}`;
+function yearLabel(view: PeriodView, months: readonly string[]): string {
+  return view.period.kind !== 'ALL' || view.title !== view.period.label
+    ? view.title
+    : `${formatDate(view.dateRange.from, months)} – ${formatDate(view.dateRange.to, months)}`;
 }
 
 export function Summary({ summary, view, versions, onClear }: Props) {
+  const t = useT();
   const imageRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const year = yearLabel(view);
-  const fileName = `fo-wrapped-${year.toLowerCase().replace(/[^0-9a-z]+/g, '-').replace(/^-|-$/g, '')}.png`;
+  const year = yearLabel(view, t.months);
+  // File names use the ASCII period id (e.g. samvat-2082, fy-2026, all), whatever the display language.
+  const fileName = `fo-wrapped-${view.period.id}.png`;
 
   const run = async (action: 'download' | 'share') => {
     if (!imageRef.current) return;
@@ -30,13 +35,13 @@ export function Summary({ summary, view, versions, onClear }: Props) {
       const blob = await renderPng(imageRef.current);
       if (action === 'download') {
         download(blob, fileName);
-        setStatus('Image saved.');
+        setStatus(t.imageSaved);
       } else {
-        const how = await shareOrDownload(blob, fileName, `My F&O year, Wrapped · ${summary.siteUrl}`);
-        setStatus(how === 'downloaded' ? 'Sharing isn’t available here, so the image was saved instead.' : null);
+        const how = await shareOrDownload(blob, fileName, t.shareText(summary.siteUrl));
+        setStatus(how === 'downloaded' ? t.savedFallback : null);
       }
     } catch {
-      setStatus('Couldn’t create the image. Please try again.');
+      setStatus(t.imageFailedRetry);
     } finally {
       setBusy(false);
     }
@@ -44,8 +49,8 @@ export function Summary({ summary, view, versions, onClear }: Props) {
 
   return (
     <div className="card-body summary">
-      <h2 className="card-title">Your year</h2>
-      <p className="muted">My F&amp;O year · {year}</p>
+      <h2 className="card-title">{t.tYear}</h2>
+      <p className="muted">{t.myYear(year)}</p>
       <dl className="headlines">
         {summary.headlines.map((h) => (
           <div key={h.label}>
@@ -58,13 +63,13 @@ export function Summary({ summary, view, versions, onClear }: Props) {
 
       <div className="actions">
         <button type="button" className="primary" disabled={busy} onClick={() => run('download')}>
-          Download image
+          {t.downloadImage}
         </button>
         <button type="button" className="secondary" disabled={busy} onClick={() => run('share')}>
-          Share
+          {t.shareSummary}
         </button>
         <button type="button" className="link" onClick={onClear}>
-          Clear data
+          {t.clearData}
         </button>
       </div>
       {status && (
@@ -81,13 +86,13 @@ export function Summary({ summary, view, versions, onClear }: Props) {
       )}
 
       <p className="muted version">
-        Engine {versions.engine} · rates {versions.rates}
+        {t.versions(versions.engine, versions.rates)}
       </p>
 
       {/* Off-screen 1080×1920 source for the PNG. Only the 3 headlines,
           the year and the site URL: no symbols, trades or account details. */}
       <div className="share-image" ref={imageRef} aria-hidden="true" data-testid="share-image">
-        <p className="si-eyebrow">My F&amp;O year, Wrapped</p>
+        <p className="si-eyebrow">{t.siEyebrow}</p>
         <p className="si-year">{year}</p>
         <div className="si-stats">
           {summary.headlines.map((h) => (

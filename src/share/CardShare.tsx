@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SITE_LABEL } from '../config';
 import { renderPng, shareOrDownload } from './exportImage';
+import { useT } from '../app/i18n';
 
 interface Props {
   /** The card body to render into the image. */
   node: ReactNode;
   title: string;
+  /** ASCII slug for the file name, e.g. 'fy-2026-right-but-broke'. */
+  fileSlug: string;
   periodTitle: string;
   siteUrl: string;
 }
@@ -17,7 +20,8 @@ interface Props {
  * what the card shows plus the period and site URL: no file names, symbols
  * beyond the card, or account details.
  */
-export function CardShare({ node, title, periodTitle, siteUrl }: Props) {
+export function CardShare({ node, title, fileSlug, periodTitle, siteUrl }: Props) {
+  const t = useT();
   const [exporting, setExporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -25,15 +29,14 @@ export function CardShare({ node, title, periodTitle, siteUrl }: Props) {
   useEffect(() => {
     if (!exporting || !frameRef.current) return;
     let cancelled = false;
-    const slug = `${periodTitle}-${title}`.toLowerCase().replace(/[^0-9a-z]+/g, '-').replace(/^-|-$/g, '');
     // Wait a frame so the frame's layout is complete before capture.
     requestAnimationFrame(async () => {
       try {
         const blob = await renderPng(frameRef.current!);
-        const how = await shareOrDownload(blob, `fo-wrapped-${slug}.png`, `My F&O year, Wrapped · ${siteUrl}`);
-        if (!cancelled) setStatus(how === 'downloaded' ? 'Image saved.' : null);
+        const how = await shareOrDownload(blob, `fo-wrapped-${fileSlug}.png`, t.shareText(siteUrl));
+        if (!cancelled) setStatus(how === 'downloaded' ? t.imageSaved : null);
       } catch {
-        if (!cancelled) setStatus('Couldn’t create the image.');
+        if (!cancelled) setStatus(t.imageFailed);
       } finally {
         if (!cancelled) setExporting(false);
       }
@@ -41,12 +44,12 @@ export function CardShare({ node, title, periodTitle, siteUrl }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [exporting, periodTitle, title, siteUrl]);
+  }, [exporting, fileSlug, siteUrl, t]);
 
   return (
     <>
-      <button type="button" className="card-share" disabled={exporting} onClick={() => setExporting(true)} aria-label={`Share this card: ${title}`}>
-        Share
+      <button type="button" className="card-share" disabled={exporting} onClick={() => setExporting(true)} aria-label={t.shareCard(title)}>
+        {t.share}
       </button>
       {status && (
         <span className="card-share-status" role="status">

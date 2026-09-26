@@ -253,3 +253,36 @@ test('e2e_manifest_is_installable', async ({ page, request }) => {
   expect(manifest).toMatchObject({ name: 'F&O Wrapped', display: 'standalone', start_url: './' });
   expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
 });
+
+test('e2e_hindi_toggle_and_url', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: 'हिंदी में देखें' }).click();
+  await expect(page).toHaveURL(/\?lang=hi/);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'hi-IN');
+  await expect(page.getByRole('button', { name: 'अपनी ट्रेडबुक डालें' })).toBeVisible();
+
+  await page.getByTestId('file-input').setInputFiles(YEAR);
+  await expect(page.getByRole('heading', { name: 'आपका आँकड़ा' })).toBeVisible();
+  await expect(page.locator('section.card').getByText('संवत 2082')).toBeVisible();
+
+  // Switching language on the cards screen is instant: both languages were computed.
+  await page.goto('./?lang=en');
+  await page.getByTestId('file-input').setInputFiles(YEAR);
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  // Nothing stored: a fresh load without ?lang follows the browser (English here).
+  await page.goto('./');
+  await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
+});
+
+test.describe('hindi browser', () => {
+  test.use({ locale: 'hi-IN' });
+  test('e2e_hindi_follows_browser_language', async ({ page }) => {
+    await page.goto('./');
+    await expect(page.getByRole('button', { name: 'अपनी ट्रेडबुक डालें' })).toBeVisible();
+    const { readFileSync: read } = await import('node:fs');
+    const header = read(YEAR, 'utf8').split('\n')[0];
+    const equity = `${header}\nINFY,INE009A01021,2026-09-22,NSE,EQ,EQ,buy,false,10.000000,1500.000000,1,2,2026-09-22T10:00:00,\n`;
+    await page.getByTestId('file-input').setInputFiles({ name: 'eq.csv', mimeType: 'text/csv', buffer: Buffer.from(equity) });
+    await expect(page.getByText(/इक्विटी ट्रेडबुक है/).first()).toBeVisible();
+  });
+});

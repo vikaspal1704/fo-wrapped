@@ -1,3 +1,5 @@
+import { m } from './i18n';
+
 /** Base class: every engine error carries a plain-language message for the UI. */
 export class FoWrappedError extends Error {
   readonly userMessage: string;
@@ -11,16 +13,13 @@ export class FoWrappedError extends Error {
 
 export class UnrecognizedFileError extends FoWrappedError {
   static forFile(file: string): UnrecognizedFileError {
-    return new UnrecognizedFileError(
-      `${file} doesn’t look like a Zerodha Console tradebook. In Console go to Reports → Tradebook, ` +
-        'choose segment F&O, and download CSV or XLSX.',
-    );
+    return new UnrecognizedFileError(m().unrecognizedFile(file));
   }
 }
 
 export class UnsupportedSegmentError extends FoWrappedError {
   constructor(file: string, segment: string) {
-    super(`${file} is an ${segmentLabel(segment)} tradebook. F&O Wrapped needs the F&O segment.`);
+    super(m().unsupportedSegment(file, segmentLabel(segment)));
   }
 }
 
@@ -32,35 +31,31 @@ export class RowValidationError extends FoWrappedError {
     readonly value: string,
     reason: string,
   ) {
-    super(
-      `${file}, row ${row}: ${field} ‘${value}’ isn’t valid. The file may have been edited. ` +
-        'Please download a fresh copy.',
-      `${file}:${row} ${field}='${value}': ${reason}`,
-    );
+    super(m().invalidRow(file, row, field, value), `${file}:${row} ${field}='${value}': ${reason}`);
   }
 }
 
 export class ConflictingDuplicateError extends FoWrappedError {
   constructor(tradeId: string) {
-    super(`Trade ${tradeId} appears in two files with different details. Please re-download both files.`);
+    super(m().conflictingDuplicate(tradeId));
   }
 }
 
 export class UnknownInstrumentError extends FoWrappedError {
   constructor(symbol: string, reason: string) {
-    super(`We couldn’t read the contract “${symbol}”. ${reason}`);
+    super(m().unknownContract(symbol, reason));
   }
 }
 
 function segmentLabel(segment: string): string {
   switch (segment.toUpperCase()) {
     case 'EQ':
-      return 'Equity';
+      return m().segEquity;
     case 'CDS':
-      return 'Currency';
+      return m().segCurrency;
     case 'COM':
     case 'MCX':
-      return 'Commodity';
+      return m().segCommodity;
     default:
       return `“${segment}”`;
   }
@@ -68,9 +63,6 @@ function segmentLabel(segment: string): string {
 
 export class ChargesUnavailableError extends FoWrappedError {
   constructor(readonly date: string, what: string) {
-    super(
-      `We can’t estimate charges for trades on ${date} (${what}). ` +
-        'Add your P&L statement for exact numbers.',
-    );
+    super(m().chargesUnavailableFor(date, what));
   }
 }

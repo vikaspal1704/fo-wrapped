@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-import type { AnalysisResult } from '../engine';
-import type { Stage, WorkerRequest, WorkerResponse } from '../worker/protocol';
+import type { AnalysisResult, Locale } from '../engine';
+import type { Localized, Stage, WorkerRequest, WorkerResponse } from '../worker/protocol';
 
 export interface FileStatus {
   name: string;
   ok: boolean;
-  detail: string;
+  /** Trades read, for accepted files. */
+  rows?: number;
+  /** Why it was rejected, in each language. */
+  message?: Localized;
 }
 
 export type State =
-  | { screen: 'landing'; files: FileStatus[]; error: string | null }
+  | { screen: 'landing'; files: FileStatus[]; error: Localized | null }
   | { screen: 'working'; stage: Stage; pct: number; files: FileStatus[] }
-  | { screen: 'cards'; result: AnalysisResult; files: FileStatus[] };
+  | { screen: 'cards'; results: Record<Locale, AnalysisResult>; files: FileStatus[] };
 
 type Action =
   | { type: 'start' }
@@ -33,11 +36,11 @@ function reducer(state: State, action: Action): State {
         case 'progress':
           return { ...state, stage: msg.stage, pct: msg.pct };
         case 'fileAccepted':
-          return { ...state, files: [...state.files, { name: msg.name, ok: true, detail: `${msg.rows} trades read` }] };
+          return { ...state, files: [...state.files, { name: msg.name, ok: true, rows: msg.rows }] };
         case 'fileRejected':
-          return { ...state, files: [...state.files, { name: msg.name, ok: false, detail: msg.message }] };
+          return { ...state, files: [...state.files, { name: msg.name, ok: false, message: msg.message }] };
         case 'result':
-          return { screen: 'cards', result: msg.result, files: state.files };
+          return { screen: 'cards', results: msg.results, files: state.files };
         case 'error':
           return { screen: 'landing', files: state.files, error: msg.message };
       }
@@ -92,7 +95,10 @@ export function useAnalysis() {
         if (e.data.type === 'result' || e.data.type === 'error') finish();
       };
       worker.onerror = () => {
-        dispatch({ type: 'message', msg: { type: 'error', message: 'Something went wrong. Please try again.' } });
+        dispatch({
+          type: 'message',
+          msg: { type: 'error', message: { en: 'Something went wrong. Please try again.', hi: 'कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।' } },
+        });
         finish();
       };
       const payload = await Promise.all(files.map(async (f) => ({ name: f.name, bytes: await f.arrayBuffer() })));

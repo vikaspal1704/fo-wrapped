@@ -16,3 +16,4 @@ export { analyze, ENGINE_VERSION, type AnalysisResult, type PeriodView, type Com
 export { periodsFor, previousPeriod, inPeriod, type Period, type PeriodKind } from './periods';
 export { samvatLabel, samvatYearOf, SAMVAT_YEARS } from './config/samvat';
 export { formatInr, formatPct, formatDuration } from './format';
+export { m as engineMessages, withLocale, withLocaleSync, getLocale, type Locale, type EngineMessages } from './i18n';

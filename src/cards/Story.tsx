@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import type { AnalysisResult, PeriodKind } from '../engine';
+import { useT, type UiMessages } from '../app/i18n';
 import { FileList } from '../app/Landing';
 import type { FileStatus } from '../app/useAnalysis';
 import { TheNumber } from './TheNumber';
@@ -24,39 +25,50 @@ interface Props {
 const SWIPE_PX = 40;
 
 /** Story-style viewer: tap sides, swipe, or use arrow keys. */
-const KIND_GROUPS: { kind: PeriodKind; label: string }[] = [
-  { kind: 'SAMVAT', label: 'Samvat year' },
-  { kind: 'FY', label: 'Financial year' },
-  { kind: 'CALENDAR', label: 'Calendar year' },
+const KIND_GROUPS: { kind: PeriodKind; label: keyof UiMessages }[] = [
+  { kind: 'SAMVAT', label: 'kindSamvat' },
+  { kind: 'FY', label: 'kindFy' },
+  { kind: 'CALENDAR', label: 'kindCalendar' },
 ];
 
+interface Slide {
+  /** Stable ASCII id, used in share file names. */
+  key: string;
+  title: string;
+  node: ReactNode;
+}
+
 export function Story({ result, files, onClear }: Props) {
+  const t = useT();
   const [viewId, setViewId] = useState(result.defaultViewId);
   const view = result.views.find((v) => v.period.id === viewId) ?? result.views[0]!;
   const { cards } = view;
-  const slides: { title: string; node: ReactNode }[] = [
-    { title: 'The number', node: <TheNumber view={view} /> },
-    { title: 'Where the money went', node: <WhereMoneyWent card={cards.whereMoneyWent} /> },
-    { title: 'Right but broke', node: <RightButBroke card={cards.rightButBroke} /> },
-    { title: 'Expiry day', node: <ExpiryDay card={cards.expiryDay} /> },
-    { title: 'Your clock', node: <YourClock card={cards.yourClock} /> },
-    { title: 'Revenge trades', node: <RevengeTrades card={cards.revengeTrades} /> },
-    { title: 'Diamond hands, paper hands', node: <HoldingTime card={cards.holdingTime} /> },
-    { title: 'Best day, worst day', node: <BestWorstDay card={cards.bestWorstDay} /> },
+  const slides: Slide[] = [
+    { key: 'the-number', title: t.tNumber, node: <TheNumber view={view} /> },
+    { key: 'where-the-money-went', title: t.tMoney, node: <WhereMoneyWent card={cards.whereMoneyWent} /> },
+    { key: 'right-but-broke', title: t.tRightBroke, node: <RightButBroke card={cards.rightButBroke} /> },
+    { key: 'expiry-day', title: t.tExpiry, node: <ExpiryDay card={cards.expiryDay} /> },
+    { key: 'your-clock', title: t.tClock, node: <YourClock card={cards.yourClock} /> },
+    { key: 'revenge-trades', title: t.tRevenge, node: <RevengeTrades card={cards.revengeTrades} /> },
+    { key: 'holding-time', title: t.tHolding, node: <HoldingTime card={cards.holdingTime} /> },
+    { key: 'best-worst-day', title: t.tBestWorst, node: <BestWorstDay card={cards.bestWorstDay} /> },
     // Extra cards only appear when there's enough data for them.
     ...[
-      { title: 'Buyer or seller', ok: cards.buyerVsSeller.status === 'OK', node: <BuyerVsSeller card={cards.buyerVsSeller} /> },
-      { title: 'What you traded', ok: cards.underlyings.status === 'OK', node: <Underlyings card={cards.underlyings} /> },
-      { title: 'Busy days', ok: cards.busyDays.status === 'OK', node: <BusyDays card={cards.busyDays} /> },
-      { title: 'Day of the week', ok: cards.weekday.status === 'OK', node: <Weekday card={cards.weekday} /> },
-      { title: 'Position size', ok: cards.positionSize.status === 'OK', node: <PositionSize card={cards.positionSize} /> },
-      { title: 'Charges drag', ok: cards.chargesDrag.status === 'OK', node: <ChargesDrag card={cards.chargesDrag} /> },
+      { key: 'buyer-or-seller', title: t.tBuyerSeller, ok: cards.buyerVsSeller.status === 'OK', node: <BuyerVsSeller card={cards.buyerVsSeller} /> },
+      { key: 'what-you-traded', title: t.tUnderlyings, ok: cards.underlyings.status === 'OK', node: <Underlyings card={cards.underlyings} /> },
+      { key: 'busy-days', title: t.tBusy, ok: cards.busyDays.status === 'OK', node: <BusyDays card={cards.busyDays} /> },
+      { key: 'day-of-the-week', title: t.tWeekday, ok: cards.weekday.status === 'OK', node: <Weekday card={cards.weekday} /> },
+      { key: 'position-size', title: t.tSize, ok: cards.positionSize.status === 'OK', node: <PositionSize card={cards.positionSize} /> },
+      { key: 'charges-drag', title: t.tDrag, ok: cards.chargesDrag.status === 'OK', node: <ChargesDrag card={cards.chargesDrag} /> },
     ]
       .filter((x) => x.ok)
-      .map(({ title, node }) => ({ title, node })),
-    ...(view.comparison ? [{ title: 'What changed', node: <WhatChanged comparison={view.comparison} currentLabel={view.period.label} /> }] : []),
+      .map(({ key, title, node }) => ({ key, title, node })),
+    ...(view.comparison
+      ? [{ key: 'what-changed', title: t.tChanged, node: <WhatChanged comparison={view.comparison} currentLabel={view.period.label} /> }]
+      : []),
     {
-      title: 'Your year',
+      key: 'your-year',
+      title: t.tYear,
       node: <Summary summary={cards.summary} view={view} versions={{ engine: result.engineVersion, rates: result.rateTableVersion }} onClear={onClear} />,
     },
   ];
@@ -102,12 +114,12 @@ export function Story({ result, files, onClear }: Props) {
       <div className="story-top">
         <div className="bars" aria-hidden="true">
           {slides.map((s, i) => (
-            <span key={s.title} className={i <= index ? 'on' : ''} />
+            <span key={s.key} className={i <= index ? 'on' : ''} />
           ))}
         </div>
         <div className="story-meta">
           <label className="period-picker">
-            <span className="sr-only">Period</span>
+            <span className="sr-only">{t.period}</span>
             <select
               value={view.period.id}
               onChange={(e) => {
@@ -115,11 +127,11 @@ export function Story({ result, files, onClear }: Props) {
                 setIndex(0);
               }}
             >
-              <option value="all">All trades</option>
+              <option value="all">{result.views[0]!.period.label}</option>
               {KIND_GROUPS.map((g) => {
                 const options = result.views.filter((v) => v.period.kind === g.kind && v.roundTripCount > 0);
                 return options.length === 0 ? null : (
-                  <optgroup key={g.kind} label={g.label}>
+                  <optgroup key={g.kind} label={t[g.label] as string}>
                     {options.map((v) => (
                       <option key={v.period.id} value={v.period.id}>
                         {v.period.label}
@@ -135,12 +147,12 @@ export function Story({ result, files, onClear }: Props) {
               {index + 1} / {slides.length}
             </span>
             {index < last && (
-              <button type="button" className="link" onClick={() => setIndex(last)} aria-label="Skip to end">
-                Skip ›
+              <button type="button" className="link" onClick={() => setIndex(last)} aria-label={t.skipLabel}>
+                {t.skip}
               </button>
             )}
-            <button type="button" className="link" onClick={onClear} aria-label="Clear data">
-              Clear
+            <button type="button" className="link" onClick={onClear} aria-label={t.clearData}>
+              {t.clear}
             </button>
           </span>
         </div>
@@ -149,32 +161,39 @@ export function Story({ result, files, onClear }: Props) {
       <section
         className="card"
         aria-roledescription="slide"
-        aria-label={`${index + 1} of ${slides.length}: ${slide.title}`}
+        aria-label={t.slideLabel(index + 1, slides.length, slide.title)}
         aria-live="polite"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
       >
         {index === 0 && rejected.length > 0 && (
           <div className="alert small">
-            {rejected.length === 1 ? 'One file was skipped:' : `${rejected.length} files were skipped:`}
+            {rejected.length === 1 ? t.fileSkipped : t.filesSkipped(rejected.length)}
             <FileList files={rejected} />
           </div>
         )}
         {slide.node}
         {index < last && (
-          <CardShare key={`${view.period.id}-${index}`} node={slide.node} title={slide.title} periodTitle={view.title} siteUrl={cards.summary.siteUrl} />
+          <CardShare
+            key={`${view.period.id}-${slide.key}`}
+            node={slide.node}
+            title={slide.title}
+            fileSlug={`${view.period.id}-${slide.key}`}
+            periodTitle={view.title}
+            siteUrl={cards.summary.siteUrl}
+          />
         )}
         {index < last && (
           <>
-            <button type="button" className="tap-zone prev" aria-label="Previous card" onClick={tap(-1)} disabled={index === 0} />
-            <button type="button" className="tap-zone next" aria-label="Next card" onClick={tap(1)} />
+            <button type="button" className="tap-zone prev" aria-label={t.prevCard} onClick={tap(-1)} disabled={index === 0} />
+            <button type="button" className="tap-zone next" aria-label={t.nextCard} onClick={tap(1)} />
           </>
         )}
       </section>
 
       {index === last && (
         <button type="button" className="link back" onClick={() => go(-1)}>
-          ← Back
+          {t.back}
         </button>
       )}
     </main>

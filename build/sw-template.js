@@ -28,11 +28,16 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
+  // ignoreVary: module scripts and stylesheets are requested with
+  // `crossorigin`, so they carry an Origin header the precache requests
+  // didn't have; a server that sends `Vary: Origin` would otherwise make
+  // every lookup miss and the app fail offline. These are static files.
+  const match = { ignoreSearch: true, ignoreVary: true };
   if (req.mode === 'navigate') {
     // Network first so updates arrive; the cached shell when offline.
-    event.respondWith(fetch(req).catch(() => caches.match('./index.html', { ignoreSearch: true })));
+    event.respondWith(fetch(req).catch(() => caches.match('./index.html', match)));
     return;
   }
   // Hashed build assets and icons never change under the same name.
-  event.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => hit ?? fetch(req)));
+  event.respondWith(caches.match(req, match).then((hit) => hit ?? fetch(req)));
 });

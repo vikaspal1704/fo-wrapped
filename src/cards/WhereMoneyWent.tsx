@@ -2,29 +2,23 @@ import { formatInr } from '../engine/format';
 import type { CardSet } from '../engine';
 import { signedInr } from '../app/format';
 import { Card, CompareBars } from './Card';
+import { useT } from '../app/i18n';
 
 export function WhereMoneyWent({ card }: { card: CardSet['whereMoneyWent'] }) {
+  const t = useT();
   return (
-    <Card title="Where the money went" result={card}>
+    <Card title={t.tMoney} result={card}>
       {(d) => (
         <>
           <p className="headline">
-            {d.chargesPctOfGrossProfit !== null ? (
-              <>
-                You paid <strong>{formatInr(d.chargesPaise)}</strong> in charges, which is{' '}
-                <strong>{Math.round(d.chargesPctOfGrossProfit)}%</strong> of your gross profit.
-              </>
-            ) : (
-              <>
-                You paid <strong>{formatInr(d.chargesPaise)}</strong> in charges on top of a gross loss of{' '}
-                <strong>{formatInr(-d.grossPnlPaise)}</strong>.
-              </>
-            )}
+            {d.chargesPctOfGrossProfit !== null
+              ? t.paidPct(formatInr(d.chargesPaise), Math.round(d.chargesPctOfGrossProfit))
+              : t.paidOnLoss(formatInr(d.chargesPaise), formatInr(-d.grossPnlPaise))}
           </p>
           <CompareBars
             rows={[
-              { label: 'Gross P&L', value: d.grossPnlPaise, text: signedInr(d.grossPnlPaise), tone: d.grossPnlPaise >= 0 ? 'profit' : 'loss' },
-              { label: 'Charges', value: d.chargesPaise, text: formatInr(d.chargesPaise), tone: 'neutral' },
+              { label: t.grossPnl, value: d.grossPnlPaise, text: signedInr(d.grossPnlPaise), tone: d.grossPnlPaise >= 0 ? 'profit' : 'loss' },
+              { label: t.charges, value: d.chargesPaise, text: formatInr(d.chargesPaise), tone: 'neutral' },
             ]}
           />
         </>

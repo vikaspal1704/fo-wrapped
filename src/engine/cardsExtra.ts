@@ -1,4 +1,5 @@
 import type { CardResult, Totals } from './cards';
+import { m } from './i18n';
 import { median } from './stats';
 import type { Exchange, IstDate, Paise, RoundTrip } from './types';
 
@@ -46,7 +47,6 @@ export const EXTRA_THRESHOLDS = {
   minTradesSize: 10,
 } as const;
 
-const BEFORE_CHARGES = 'Before charges.';
 const WEEKDAYS: WeekdayStat['weekday'][] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const insufficient = (reason: string) => ({ status: 'INSUFFICIENT_DATA' as const, reason });
 const ok = <T>(data: T, notes: string[] = []) => ({ status: 'OK' as const, data, notes });
@@ -71,12 +71,12 @@ export function computeExtraCards(input: {
 function buyerVsSeller(rts: readonly RoundTrip[]): ExtraCards['buyerVsSeller'] {
   const options = rts.filter((r) => r.instrument.kind !== 'FUT');
   if (options.length < EXTRA_THRESHOLDS.minOptionTrades) {
-    return insufficient(`Needs at least ${EXTRA_THRESHOLDS.minOptionTrades} closed option trades.`);
+    return insufficient(m().needsOptionTrades(EXTRA_THRESHOLDS.minOptionTrades));
   }
   const bought = options.filter((r) => r.side === 'LONG');
   const sold = options.filter((r) => r.side === 'SHORT');
   if (bought.length === 0 || sold.length === 0) {
-    return insufficient(bought.length === 0 ? 'All your option trades started with a sell.' : 'All your option trades started with a buy.');
+    return insufficient(bought.length === 0 ? m().allOptionSells : m().allOptionBuys);
   }
   return ok(
     {
@@ -85,7 +85,7 @@ function buyerVsSeller(rts: readonly RoundTrip[]): ExtraCards['buyerVsSeller'] {
       sellerPnlPaise: sum(sold.map((r) => r.grossPnlPaise)) as Paise,
       sellerTrades: sold.length,
     },
-    [BEFORE_CHARGES, 'Options only. A trade counts as selling if it opened with a sell.'],
+    [m().beforeCharges, m().optionsOnlyNote],
   );
 }
 
@@ -97,7 +97,7 @@ function underlyings(rts: readonly RoundTrip[], index: Record<Exchange, readonly
     g.pnlPaise = (g.pnlPaise + r.grossPnlPaise) as Paise;
     groups.set(g.underlying, g);
   }
-  if (groups.size < EXTRA_THRESHOLDS.minUnderlyings) return insufficient('You traded only one underlying.');
+  if (groups.size < EXTRA_THRESHOLDS.minUnderlyings) return insufficient(m().oneUnderlying);
   // Ties → alphabetical, for determinism.
   const sorted = [...groups.values()].sort((a, b) => b.pnlPaise - a.pnlPaise || (a.underlying < b.underlying ? -1 : 1));
   const isIndex = (r: RoundTrip) => index[r.instrument.key.startsWith('BSE:') ? 'BSE' : 'NSE'].includes(r.instrument.underlying);
@@ -117,7 +117,7 @@ function underlyings(rts: readonly RoundTrip[], index: Record<Exchange, readonly
             }
           : null,
     },
-    [BEFORE_CHARGES],
+    [m().beforeCharges],
   );
 }
 
@@ -129,11 +129,11 @@ function busyDays(rts: readonly RoundTrip[]): ExtraCards['busyDays'] {
     d.pnl += r.grossPnlPaise;
     days.set(r.exitDate, d);
   }
-  if (days.size < EXTRA_THRESHOLDS.minTradingDays) return insufficient(`Needs trades on at least ${EXTRA_THRESHOLDS.minTradingDays} different days.`);
+  if (days.size < EXTRA_THRESHOLDS.minTradingDays) return insufficient(m().needsTradingDays(EXTRA_THRESHOLDS.minTradingDays));
   const threshold = median([...days.values()].map((d) => d.trades));
   const busy = [...days.values()].filter((d) => d.trades > threshold);
   const other = [...days.values()].filter((d) => d.trades <= threshold);
-  if (busy.length === 0) return insufficient('You traded about the same number of times every day.');
+  if (busy.length === 0) return insufficient(m().sameEveryDay);
   return ok(
     {
       busyThreshold: threshold,
@@ -142,7 +142,7 @@ function busyDays(rts: readonly RoundTrip[]): ExtraCards['busyDays'] {
       otherDays: other.length,
       otherAvgPnlPaise: sum(other.map((d) => d.pnl)) / other.length,
     },
-    [BEFORE_CHARGES, `A busy day has more than ${threshold} closed trade${threshold === 1 ? '' : 's'} (your median day).`],
+    [m().beforeCharges, m().busyNote(threshold)],
   );
 }
 
@@ -156,7 +156,7 @@ function weekday(rts: readonly RoundTrip[]): ExtraCards['weekday'] {
     stats.set(wd, s);
   }
   if (rts.length < EXTRA_THRESHOLDS.minTradesWeekday || stats.size < EXTRA_THRESHOLDS.minWeekdays) {
-    return insufficient(`Needs at least ${EXTRA_THRESHOLDS.minTradesWeekday} trades across ${EXTRA_THRESHOLDS.minWeekdays} weekdays.`);
+    return insufficient(m().needsWeekdays(EXTRA_THRESHOLDS.minTradesWeekday, EXTRA_THRESHOLDS.minWeekdays));
   }
   const days = WEEKDAYS.map((w) => stats.get(w)).filter((s): s is WeekdayStat => !!s);
   const eligible = days.filter((d) => d.trades >= EXTRA_THRESHOLDS.minTradesPerWeekday);
@@ -168,16 +168,16 @@ function weekday(rts: readonly RoundTrip[]): ExtraCards['weekday'] {
     if (!worst || d.pnlPaise < worst.pnlPaise) worst = d;
   }
   return ok({ days, best, worst }, [
-    BEFORE_CHARGES,
-    'Each trade counts on the day it closed.',
-    `Best and worst days need at least ${EXTRA_THRESHOLDS.minTradesPerWeekday} trades.`,
+    m().beforeCharges,
+    m().dayCloseNote,
+    m().weekdayMinNote(EXTRA_THRESHOLDS.minTradesPerWeekday),
   ]);
 }
 
 function positionSize(rts: readonly RoundTrip[]): ExtraCards['positionSize'] {
-  if (rts.length < EXTRA_THRESHOLDS.minTradesSize) return insufficient(`Needs at least ${EXTRA_THRESHOLDS.minTradesSize} closed trades.`);
+  if (rts.length < EXTRA_THRESHOLDS.minTradesSize) return insufficient(m().needsClosedTrades(EXTRA_THRESHOLDS.minTradesSize));
   const value = (r: RoundTrip) => Math.round(r.qty * r.avgEntryPaise);
-  const m = median(rts.map(value));
+  const medianValue = median(rts.map(value));
   const group = (xs: readonly RoundTrip[]): SizeGroup => {
     const wins = xs.filter((r) => r.grossPnlPaise > 0).length;
     const losses = xs.filter((r) => r.grossPnlPaise < 0).length;
@@ -187,19 +187,19 @@ function positionSize(rts: readonly RoundTrip[]): ExtraCards['positionSize'] {
       winRate: wins + losses > 0 ? wins / (wins + losses) : 0,
     };
   };
-  const big = rts.filter((r) => value(r) > m);
-  const small = rts.filter((r) => value(r) <= m);
-  if (big.length === 0) return insufficient('Your positions were all about the same size.');
-  return ok({ medianEntryValuePaise: m, big: group(big), small: group(small) }, [
-    BEFORE_CHARGES,
-    'Size is the value at entry (quantity × average entry price). Bigger means above your median.',
+  const big = rts.filter((r) => value(r) > medianValue);
+  const small = rts.filter((r) => value(r) <= medianValue);
+  if (big.length === 0) return insufficient(m().sameSize);
+  return ok({ medianEntryValuePaise: medianValue, big: group(big), small: group(small) }, [
+    m().beforeCharges,
+    m().sizeNote,
   ]);
 }
 
 function chargesDrag(rts: readonly RoundTrip[], totals: Totals): ExtraCards['chargesDrag'] {
-  if (!totals.charges) return insufficient(totals.chargesUnavailableReason ?? 'Charges unavailable.');
+  if (!totals.charges) return insufficient(totals.chargesUnavailableReason ?? m().chargesUnavailable);
   const wins = rts.filter((r) => r.grossPnlPaise > 0);
-  if (wins.length === 0 || rts.length === 0) return insufficient('Needs at least one winning trade.');
+  if (wins.length === 0 || rts.length === 0) return insufficient(m().needsWin);
   const avgWin = sum(wins.map((r) => r.grossPnlPaise)) / wins.length;
   return ok(
     {
@@ -208,6 +208,6 @@ function chargesDrag(rts: readonly RoundTrip[], totals: Totals): ExtraCards['cha
       winsToCover: totals.charges.total / avgWin,
       chargesPerTradePaise: totals.charges.total / rts.length,
     },
-    ['Charges are estimated from published rates.'],
+    [m().chargesEstimated],
   );
 }
