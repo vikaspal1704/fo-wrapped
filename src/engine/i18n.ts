@@ -21,6 +21,11 @@ const en = {
   chargesUnavailable: 'Charges unavailable.',
   excludedPositions: (n: number) => `${n} ${plural(n, 'position', 'positions')} that expired or are still open ${plural(n, 'isn’t', 'aren’t')} included.`,
   noClosedTrades: 'No closed trades yet.',
+  noTradeTimes: 'Your broker’s file has no trade times.',
+  onlyTimedTrades: 'Only trades from files with trade times are included.',
+  noTimesWarning: 'Your broker’s file has no trade times, so time-of-day cards are skipped, and a trade here means one contract’s buys and sells on one day.',
+  chargesFromBroker: 'Charges are your broker’s own figures from the file.',
+  chargesMixed: 'Charges are partly your broker’s own figures and partly estimated from published rates.',
 
   // Core cards
   needsWinsAndLosses: (n: number) => `Needs at least ${n} closed trades with at least one win and one loss.`,
@@ -118,6 +123,11 @@ const hi: EngineMessages = {
   chargesUnavailable: 'चार्जेस उपलब्ध नहीं हैं।',
   excludedPositions: (n) => `एक्सपायर हुई या अभी खुली ${n} पोज़िशन शामिल नहीं ${plural(n, 'है', 'हैं')}।`,
   noClosedTrades: 'अभी कोई बंद ट्रेड नहीं है।',
+  noTradeTimes: 'आपके ब्रोकर की फ़ाइल में ट्रेड का समय नहीं है।',
+  onlyTimedTrades: 'सिर्फ़ उन फ़ाइलों के ट्रेड शामिल हैं जिनमें ट्रेड का समय है।',
+  noTimesWarning: 'आपके ब्रोकर की फ़ाइल में ट्रेड का समय नहीं है, इसलिए समय वाले कार्ड छोड़ दिए गए हैं, और यहाँ एक ट्रेड का मतलब है एक दिन में एक कॉन्ट्रैक्ट की सारी ख़रीद-बिक्री।',
+  chargesFromBroker: 'चार्जेस फ़ाइल में दिए गए आपके ब्रोकर के अपने आँकड़े हैं।',
+  chargesMixed: 'चार्जेस कुछ आपके ब्रोकर के अपने आँकड़े हैं और कुछ प्रकाशित दरों से अनुमानित।',
 
   needsWinsAndLosses: (n) => `कम से कम ${n} बंद ट्रेड चाहिए, जिनमें कम से कम एक जीत और एक हार हो।`,
   scratchNote: 'बराबरी पर बंद हुए ट्रेड न जीत में गिने जाते हैं, न हार में।',

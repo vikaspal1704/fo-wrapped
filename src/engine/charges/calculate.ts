@@ -1,6 +1,5 @@
 import { ChargesUnavailableError } from '../errors';
 import { m } from '../i18n';
-import { safeMul } from '../money';
 import type { Fill, IstDate, Paise } from '../types';
 import type { ChargeRateTable, ChargesBreakdown, Rational, RateWindow } from './types';
 
@@ -20,12 +19,12 @@ export function calculateCharges(fills: readonly Fill[], rates: ChargeRateTable)
     else byDay.set(f.tradeDate, [f]);
   }
 
-  const total = { brokerage: 0, stt: 0, exchangeTxn: 0, sebi: 0, stampDuty: 0, gst: 0 };
+  const total = { brokerage: 0, stt: 0, exchangeTxn: 0, sebi: 0, stampDuty: 0, gst: 0, other: 0 };
   for (const [date, dayFills] of byDay) {
     const day = chargesForDay(date, dayFills, rates);
     for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += day[k];
   }
-  const sum = total.brokerage + total.stt + total.exchangeTxn + total.sebi + total.stampDuty + total.gst;
+  const sum = total.brokerage + total.stt + total.exchangeTxn + total.sebi + total.stampDuty + total.gst + total.other;
   return { ...(total as Record<keyof typeof total, Paise>), total: sum as Paise };
 }
 
@@ -40,9 +39,9 @@ function chargesForDay(date: IstDate, fills: readonly Fill[], rates: ChargeRateT
     else buckets.set(key, { component, rate, value: BigInt(value) });
   };
 
-  const orders = new Map<string, { isFuture: boolean; value: number }>();
+  const orders = new Map<string, { broker: Fill['broker']; isFuture: boolean; value: number }>();
   for (const f of fills) {
-    const value = safeMul(f.qty, f.pricePaise);
+    const value = f.valuePaise as number;
     const isFuture = f.instrument.kind === 'FUT';
     const isIndex = rates.indexUnderlyings[f.exchange].includes(f.instrument.underlying);
     const txn = rates.exchangeTxn[f.exchange];
@@ -55,20 +54,25 @@ function chargesForDay(date: IstDate, fills: readonly Fill[], rates: ChargeRateT
       add('stampDuty', pick(isFuture ? rates.stampDutyBuy.futures : rates.stampDutyBuy.options, date, m().chargeStamp), value);
     }
 
-    const order = orders.get(f.orderId) ?? { isFuture, value: 0 };
+    // Without order IDs (Upstox), fills of one contract and side in the same
+    // second are treated as one order (docs/BROKERS.md §2.2).
+    const orderKey = f.orderId ?? `${f.instrument.key}|${f.side}|${f.executedAt}`;
+    const key = `${f.broker}|${orderKey}`;
+    const order = orders.get(key) ?? { broker: f.broker, isFuture, value: 0 };
     order.value += value;
-    orders.set(f.orderId, order);
+    orders.set(key, order);
   }
 
-  const day = { brokerage: 0, stt: 0, exchangeTxn: 0, sebi: 0, stampDuty: 0, gst: 0 };
+  const day = { brokerage: 0, stt: 0, exchangeTxn: 0, sebi: 0, stampDuty: 0, gst: 0, other: 0 };
   for (const b of buckets.values()) day[b.component] += applyRate(b.value, b.rate);
 
   for (const order of orders.values()) {
+    const brokerage = rates.brokerage[order.broker];
     if (order.isFuture) {
-      const { capPaise, pct } = pick(rates.brokerage.futuresPerOrder, date, m().chargeBrokerage);
+      const { capPaise, pct } = pick(brokerage?.futuresPerOrder ?? [], date, m().chargeBrokerage);
       day.brokerage += Math.min(capPaise, applyRate(BigInt(order.value), pct));
     } else {
-      day.brokerage += pick(rates.brokerage.optionsPerOrderPaise, date, m().chargeBrokerage);
+      day.brokerage += pick(brokerage?.optionsPerOrderPaise ?? [], date, m().chargeBrokerage);
     }
   }
 

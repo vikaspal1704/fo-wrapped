@@ -1,4 +1,5 @@
 import type { CardResult, Totals } from './cards';
+import { withTimes } from './capabilities';
 import { m } from './i18n';
 import { median } from './stats';
 import type { Exchange, IstDate, Paise, RoundTrip } from './types';
@@ -59,9 +60,9 @@ export function computeExtraCards(input: {
 }): ExtraCards {
   const rts = input.roundTrips;
   return {
-    buyerVsSeller: buyerVsSeller(rts),
+    buyerVsSeller: withTimes(rts, buyerVsSeller),
     underlyings: underlyings(rts, input.indexUnderlyings),
-    busyDays: busyDays(rts),
+    busyDays: withTimes(rts, busyDays),
     weekday: weekday(rts),
     positionSize: positionSize(rts),
     chargesDrag: chargesDrag(rts, input.totals),

@@ -7,7 +7,7 @@ import {
   UnrecognizedFileError,
   UnsupportedSegmentError,
 } from '../errors';
-import { decimalToPaise, decimalToWholeNumber } from '../money';
+import { decimalToPaise, decimalToWholeNumber, safeMul } from '../money';
 import { parseIstDate, parseIstDateTime } from '../time';
 import type { Exchange, Fill, Paise, Side } from '../types';
 import { parseSymbol } from './symbol';
@@ -149,6 +149,7 @@ export function parseTradebookRows(fileName: string, data: readonly (readonly st
     const row = parsed.data;
     const exchange: Exchange = row.exchange;
     fills.push({
+      broker: 'zerodha',
       tradeId: row.trade_id,
       orderId: row.order_id,
       instrument: parseSymbol(row.symbol, exchange, row.expiry_date),
@@ -157,8 +158,10 @@ export function parseTradebookRows(fileName: string, data: readonly (readonly st
       auction: row.auction === 'true',
       qty: row.quantity,
       pricePaise: row.price as Paise,
+      valuePaise: safeMul(row.quantity, row.price) as Paise,
       tradeDate: row.trade_date,
       executedAt: row.order_execution_time,
+      timePrecision: 'second',
       sourceFile: fileName,
       sourceRow: line,
     });

@@ -1,6 +1,7 @@
 import { calculateCharges } from './charges/calculate';
 import { m } from './i18n';
-import type { ChargeRateTable } from './charges/types';
+import type { ChargeRateTable, ChargesBreakdown } from './charges/types';
+import { prepareDateOnlyFills } from './dateOnly';
 import { computeCards, type CardSet, type Totals } from './cards';
 import { samvatLabel } from './config/samvat';
 import { ChargesUnavailableError } from './errors';
@@ -8,9 +9,22 @@ import { mergeFills } from './merge';
 import { inPeriod, periodsFor, previousPeriod, type Period } from './periods';
 import { buildRoundTrips } from './roundTrips';
 import { istDateOf, istMinuteOfDay } from './time';
-import type { Fill, IstDate, Paise, RoundTrip, UnclosedPosition } from './types';
+import type { BrokerId, Fill, IstDate, Paise, RoundTrip, UnclosedPosition } from './types';
 
 export const ENGINE_VERSION = '0.2.0';
+
+/** Charges a broker's own file reports, for one day (Angel One, Dhan). */
+export interface ChargeRecord {
+  broker: BrokerId;
+  date: IstDate;
+  charges: ChargesBreakdown;
+}
+
+/** A broker whose export carries its own charges; its fills are never estimated. */
+export interface ReportedCharges {
+  broker: BrokerId;
+  records: ChargeRecord[];
+}
 
 export interface ComparisonRow {
   key: 'netPnl' | 'grossPnl' | 'charges' | 'trades' | 'winRate' | 'revengeTrades' | 'loserHoldMs';
@@ -71,10 +85,14 @@ const MIN_TRADES_FOR_DEFAULT_SAMVAT = 10;
  */
 export function analyze(input: {
   tradebooks: readonly (readonly Fill[])[];
+  /** Brokers whose files report their own charges (docs/BROKERS.md). */
+  reportedCharges?: readonly ReportedCharges[];
   rates: ChargeRateTable;
   siteUrl: string;
 }): AnalysisResult {
-  const { fills, duplicatesDropped } = mergeFills(input.tradebooks);
+  const merged = mergeFills(input.tradebooks);
+  const duplicatesDropped = merged.duplicatesDropped;
+  const fills = mergeFills([prepareDateOnlyFills(merged.fills)]).fills;
   if (fills.length === 0) throw new RangeError('analyze() needs at least one fill');
 
   const dates = fills.map((f) => f.tradeDate);
@@ -84,7 +102,10 @@ export function analyze(input: {
   const samvat = samvatLabel(roundTrips.length > 0 ? roundTrips.map((r) => r.exitDate) : dates);
 
   const periods = periodsFor(dates);
-  const views = periods.map((period) => buildView(period, { fills, roundTrips, unclosed, samvat, rates: input.rates, siteUrl: input.siteUrl }));
+  const reported = input.reportedCharges ?? [];
+  const views = periods.map((period) =>
+    buildView(period, { fills, roundTrips, unclosed, samvat, reported, rates: input.rates, siteUrl: input.siteUrl }),
+  );
   for (const view of views) {
     const prev = previousPeriod(view.period, periods);
     const prevView = prev && views.find((v) => v.period.id === prev.id);
@@ -100,7 +121,7 @@ export function analyze(input: {
     rateTableVersion: input.rates.version,
     dateRange: { from, to },
     samvat,
-    fillCount: fills.length,
+    fillCount: merged.fills.length,
     duplicateFillsDropped: duplicatesDropped,
     roundTrips,
     unclosed,
@@ -119,6 +140,7 @@ function buildView(
     roundTrips: readonly RoundTrip[];
     unclosed: readonly UnclosedPosition[];
     samvat: string | null;
+    reported: readonly ReportedCharges[];
     rates: ChargeRateTable;
     siteUrl: string;
   },
@@ -129,19 +151,30 @@ function buildView(
   const unclosed = isAll ? ctx.unclosed : ctx.unclosed.filter((u) => inPeriod(istDateOf(u.openedAt), period));
 
   const grossPnlPaise = roundTrips.reduce((s, r) => s + r.grossPnlPaise, 0) as Paise;
-  let charges = null;
+
+  // Charges cover every fill traded in the period, including those of
+  // positions excluded from P&L, because they were really paid. Brokers whose
+  // files report charges use those; the rest are estimated.
+  const reportingBrokers = new Set(ctx.reported.map((r) => r.broker));
+  const toEstimate = fills.filter((f) => !reportingBrokers.has(f.broker));
+  const reportedParts = ctx.reported
+    .flatMap((r) => r.records)
+    .filter((rec) => isAll || inPeriod(rec.date, period))
+    .map((rec) => rec.charges);
+  const hasReported = fills.some((f) => reportingBrokers.has(f.broker));
+  let charges: ChargesBreakdown | null = null;
   let chargesUnavailableReason: string | null = null;
   try {
-    charges = fills.length > 0 ? calculateCharges(fills, ctx.rates) : null;
+    const parts = [...reportedParts, ...(toEstimate.length > 0 ? [calculateCharges(toEstimate, ctx.rates)] : [])];
+    charges = parts.length > 0 ? sumCharges(parts) : null;
   } catch (e) {
     if (!(e instanceof ChargesUnavailableError)) throw e;
     chargesUnavailableReason = e.userMessage;
   }
+  const source: Totals['source'] = !hasReported ? 'ESTIMATED' : toEstimate.length === 0 ? 'BROKER' : 'MIXED';
 
-  // Charges cover every fill traded in the period, including those of
-  // positions excluded from P&L, because they were really paid.
   const totals: Totals = {
-    source: 'ESTIMATED',
+    source,
     grossPnlPaise,
     charges,
     netPnlPaise: charges ? ((grossPnlPaise - charges.total) as Paise) : null,
@@ -168,7 +201,8 @@ function buildView(
 
   const warnings: string[] = [];
   const t = m();
-  if (charges) warnings.push(t.chargesEstimated);
+  if (charges) warnings.push(source === 'BROKER' ? t.chargesFromBroker : source === 'MIXED' ? t.chargesMixed : t.chargesEstimated);
+  if (roundTrips.some((r) => r.timePrecision === 'date')) warnings.push(t.noTimesWarning);
   if (chargesUnavailableReason) warnings.push(chargesUnavailableReason);
   const settled = unclosed.filter((u) => u.status === 'SETTLED_AT_EXPIRY').length;
   if (settled > 0) {
@@ -214,3 +248,10 @@ function compare(current: PeriodView, previous: PeriodView): Comparison {
   };
 }
 
+
+function sumCharges(parts: readonly ChargesBreakdown[]): ChargesBreakdown {
+  const keys = ['brokerage', 'stt', 'exchangeTxn', 'sebi', 'stampDuty', 'gst', 'other', 'total'] as const;
+  const out = Object.fromEntries(keys.map((k) => [k, 0])) as Record<(typeof keys)[number], number>;
+  for (const p of parts) for (const k of keys) out[k] += p[k];
+  return out as ChargesBreakdown;
+}

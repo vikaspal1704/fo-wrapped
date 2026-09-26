@@ -8,12 +8,13 @@ import type { Fill } from './types';
  * Output is sorted by (executedAt, exchange, tradeId).
  */
 export function mergeFills(files: readonly (readonly Fill[])[]): { fills: Fill[]; duplicatesDropped: number } {
+  // Trade IDs are unique per broker and exchange; different brokers' files never collide.
   const byKey = new Map<string, Fill>();
   let duplicatesDropped = 0;
 
   for (const file of files) {
     for (const fill of file) {
-      const key = `${fill.exchange}:${fill.tradeId}`;
+      const key = `${fill.broker}:${fill.exchange}:${fill.tradeId}`;
       const existing = byKey.get(key);
       if (!existing) {
         byKey.set(key, fill);
@@ -32,6 +33,7 @@ export function mergeFills(files: readonly (readonly Fill[])[]): { fills: Fill[]
 export function compareFills(a: Fill, b: Fill): number {
   return (
     a.executedAt - b.executedAt ||
+    compareStrings(a.broker, b.broker) ||
     compareStrings(a.exchange, b.exchange) ||
     compareNumericStrings(a.tradeId, b.tradeId)
   );
@@ -46,6 +48,7 @@ function sameTrade(a: Fill, b: Fill): boolean {
     a.auction === b.auction &&
     a.qty === b.qty &&
     a.pricePaise === b.pricePaise &&
+    a.valuePaise === b.valuePaise &&
     a.tradeDate === b.tradeDate &&
     a.executedAt === b.executedAt
   );

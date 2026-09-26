@@ -3,6 +3,7 @@ import { m } from './i18n';
 import { computeExtraCards, type ExtraCards } from './cardsExtra';
 import { formatInr, formatPct } from './format';
 import { median } from './stats';
+import { withTimes } from './capabilities';
 import { istMinuteOfDay } from './time';
 
 export { median };
@@ -10,7 +11,7 @@ import type { EpochMs, Exchange, Fill, IstDate, Paise, RoundTrip } from './types
 
 export type CardResult<T> =
   | { status: 'OK'; data: T; notes: string[] }
-  | { status: 'INSUFFICIENT_DATA'; reason: string };
+  | { status: 'INSUFFICIENT_DATA'; reason: string; code?: 'NO_TRADE_TIMES' };
 
 export interface ClockBucket {
   /** Minutes since IST midnight at which the bucket starts. */
@@ -25,7 +26,8 @@ export interface Headline {
 }
 
 export interface Totals {
-  source: 'ESTIMATED';
+  /** Where the charges come from: published rates, the broker's own file, or both. */
+  source: 'ESTIMATED' | 'BROKER' | 'MIXED';
   grossPnlPaise: Paise;
   /** null when charges can't be estimated for some trade dates. */
   charges: ChargesBreakdown | null;
@@ -85,7 +87,7 @@ export function computeCards(input: {
 }): CardSet {
   const { roundTrips: rts, fills, totals } = input;
   const estimatedNotes = [
-    m().chargesEstimatedAddStatement,
+    totals.source === 'BROKER' ? m().chargesFromBroker : totals.source === 'MIXED' ? m().chargesMixed : m().chargesEstimatedAddStatement,
     ...(totals.excludedUnclosedCount > 0 ? [m().excludedPositions(totals.excludedUnclosedCount)] : []),
   ];
   const noTrades = m().noClosedTrades;
@@ -99,8 +101,8 @@ export function computeCards(input: {
             {
               netPnlPaise: totals.netPnlPaise,
               totalTrades: rts.length,
-              tradedValuePaise: sum(fills.map((f) => f.qty * f.pricePaise)) as Paise,
-              estimated: true,
+              tradedValuePaise: sum(fills.map((f) => f.valuePaise)) as Paise,
+              estimated: totals.source !== 'BROKER',
             },
             estimatedNotes,
           );
@@ -116,7 +118,7 @@ export function computeCards(input: {
               chargesPaise: totals.charges.total,
               chargesPctOfGrossProfit:
                 totals.grossPnlPaise > 0 ? (totals.charges.total / totals.grossPnlPaise) * 100 : null,
-              estimated: true,
+              estimated: totals.source !== 'BROKER',
             },
             estimatedNotes,
           );
@@ -131,9 +133,9 @@ export function computeCards(input: {
     whereMoneyWent,
     rightButBroke: rightButBrokeCard(rts),
     expiryDay: expiryDayCard(rts),
-    yourClock: clockCard(rts),
-    revengeTrades: revengeCard(rts),
-    holdingTime: holdingCard(rts),
+    yourClock: withTimes(rts, clockCard),
+    revengeTrades: withTimes(rts, revengeCard),
+    holdingTime: withTimes(rts, holdingCard),
     bestWorstDay: bestWorstDayCard(rts),
     summary: {
       headlines: [headlineOptions[0]!, headlineOptions[1]!, headlineOptions[2]!],

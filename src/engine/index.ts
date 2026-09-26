@@ -12,7 +12,17 @@ export { RATES } from './charges/rates';
 export { calculateCharges } from './charges/calculate';
 export * from './cards';
 export * from './cardsExtra';
-export { analyze, ENGINE_VERSION, type AnalysisResult, type PeriodView, type Comparison, type ComparisonRow } from './analyze';
+export {
+  analyze,
+  ENGINE_VERSION,
+  type AnalysisResult,
+  type PeriodView,
+  type Comparison,
+  type ComparisonRow,
+  type ChargeRecord,
+  type ReportedCharges,
+} from './analyze';
+export { prepareDateOnlyFills } from './dateOnly';
 export { periodsFor, previousPeriod, inPeriod, type Period, type PeriodKind } from './periods';
 export { samvatLabel, samvatYearOf, SAMVAT_YEARS } from './config/samvat';
 export { formatInr, formatPct, formatDuration } from './format';

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseIstDateTime, parseSymbol } from '../../src/engine';
-import type { Exchange, Fill, IstDate, Paise } from '../../src/engine';
+import type { BrokerId, Exchange, Fill, IstDate, Paise } from '../../src/engine';
 
 let seq = 0;
 
@@ -16,7 +16,9 @@ export interface FillSpec {
   exchange?: Exchange;
   expiry?: string;
   tradeId?: string;
-  orderId?: string;
+  orderId?: string | null;
+  broker?: BrokerId;
+  timePrecision?: 'second' | 'date';
 }
 
 /** Builds a Fill directly (bypassing CSV) for engine tests. */
@@ -25,17 +27,22 @@ export function fill(spec: FillSpec): Fill {
   const exchange = spec.exchange ?? 'NSE';
   const expiry = (spec.expiry ?? '2025-11-25') as IstDate;
   const [rupees = '0', paise = ''] = spec.price.split('.');
+  const qty = spec.qty;
+  const pricePaise = (Number(rupees) * 100 + Number(paise.padEnd(2, '0'))) as Paise;
   return {
+    broker: spec.broker ?? 'zerodha',
     tradeId: spec.tradeId ?? String(1000 + n),
-    orderId: spec.orderId ?? String(9000 + n),
+    orderId: spec.orderId === undefined ? String(9000 + n) : spec.orderId,
     instrument: parseSymbol(spec.symbol ?? 'NIFTY25NOV24000CE', exchange, expiry),
     exchange,
     side: spec.side,
     auction: false,
-    qty: spec.qty,
-    pricePaise: (Number(rupees) * 100 + Number(paise.padEnd(2, '0'))) as Paise,
+    qty,
+    pricePaise,
+    valuePaise: (qty * pricePaise) as Paise,
     tradeDate: spec.at.slice(0, 10) as IstDate,
     executedAt: parseIstDateTime(spec.at)!,
+    timePrecision: spec.timePrecision ?? 'second',
     sourceFile: 'test.csv',
     sourceRow: n,
   };

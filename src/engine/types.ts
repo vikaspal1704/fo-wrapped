@@ -8,6 +8,10 @@ export type IstDate = string & { readonly __brand: 'IstDate' };
 export type EpochMs = number;
 
 export type Side = 'BUY' | 'SELL';
+/** Brokers whose exports are supported (docs/BROKERS.md). */
+export type BrokerId = 'zerodha' | 'angelone' | 'upstox' | 'dhan';
+/** 'second': the file has execution times; 'date': dates only (Angel One, Dhan). */
+export type TimePrecision = 'second' | 'date';
 export type Exchange = 'NSE' | 'BSE';
 export type InstrumentKind = 'FUT' | 'CE' | 'PE';
 
@@ -23,17 +27,24 @@ export interface Instrument {
 }
 
 export interface Fill {
+  broker: BrokerId;
   tradeId: string;
-  orderId: string;
+  /** null when the export has no order IDs (Upstox). */
+  orderId: string | null;
   instrument: Instrument;
   exchange: Exchange;
   side: Side;
   auction: boolean;
   /** Positive integer, units. */
   qty: number;
+  /** Per-unit price. For rows that are daily totals it is the average, rounded (display only). */
   pricePaise: Paise;
+  /** Exact traded value (qty × price, or the reported total). The engine computes with this. */
+  valuePaise: Paise;
   tradeDate: IstDate;
+  /** For TimePrecision 'date', midnight IST of the trade date (ordering is set by the engine). */
   executedAt: EpochMs;
+  timePrecision: TimePrecision;
   /** File name, for error messages only. */
   sourceFile: string;
   /** 1-based line in that file. */
@@ -45,6 +56,9 @@ export type PositionSide = 'LONG' | 'SHORT';
 export interface RoundTrip {
   /** 1..n, ordered by exitAt then instrument key. */
   id: number;
+  broker: BrokerId;
+  /** 'date' when built from a file without trade times: one contract's activity on one day. */
+  timePrecision: TimePrecision;
   instrument: Instrument;
   side: PositionSide;
   entryAt: EpochMs;
@@ -66,6 +80,7 @@ export interface RoundTrip {
 export type UnclosedStatus = 'OPEN' | 'SETTLED_AT_EXPIRY';
 
 export interface UnclosedPosition {
+  broker: BrokerId;
   instrument: Instrument;
   side: PositionSide;
   qty: number;

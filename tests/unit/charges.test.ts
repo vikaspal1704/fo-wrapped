@@ -14,7 +14,7 @@ describe('charges', () => {
     // txn 0.03503% × 1430000 = 500.93 → 501; SEBI 1.43 → 1;
     // stamp 0.003% × 650000 = 19.5 → 20; GST 18% × 4502 = 810.36 → 810.
     const c = calculateCharges([opt('BUY', 65, '100', '2026-09-22T10:00:00'), opt('SELL', 65, '120', '2026-09-22T10:30:00')], RATES);
-    expect(c).toEqual({ brokerage: 4000, stt: 1170, exchangeTxn: 501, sebi: 1, stampDuty: 20, gst: 810, total: 6502 });
+    expect(c).toEqual({ brokerage: 4000, stt: 1170, exchangeTxn: 501, sebi: 1, stampDuty: 20, gst: 810, other: 0, total: 6502 });
   });
 
   it('brokerage_options_per_executed_order', () => {
