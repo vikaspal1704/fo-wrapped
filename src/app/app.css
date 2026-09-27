@@ -149,8 +149,34 @@ h1 {
 }
 
 .how ol {
-  margin: 0;
+  margin: 0.25rem 0 0;
   padding-left: 1.25rem;
+}
+
+.guide {
+  border-top: 1px solid color-mix(in oklab, var(--muted) 25%, transparent);
+  padding: 0.6rem 0;
+}
+
+.guide summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 24px;
+}
+
+.guide-note {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* The one note for cards hidden because the files have no trade times. */
+.note {
+  position: relative;
+  z-index: 3;
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .footnote {

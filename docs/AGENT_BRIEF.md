@@ -39,7 +39,7 @@ Then implement. If the docs conflict, prefer **API_CONTRACT → ARCHITECTURE →
 ### Phase 1 — Engine (pure, `src/engine/`)
 
 - `money.ts`, `time.ts`: parsing strings to paise and to IST epoch values
-- `parse/`: tradebook, P&L statement, symbol → instrument
+- `parse/`: every broker’s file (`readFile.ts` routes by header row), P&L statement, symbol → instrument
 - `merge.ts` → `roundTrips.ts` → `positions.ts` → `charges/` → `cards.ts` → `analyze()`
 - `test_worked_example_canonical` first, then the rest of TEST_PLAN §2
 
@@ -109,16 +109,18 @@ LAUNCH only when DONE and section A (launch gate) passes.
 ## 7. Quick reference — engine API
 
 ```ts
-import { parseTradebook, parsePnlStatement, analyze, RATES } from './engine';
+import { readBrokerFile, analyze, RATES } from './engine';
 
-const fills = parseTradebook(file.name, bytes);          // throws FoWrappedError
+const file = await readBrokerFile(name, bytes);          // any supported broker; throws FoWrappedError
+// file.kind === 'fills' → { broker, fills, charges }; 'pnlStatement' → { statement }
 const result = analyze({
-  tradebooks: [fills],
-  pnlStatement,                                          // optional
+  tradebooks: [file.fills],
+  reportedCharges: file.charges ? [{ broker: file.broker, records: file.charges }] : [],
+  pnlStatements: [],                                     // Zerodha P&L statements, optional
   rates: RATES,
   siteUrl: 'https://vikaspal1704.github.io/fo-wrapped/',
 });
-result.totals.source;          // 'PNL_STATEMENT' | 'ESTIMATED'
+result.totals.source;          // 'ESTIMATED' | 'BROKER' | 'PNL_STATEMENT' | 'MIXED'
 result.cards.revengeTrades;    // { status: 'OK', data: { count, combinedPnlPaise, … } } | INSUFFICIENT_DATA
 ```
 

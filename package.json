@@ -1,7 +1,7 @@
 {
   "name": "fo-wrapped",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Your F&O trading year, Wrapped \u2014 runs entirely in the browser.",
   "license": "MIT",
   "author": "Vikas Pal",
@@ -20,7 +20,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "fixtures": "node scripts/make-synthetic-year.mjs && node scripts/make-synthetic-year.mjs 480 tests/fixtures/synthetic-two-fy.csv",
-    "brand": "node scripts/make-brand-images.mjs"
+    "brand": "node scripts/make-brand-images.mjs",
+    "verify:real": "node scripts/run-verify-real.mjs"
   },
   "dependencies": {
     "html-to-image": "^1.11.13",

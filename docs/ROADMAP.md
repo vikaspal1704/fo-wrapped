@@ -2,7 +2,7 @@
 
 **Product:** F&O Wrapped  
 **Owner:** Vikas Pal  
-**Last updated:** 2026-09-26. Shipped: N3, N8, most of N6 and N7, X2, X3, X5, X6, X4 (except custom range) and the six new cards. Blocked on real exports: N1, N2, X1.  
+**Last updated:** 2026-09-26. Shipped: N2, N3, N8, most of N6 and N7, X1 (beta: Angel One, Upstox, Dhan), X2, X3, X5, X6, X4 (except custom range) and the six new cards. The N1 harness is built; the run needs real accounts. Groww waits on a real F&O export.  
 **Format:** Now / Next / Later. Phases are ordered by priority, not by date. The only fixed date is the Diwali launch window.
 
 This document sets the direction. The requirements for the current release live in [`PRD.md`](PRD.md), and what "done" means lives in [`ACCEPTANCE_CRITERIA.md`](ACCEPTANCE_CRITERIA.md).
@@ -29,15 +29,16 @@ Every roadmap item has to pass these. If one doesn’t, it is cut or redesigned.
 | P4 | **Free and no sign-up.** | Paywalls, email capture before results |
 | P5 | **No advice, no percentiles without real data.** | “You beat 80% of traders”, trade recommendations, tips |
 
-## 3. Where we are (v0.1, live)
+## 3. Where we are (v0.3, live)
 
-- Live at https://vikaspal1704.github.io/fo-wrapped/ (GitHub Pages, static)
-- Zerodha Console F&O **CSV** tradebooks; multi-file merge and dedupe
-- FIFO round trips, open and expired positions, charges **estimated** from a dated rate table (including the Budget 2026 STT rise)
-- All 8 cards plus a summary, a 1080×1920 share image, and clear data
-- CI with 76 unit tests and 7 browser tests, including automated checks that nothing is sent over the network or stored
+- Live at https://vikaspal1704.github.io/fo-wrapped/ (GitHub Pages, static, installable, works offline)
+- **Brokers:** Zerodha tradebooks (CSV and XLSX) and the Console **P&L statement** (exact charges, and a value for positions settled at expiry); **Angel One**, **Upstox** (options) and **Dhan** in beta ([`BROKERS.md`](BROKERS.md)); Groww files recognised and explained
+- FIFO round trips per broker, open and expired positions, charges **estimated** from a dated rate table or taken from the broker’s own file
+- 14 cards plus a summary, period views (Samvat, FY, calendar year) with year-over-year, per-card share images, English and हिंदी
+- CI with unit and browser tests, including automated checks that nothing is sent over the network or stored
+- `npm run verify:real`: the local launch-gate harness
 
-**Not yet launch-ready:** no XLSX support, no P&L statement (so no exact charges), rates checked only against secondary sources, and the ±0.5% accuracy gate hasn’t been run.
+**Not yet launch-ready:** the ±0.5% accuracy gate hasn’t been run on real accounts, rates are checked only against secondary sources, and each broker parser still needs a check against a user’s own export.
 
 ## 4. The calendar that shapes the roadmap
 
@@ -59,8 +60,8 @@ Wrapped products live or die by timing. Three moments matter for Indian traders:
 
 | # | Item | Why | Size |
 |---|------|-----|------|
-| N1 | ⏳ needs real P&L statement exports · **Launch gate:** a local verification script, and net P&L within ±0.5% of Console on ≥ 5 real accounts | This is the product’s credibility | M |
-| N2 | ⏳ needs real P&L statement exports · **Console P&L statement** import: exact charges, and a value for positions settled at expiry | Turns “estimated” into “exact”, and closes the expiry gap in card 1 | M |
+| N1 | ◐ harness ✅ (`npm run verify:real`); the ≥ 5-account run needs the owner’s real exports · **Launch gate:** a local verification script, and net P&L within ±0.5% of Console on ≥ 5 real accounts | This is the product’s credibility | M |
+| N2 | ✅ built against a redacted real layout; check with the owner’s own export · **Console P&L statement** import: exact charges, and a value for positions settled at expiry | Turns “estimated” into “exact”, and closes the expiry gap in card 1 | M |
 | N3 | ✅ **XLSX tradebooks** | Many users download XLSX by default | S |
 | N4 | ⏳ needs primary-source checks (zerodha.com is blocked from the build environment) · **Rates checked against primary sources** (Zerodha, NSE/BSE, circulars); add windows **before Oct 2024** and for BSE futures | FY 2024-25 data is common; right now it shows “charges unavailable” | S |
 | N5 | ⏳ owner · Confirm the PRD §10 decisions (D-1 … D-16) | They define what every card means | S |
@@ -80,7 +81,7 @@ Wrapped products live or die by timing. Three moments matter for Indian traders:
 
 | # | Item | Notes |
 |---|------|-------|
-| X1 | ⏳ needs real exports per broker · **More brokers**, in order of F&O user base: Groww, Angel One, Upstox, Dhan | Each needs a verified export spec, a parser and a symbol map, plus its own rate table (brokerage differs). The engine is already broker-agnostic from the fill level down. |
+| X1 | ◐ Angel One, Upstox (options) and Dhan ✅ beta, from redacted real layouts ([`BROKERS.md`](BROKERS.md)); **Groww** waits on a real F&O export (only stocks samples exist); futures for Angel One and Upstox wait on real rows · **More brokers**, in order of F&O user base: Groww, Angel One, Upstox, Dhan | Each needs a verified export spec, a parser and a symbol map, plus its own rate table (brokerage differs). Brokers whose files have no trade times hide the time-based cards (PRD D-22). |
 | X2 | ✅ **Hindi**, then other languages by demand | The card copy is short, so it’s cheap to translate. Numbers keep the Indian digit grouping. |
 | X3 | ✅ **Installable app (PWA)** with offline support | Works with no network after the first visit, which is a stronger privacy story |
 

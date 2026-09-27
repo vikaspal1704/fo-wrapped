@@ -43,14 +43,21 @@ export function Story({ result, files, onClear }: Props) {
   const [viewId, setViewId] = useState(result.defaultViewId);
   const view = result.views.find((v) => v.period.id === viewId) ?? result.views[0]!;
   const { cards } = view;
+  // Cards that need trade times are hidden when the files have none (PRD D-22).
+  const timed = (c: { status: string; code?: string }) => !(c.status === 'INSUFFICIENT_DATA' && c.code === 'NO_TRADE_TIMES');
+  const hiddenForNoTimes = [cards.yourClock, cards.revengeTrades, cards.holdingTime, cards.buyerVsSeller, cards.busyDays].filter((c) => !timed(c)).length;
   const slides: Slide[] = [
     { key: 'the-number', title: t.tNumber, node: <TheNumber view={view} /> },
     { key: 'where-the-money-went', title: t.tMoney, node: <WhereMoneyWent card={cards.whereMoneyWent} /> },
     { key: 'right-but-broke', title: t.tRightBroke, node: <RightButBroke card={cards.rightButBroke} /> },
     { key: 'expiry-day', title: t.tExpiry, node: <ExpiryDay card={cards.expiryDay} /> },
-    { key: 'your-clock', title: t.tClock, node: <YourClock card={cards.yourClock} /> },
-    { key: 'revenge-trades', title: t.tRevenge, node: <RevengeTrades card={cards.revengeTrades} /> },
-    { key: 'holding-time', title: t.tHolding, node: <HoldingTime card={cards.holdingTime} /> },
+    ...[
+      { key: 'your-clock', title: t.tClock, ok: timed(cards.yourClock), node: <YourClock card={cards.yourClock} /> },
+      { key: 'revenge-trades', title: t.tRevenge, ok: timed(cards.revengeTrades), node: <RevengeTrades card={cards.revengeTrades} /> },
+      { key: 'holding-time', title: t.tHolding, ok: timed(cards.holdingTime), node: <HoldingTime card={cards.holdingTime} /> },
+    ]
+      .filter((x) => x.ok)
+      .map(({ key, title, node }) => ({ key, title, node })),
     { key: 'best-worst-day', title: t.tBestWorst, node: <BestWorstDay card={cards.bestWorstDay} /> },
     // Extra cards only appear when there's enough data for them.
     ...[
@@ -171,6 +178,11 @@ export function Story({ result, files, onClear }: Props) {
             {rejected.length === 1 ? t.fileSkipped : t.filesSkipped(rejected.length)}
             <FileList files={rejected} />
           </div>
+        )}
+        {index === 0 && hiddenForNoTimes > 0 && (
+          <p className="note" data-testid="no-times-note">
+            {t.noTimesNote(hiddenForNoTimes)}
+          </p>
         )}
         {slide.node}
         {index < last && (

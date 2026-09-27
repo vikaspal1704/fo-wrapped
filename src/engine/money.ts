@@ -35,3 +35,34 @@ export function safeMul(a: number, b: number): number {
   if (!Number.isSafeInteger(r)) throw new RangeError(`Value out of safe integer range: ${a} × ${b}`);
   return r;
 }
+
+const SIGNED_DECIMAL = /^([-+]?)(\d+)(?:\.(\d+))?$/;
+
+/**
+ * Parses a signed decimal that may carry more than 2 decimals (broker
+ * statements print values like "20099.9999") and rounds it to the nearest
+ * paise, halves away from zero. Returns null if it isn't a plain decimal.
+ */
+export function decimalToPaiseRounded(value: string): Paise | null {
+  const m = SIGNED_DECIMAL.exec(value.trim().replace(/,/g, ''));
+  if (!m) return null;
+  const [, sign = '', whole = '', frac = ''] = m;
+  const f = frac.padEnd(3, '0');
+  let paise = Number(whole) * 100 + Number(f.slice(0, 2));
+  if (Number(f[2]) >= 5) paise += 1;
+  if (!Number.isSafeInteger(paise)) return null;
+  return (sign === '-' && paise !== 0 ? -paise : paise) as Paise;
+}
+
+/**
+ * Parses a price read from an XLSX number cell. The cell text can carry
+ * binary float noise (e.g. "2.2000000000000002" or "44.199999999999996");
+ * that noise is removed, but anything else past whole paise is rejected.
+ */
+export function cellToPaise(value: string): Paise | null {
+  const match = DECIMAL.exec(value.trim());
+  if (!match) return null;
+  const extra = (match[2] ?? '').slice(2);
+  if (extra !== '' && !/^0*$/.test(extra) && !/^(?:0{6,}|9{6,})\d*$/.test(extra)) return null;
+  return decimalToPaiseRounded(value);
+}

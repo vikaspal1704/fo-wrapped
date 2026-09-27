@@ -48,6 +48,22 @@ describe('xlsx tradebooks', () => {
     expect(fromXlsx[0]!.sourceRow).toBe(preamble.length + 2);
   });
 
+  it('parses_xlsx_with_console_headers', async () => {
+    // Console's XLSX writes `Trade Date`, not `trade_date`, and starts in column B.
+    const titleCase = header.map((h) => h.split('_').map((w) => w[0]!.toUpperCase() + w.slice(1)).join(' '));
+    expect(titleCase).toContain('Order Execution Time');
+    const b = (r: Cell[]): Cell[] => [null, ...r];
+    const xlsx = await toXlsx([...preamble.map(b), b(titleCase), ...dataRows.map((r) => b(typedRow(r)))]);
+    const fromCsv = parseTradebook('tb.csv', fixture('zerodha-fo-tradebook.synthetic.csv'));
+    expect(strip(await parseTradebookFile('tb.xlsx', xlsx))).toEqual(strip(fromCsv));
+  });
+
+  it('rejects_equity_xlsx_tradebook', async () => {
+    const eqHeader = ['Symbol', 'ISIN', 'Trade Date', 'Exchange', 'Segment', 'Series', 'Trade Type', 'Auction', 'Quantity', 'Price', 'Trade ID', 'Order ID', 'Order Execution Time'];
+    const row: Cell[] = ['TEST', 'INE000000000', date('2026-04-01'), 'NSE', 'EQ', 'EQ', 'buy', false, 11, 572.75, '205170048', '1100000051344017', dateTime('2026-04-01T11:14:28')];
+    await expect(parseTradebookFile('eq.xlsx', await toXlsx([eqHeader, row]))).rejects.toMatchObject({ userMessage: expect.stringContaining('Equity') });
+  });
+
   it('xlsx_keeps_19_digit_text_order_id_exact', async () => {
     const row = typedRow(dataRows[5]!);
     expect(row[col('order_id')]).toBe('1799000000000000001');

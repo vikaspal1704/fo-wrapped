@@ -17,10 +17,15 @@ const en = {
   // Shared notes
   beforeCharges: 'Before charges.',
   chargesEstimated: 'Charges are estimated from published rates.',
-  chargesEstimatedAddStatement: 'Charges are estimated from published rates. Add your P&L statement for exact numbers (coming soon).',
+  chargesEstimatedAddStatement: 'Charges are estimated from published rates. Add your Zerodha P&L statement for exact numbers.',
   chargesUnavailable: 'Charges unavailable.',
   excludedPositions: (n: number) => `${n} ${plural(n, 'position', 'positions')} that expired or are still open ${plural(n, 'isn’t', 'aren’t')} included.`,
   noClosedTrades: 'No closed trades yet.',
+  noTradeTimes: 'Your broker’s file has no trade times.',
+  onlyTimedTrades: 'Only trades from files with trade times are included.',
+  noTimesWarning: 'Your broker’s file has no trade times, so time-of-day cards are skipped, and a trade here means one contract’s buys and sells on one day.',
+  chargesFromBroker: 'Charges are your broker’s own figures from the file.',
+  chargesMixed: 'Charges are partly your broker’s own figures and partly estimated from published rates.',
 
   // Core cards
   needsWinsAndLosses: (n: number) => `Needs at least ${n} closed trades with at least one win and one loss.`,
@@ -85,7 +90,7 @@ const en = {
 
   // Errors
   unrecognizedFile: (file: string) =>
-    `${file} doesn’t look like a Zerodha Console tradebook. In Console go to Reports → Tradebook, choose segment F&O, and download CSV or XLSX.`,
+    `${file} isn’t a file we can read. We read the Zerodha tradebook and P&L statement, Angel One Trades History, the Upstox trade report and Dhan’s Global Transaction Report. See “How to download” for each broker.`,
   unsupportedSegment: (file: string, segment: string) => `${file} is an ${segment} tradebook. F&O Wrapped needs the F&O segment.`,
   segEquity: 'Equity',
   segCurrency: 'Currency',
@@ -104,8 +109,24 @@ const en = {
   chargeSebi: 'SEBI fees',
   chargeStamp: 'stamp duty',
   chargeGst: 'GST',
-  legacyXls: (file: string) => `${file} is an old .xls file. Please download the tradebook from Console as CSV or XLSX.`,
+  legacyXls: (file: string) => `${file} is an old .xls file. Please download it again as CSV or XLSX.`,
   noFilesRead: 'None of the files could be read. See the details above.',
+  pnlWrongSegment: (file: string, segment: string) => `${file} is a P&L statement for ${segment}. F&O Wrapped needs the F&O P&L statement.`,
+  pnlBadValue: (file: string, what: string, value: string) => `${file}: “${what}” has a value we can’t read (‘${value}’). Please download a fresh copy.`,
+  pnlInconsistent: (file: string) => `${file}: the charges don’t add up to the total the statement prints. Please download a fresh copy.`,
+  pnlNoOverlap: (file: string, from: string, to: string, tFrom: string, tTo: string) =>
+    `${file} covers ${from} to ${to}, but your Zerodha tradebook covers ${tFrom} to ${tTo}. Download the P&L statement for the same dates.`,
+  pnlNoTradebook: (file: string) => `${file} is a P&L statement. Add your Zerodha tradebook too: the statement gives exact totals, the tradebook gives the cards.`,
+  chargesFromStatement: 'Charges and realised P&L are from your Zerodha P&L statement.',
+  statementPartial: (from: string, to: string) => `Your P&L statement covers ${from} to ${to}, which doesn’t match this period, so charges here are estimated.`,
+  statementMismatch: (pct: string) => `The tradebook’s P&L differs from your P&L statement by ${pct}%. The statement’s figures are used.`,
+  statementOther: (amount: string) => `Your P&L statement also shows ${amount} of other credits and debits (e.g. interest), not included here.`,
+  growwNotSupported: (file: string) =>
+    `${file} looks like a Groww file. Groww’s F&O export isn’t supported yet, because we haven’t seen a real one. You can help by sharing one (with personal details removed) through the “New broker export” issue on GitHub.`,
+  noFnoRows: (file: string) => `${file} has no F&O trades. F&O Wrapped reads only futures and options.`,
+  futuresNotSeen: (broker: string) => `Futures from ${broker} aren’t supported yet, because we haven’t seen them in a real export.`,
+  contractNotRecognised: 'It isn’t in a format we have seen in a real export.',
+  rowDoesntAddUp: (file: string, row: number) => `${file}, row ${row}: the amounts don’t add up. The file may have been edited. Please download a fresh copy.`,
   genericFailure: 'Something went wrong while reading your files. Please try again with a fresh download.',
 };
 
@@ -114,10 +135,15 @@ export type EngineMessages = typeof en;
 const hi: EngineMessages = {
   beforeCharges: 'चार्जेस से पहले।',
   chargesEstimated: 'चार्जेस प्रकाशित दरों से अनुमानित हैं।',
-  chargesEstimatedAddStatement: 'चार्जेस प्रकाशित दरों से अनुमानित हैं। सटीक आँकड़ों के लिए अपना P&L स्टेटमेंट जोड़ें (जल्द आ रहा है)।',
+  chargesEstimatedAddStatement: 'चार्जेस प्रकाशित दरों से अनुमानित हैं। सटीक आँकड़ों के लिए अपना Zerodha P&L स्टेटमेंट जोड़ें।',
   chargesUnavailable: 'चार्जेस उपलब्ध नहीं हैं।',
   excludedPositions: (n) => `एक्सपायर हुई या अभी खुली ${n} पोज़िशन शामिल नहीं ${plural(n, 'है', 'हैं')}।`,
   noClosedTrades: 'अभी कोई बंद ट्रेड नहीं है।',
+  noTradeTimes: 'आपके ब्रोकर की फ़ाइल में ट्रेड का समय नहीं है।',
+  onlyTimedTrades: 'सिर्फ़ उन फ़ाइलों के ट्रेड शामिल हैं जिनमें ट्रेड का समय है।',
+  noTimesWarning: 'आपके ब्रोकर की फ़ाइल में ट्रेड का समय नहीं है, इसलिए समय वाले कार्ड छोड़ दिए गए हैं, और यहाँ एक ट्रेड का मतलब है एक दिन में एक कॉन्ट्रैक्ट की सारी ख़रीद-बिक्री।',
+  chargesFromBroker: 'चार्जेस फ़ाइल में दिए गए आपके ब्रोकर के अपने आँकड़े हैं।',
+  chargesMixed: 'चार्जेस कुछ आपके ब्रोकर के अपने आँकड़े हैं और कुछ प्रकाशित दरों से अनुमानित।',
 
   needsWinsAndLosses: (n) => `कम से कम ${n} बंद ट्रेड चाहिए, जिनमें कम से कम एक जीत और एक हार हो।`,
   scratchNote: 'बराबरी पर बंद हुए ट्रेड न जीत में गिने जाते हैं, न हार में।',
@@ -174,7 +200,7 @@ const hi: EngineMessages = {
   fy: (from, toShort) => `वित्त वर्ष ${from}-${toShort}`,
 
   unrecognizedFile: (file) =>
-    `${file} Zerodha Console की ट्रेडबुक नहीं लगती। Console में Reports → Tradebook पर जाएँ, सेगमेंट F&O चुनें, और CSV या XLSX डाउनलोड करें।`,
+    `${file} ऐसी फ़ाइल नहीं है जिसे हम पढ़ सकें। हम Zerodha की ट्रेडबुक और P&L स्टेटमेंट, Angel One की Trades History, Upstox की ट्रेड रिपोर्ट और Dhan की Global Transaction Report पढ़ते हैं। हर ब्रोकर के लिए “कैसे डाउनलोड करें” देखें।`,
   unsupportedSegment: (file, segment) => `${file} ${segment} ट्रेडबुक है। F&O Wrapped को F&O सेगमेंट चाहिए।`,
   segEquity: 'इक्विटी',
   segCurrency: 'करेंसी',
@@ -193,8 +219,24 @@ const hi: EngineMessages = {
   chargeSebi: 'SEBI फ़ीस',
   chargeStamp: 'स्टांप ड्यूटी',
   chargeGst: 'GST',
-  legacyXls: (file) => `${file} पुरानी .xls फ़ाइल है। कृपया Console से ट्रेडबुक CSV या XLSX में डाउनलोड करें।`,
+  legacyXls: (file) => `${file} पुरानी .xls फ़ाइल है। कृपया इसे CSV या XLSX में फिर से डाउनलोड करें।`,
   noFilesRead: 'कोई भी फ़ाइल पढ़ी नहीं जा सकी। ऊपर विवरण देखें।',
+  pnlWrongSegment: (file, segment) => `${file} ${segment} का P&L स्टेटमेंट है। F&O Wrapped को F&O का P&L स्टेटमेंट चाहिए।`,
+  pnlBadValue: (file, what, value) => `${file}: “${what}” का मान (‘${value}’) पढ़ा नहीं जा सका। कृपया नई कॉपी डाउनलोड करें।`,
+  pnlInconsistent: (file) => `${file}: चार्जेस का जोड़ स्टेटमेंट में छपे कुल से मेल नहीं खाता। कृपया नई कॉपी डाउनलोड करें।`,
+  pnlNoOverlap: (file, from, to, tFrom, tTo) =>
+    `${file} ${from} से ${to} तक का है, लेकिन आपकी Zerodha ट्रेडबुक ${tFrom} से ${tTo} तक की है। उन्हीं तारीख़ों का P&L स्टेटमेंट डाउनलोड करें।`,
+  pnlNoTradebook: (file) => `${file} P&L स्टेटमेंट है। अपनी Zerodha ट्रेडबुक भी जोड़ें: स्टेटमेंट से सटीक कुल आँकड़े मिलते हैं, ट्रेडबुक से कार्ड।`,
+  chargesFromStatement: 'चार्जेस और रियलाइज़्ड P&L आपके Zerodha P&L स्टेटमेंट से हैं।',
+  statementPartial: (from, to) => `आपका P&L स्टेटमेंट ${from} से ${to} तक का है, जो इस अवधि से मेल नहीं खाता, इसलिए यहाँ चार्जेस अनुमानित हैं।`,
+  statementMismatch: (pct) => `ट्रेडबुक का P&L आपके P&L स्टेटमेंट से ${pct}% अलग है। स्टेटमेंट के आँकड़े इस्तेमाल किए गए हैं।`,
+  statementOther: (amount) => `आपके P&L स्टेटमेंट में ${amount} के अन्य क्रेडिट और डेबिट (जैसे ब्याज) भी हैं, जो यहाँ शामिल नहीं हैं।`,
+  growwNotSupported: (file) =>
+    `${file} Groww की फ़ाइल लगती है। Groww का F&O एक्सपोर्ट अभी सपोर्टेड नहीं है, क्योंकि हमने अभी तक असली फ़ाइल नहीं देखी। आप GitHub पर “New broker export” इश्यू के ज़रिए एक फ़ाइल (निजी जानकारी हटाकर) शेयर करके मदद कर सकते हैं।`,
+  noFnoRows: (file) => `${file} में कोई F&O ट्रेड नहीं है। F&O Wrapped सिर्फ़ फ़्यूचर्स और ऑप्शंस पढ़ता है।`,
+  futuresNotSeen: (broker) => `${broker} के फ़्यूचर्स अभी सपोर्टेड नहीं हैं, क्योंकि हमने उन्हें किसी असली एक्सपोर्ट में नहीं देखा।`,
+  contractNotRecognised: 'यह किसी असली एक्सपोर्ट में देखे गए फ़ॉर्मैट में नहीं है।',
+  rowDoesntAddUp: (file, row) => `${file}, पंक्ति ${row}: रक़में आपस में मेल नहीं खातीं। हो सकता है फ़ाइल बदली गई हो। कृपया नई कॉपी डाउनलोड करें।`,
   genericFailure: 'आपकी फ़ाइलें पढ़ते समय कुछ गड़बड़ हुई। कृपया नई डाउनलोड की हुई फ़ाइल के साथ फिर कोशिश करें।',
 };
 

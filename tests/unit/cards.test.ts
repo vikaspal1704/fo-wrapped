@@ -23,6 +23,8 @@ function rt(pnlRupees: number, entry = '2025-11-20T10:00:00', holdMin = 10, expi
   const exitAt = entryAt + holdMin * MIN;
   return {
     id: ++id,
+    broker: 'zerodha',
+    timePrecision: 'second',
     instrument: { ...inst, expiry: expiry as IstDate },
     side: 'LONG',
     entryAt,
@@ -45,7 +47,7 @@ function totals(gross: number, charges: number | null): Totals {
     charges:
       charges === null
         ? null
-        : { brokerage: charges as Paise, stt: 0 as Paise, exchangeTxn: 0 as Paise, sebi: 0 as Paise, stampDuty: 0 as Paise, gst: 0 as Paise, total: charges as Paise },
+        : { brokerage: charges as Paise, stt: 0 as Paise, exchangeTxn: 0 as Paise, sebi: 0 as Paise, stampDuty: 0 as Paise, gst: 0 as Paise, other: 0 as Paise, total: charges as Paise },
     netPnlPaise: charges === null ? null : ((gross - charges) as Paise),
     chargesUnavailableReason: charges === null ? 'unavailable' : null,
     excludedUnclosedCount: 0,

@@ -7,7 +7,7 @@ import {
   UnrecognizedFileError,
   UnsupportedSegmentError,
 } from '../errors';
-import { decimalToPaise, decimalToWholeNumber } from '../money';
+import { decimalToPaise, decimalToWholeNumber, safeMul } from '../money';
 import { parseIstDate, parseIstDateTime } from '../time';
 import type { Exchange, Fill, Paise, Side } from '../types';
 import { parseSymbol } from './symbol';
@@ -106,6 +106,22 @@ export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[] {
 }
 
 /**
+ * CSV headers are `trade_date`; Console's XLSX writes `Trade Date`. Both
+ * normalise to `trade_date`.
+ */
+const headerKey = (h: string) => h.trim().toLowerCase().replace(/\s+/g, '_');
+/** Every segment's tradebook has these; only F&O adds `expiry_date`. */
+const COMMON_HEADERS = TRADEBOOK_HEADERS.filter((h) => h !== 'expiry_date');
+
+/** Does a row within the first 30 hold the tradebook headers (of any segment)? */
+export function looksLikeTradebook(data: readonly (readonly string[])[]): boolean {
+  return data.slice(0, MAX_HEADER_SEARCH_ROWS).some((row) => {
+    const cells = new Set(row.map(headerKey));
+    return COMMON_HEADERS.every((h) => cells.has(h));
+  });
+}
+
+/**
  * Validates tradebook rows (all cells as strings). The header row is the
  * first row, within the first 30, that contains every required header.
  * Row numbers in errors are 1-based positions in the file.
@@ -118,14 +134,20 @@ export function parseTradebookRows(fileName: string, data: readonly (readonly st
   let headerAt = -1;
   let index = new Map<string, number>();
   for (let r = 0; r < Math.min(rows.length, MAX_HEADER_SEARCH_ROWS); r++) {
-    const candidate = new Map(rows[r]!.map((h, i) => [h.trim().toLowerCase(), i]));
-    if (TRADEBOOK_HEADERS.every((h) => candidate.has(h))) {
+    const candidate = new Map(rows[r]!.map((h, i) => [headerKey(h), i]));
+    if (COMMON_HEADERS.every((h) => candidate.has(h))) {
       headerAt = r;
       index = candidate;
       break;
     }
   }
   if (headerAt === -1) throw UnrecognizedFileError.forFile(fileName);
+  if (!index.has('expiry_date')) {
+    // Another segment's tradebook (equity, currency, commodity): say which.
+    const segment = (rows[headerAt + 1]?.[index.get('segment')!] ?? '').trim();
+    if (segment && segment.toUpperCase() !== F_AND_O_SEGMENT) throw new UnsupportedSegmentError(fileName, segment);
+    throw UnrecognizedFileError.forFile(fileName);
+  }
 
   const fills: Fill[] = [];
   for (let r = headerAt + 1; r < rows.length; r++) {
@@ -149,6 +171,7 @@ export function parseTradebookRows(fileName: string, data: readonly (readonly st
     const row = parsed.data;
     const exchange: Exchange = row.exchange;
     fills.push({
+      broker: 'zerodha',
       tradeId: row.trade_id,
       orderId: row.order_id,
       instrument: parseSymbol(row.symbol, exchange, row.expiry_date),
@@ -157,8 +180,10 @@ export function parseTradebookRows(fileName: string, data: readonly (readonly st
       auction: row.auction === 'true',
       qty: row.quantity,
       pricePaise: row.price as Paise,
+      valuePaise: safeMul(row.quantity, row.price) as Paise,
       tradeDate: row.trade_date,
       executedAt: row.order_execution_time,
+      timePrecision: 'second',
       sourceFile: fileName,
       sourceRow: line,
     });
@@ -172,13 +197,13 @@ function isBlank(cells: readonly string[]): boolean {
   return cells.every((c) => c.trim() === '');
 }
 
-function isZip(bytes: ArrayBuffer): boolean {
+export function isZip(bytes: ArrayBuffer): boolean {
   const b = new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength));
   return b.length === 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
 }
 
 /** OLE2 compound file: the pre-2007 binary .xls format. */
-function isLegacyXls(bytes: ArrayBuffer): boolean {
+export function isLegacyXls(bytes: ArrayBuffer): boolean {
   const b = new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength));
   return b.length === 4 && b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0;
 }

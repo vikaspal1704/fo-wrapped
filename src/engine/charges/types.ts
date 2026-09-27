@@ -1,4 +1,4 @@
-import type { Exchange, IstDate, Paise } from '../types';
+import type { BrokerId, Exchange, IstDate, Paise } from '../types';
 
 export interface ChargesBreakdown {
   brokerage: Paise;
@@ -7,8 +7,16 @@ export interface ChargesBreakdown {
   sebi: Paise;
   stampDuty: Paise;
   gst: Paise;
+  /** IPFT, clearing and other charges; only brokers' own statements report these. */
+  other: Paise;
   /** Sum of the above. */
   total: Paise;
+}
+
+export interface BrokerageRates {
+  optionsPerOrderPaise: RateWindow<Paise>[];
+  /** min(capPaise, pct × order value) per executed order. */
+  futuresPerOrder: RateWindow<{ capPaise: Paise; pct: Rational }>[];
 }
 
 /** An exact rate: value × num / den. 0.03% = { num: 3, den: 10_000 }. */
@@ -45,11 +53,8 @@ export interface ChargeRateTable {
   version: string;
   /** Underlyings charged at index-option exchange rates. */
   indexUnderlyings: Record<Exchange, readonly string[]>;
-  brokerage: {
-    optionsPerOrderPaise: RateWindow<Paise>[];
-    /** min(capPaise, pct × order value) per executed order. */
-    futuresPerOrder: RateWindow<{ capPaise: Paise; pct: Rational }>[];
-  };
+  /** Per broker. Brokers whose exports carry their own charges (Angel One, Dhan) need none. */
+  brokerage: Partial<Record<BrokerId, BrokerageRates>>;
   stt: {
     optionsSellOnPremium: RateWindow<Rational>[];
     futuresSell: RateWindow<Rational>[];
@@ -62,4 +67,22 @@ export interface ChargeRateTable {
   };
   /** Applied to brokerage + exchange transaction charges + SEBI fees. */
   gst: RateWindow<Rational>[];
+}
+
+/** Charges a broker's own file reports, for one day (Angel One, Dhan). */
+export interface ChargeRecord {
+  broker: BrokerId;
+  /**
+   * Stable within the broker's exports (e.g. a trade or bill number), so a
+   * record in two overlapping files is counted once.
+   */
+  id: string;
+  date: IstDate;
+  charges: ChargesBreakdown;
+}
+
+/** A broker whose export carries its own charges; its fills are never estimated. */
+export interface ReportedCharges {
+  broker: BrokerId;
+  records: ChargeRecord[];
 }

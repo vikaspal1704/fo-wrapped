@@ -15,6 +15,7 @@ const TO_2026_03 = '2026-03-31' as IstDate;
 const FROM_2026_04 = '2026-04-01' as IstDate;
 
 const ZERODHA = 'https://zerodha.com/charges/';
+const UPSTOX = 'https://upstox.com/brokerage-charges/';
 
 function w<T>(value: T, source: string, effectiveFrom: IstDate = FROM_2024_10, effectiveTo?: IstDate): RateWindow<T> {
   return { effectiveFrom, ...(effectiveTo ? { effectiveTo } : {}), value, source, checked: 'secondary', checkedOn: CHECKED_ON };
@@ -23,17 +24,23 @@ function w<T>(value: T, source: string, effectiveFrom: IstDate = FROM_2024_10, e
 const pct = (num: number, den: number) => ({ num, den });
 
 export const RATES: ChargeRateTable = {
-  version: '2026.09.1',
+  version: '2026.09.2',
   indexUnderlyings: {
     NSE: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'NIFTYNXT50'],
     BSE: ['SENSEX', 'BANKEX', 'SENSEX50'],
   },
   brokerage: {
-    // Zerodha charges ₹40 on some orders from 2026-04-01 when the account
-    // falls short of the 50% cash-collateral rule; a tradebook can't show
-    // that, so estimates use ₹20 and cards say "estimated".
-    optionsPerOrderPaise: [w(2000 as Paise, ZERODHA)],
-    futuresPerOrder: [w({ capPaise: 2000 as Paise, pct: pct(3, 10_000) }, ZERODHA)],
+    zerodha: {
+      // Zerodha charges ₹40 on some orders from 2026-04-01 when the account
+      // falls short of the 50% cash-collateral rule; a tradebook can't show
+      // that, so estimates use ₹20 and cards say "estimated".
+      optionsPerOrderPaise: [w(2000 as Paise, ZERODHA)],
+      futuresPerOrder: [w({ capPaise: 2000 as Paise, pct: pct(3, 10_000) }, ZERODHA)],
+    },
+    upstox: {
+      optionsPerOrderPaise: [w(2000 as Paise, UPSTOX)],
+      futuresPerOrder: [w({ capPaise: 2000 as Paise, pct: pct(5, 10_000) }, UPSTOX)],
+    },
   },
   stt: {
     optionsSellOnPremium: [

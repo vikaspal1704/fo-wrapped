@@ -20,6 +20,8 @@ function rt(s: Spec): RoundTrip {
   const qty = s.qty ?? 75;
   return {
     id: ++id,
+    broker: 'zerodha',
+    timePrecision: 'second',
     instrument: parseSymbol(s.symbol ?? 'NIFTY25NOV24000CE', s.exchange ?? 'NSE', (s.expiry ?? '2025-11-25') as IstDate),
     side: s.side ?? 'LONG',
     entryAt,
@@ -40,7 +42,7 @@ const totals = (chargesPaise: number | null): Totals => ({
   charges:
     chargesPaise === null
       ? null
-      : { brokerage: chargesPaise as Paise, stt: 0 as Paise, exchangeTxn: 0 as Paise, sebi: 0 as Paise, stampDuty: 0 as Paise, gst: 0 as Paise, total: chargesPaise as Paise },
+      : { brokerage: chargesPaise as Paise, stt: 0 as Paise, exchangeTxn: 0 as Paise, sebi: 0 as Paise, stampDuty: 0 as Paise, gst: 0 as Paise, other: 0 as Paise, total: chargesPaise as Paise },
   netPnlPaise: null,
   chargesUnavailableReason: chargesPaise === null ? 'no rates' : null,
   excludedUnclosedCount: 0,

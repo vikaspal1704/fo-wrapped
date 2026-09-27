@@ -41,17 +41,22 @@ export function cellToString(cell: unknown): string {
   return String(cell);
 }
 
-/** Reads the first non-empty sheet of an XLSX file as rows of strings. */
-export async function readXlsxRows(fileName: string, bytes: ArrayBuffer): Promise<string[][]> {
+/** Reads every sheet of an XLSX file as rows of strings. */
+export async function readXlsxSheets(fileName: string, bytes: ArrayBuffer): Promise<{ name: string; rows: string[][] }[]> {
   let sheets;
   try {
     sheets = await readXlsxFile(bytes, { parseNumber: (s: string) => new NumericText(s), trim: true });
   } catch {
     throw UnrecognizedFileError.forFile(fileName);
   }
+  return sheets.map((s) => ({ name: s.sheet, rows: s.data.map((row) => row.map(cellToString)) }));
+}
+
+/** Reads the first non-empty sheet of an XLSX file as rows of strings. */
+export async function readXlsxRows(fileName: string, bytes: ArrayBuffer): Promise<string[][]> {
   // Console exports hold the tradebook in one sheet; later sheets are only
   // used if the first is empty.
-  const sheet = sheets.find((s) => s.data.some((row) => row.some((c) => c !== null && c !== '')));
+  const sheet = (await readXlsxSheets(fileName, bytes)).find((s) => s.rows.some((row) => row.some((c) => c !== '')));
   if (!sheet) throw UnrecognizedFileError.forFile(fileName);
-  return sheet.data.map((row) => row.map(cellToString));
+  return sheet.rows;
 }

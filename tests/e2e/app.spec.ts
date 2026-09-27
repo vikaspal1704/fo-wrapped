@@ -97,7 +97,7 @@ test('e2e_clear_data_resets', async ({ page }) => {
   // only one fresh, empty spare worker remains.
   await expect.poll(() => page.workers().length).toBe(1);
   await page.getByRole('button', { name: 'Clear data' }).click();
-  await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Drop your trade files' })).toBeVisible();
   await expect(page.getByText('₹')).toHaveCount(0);
   expect(page.workers()).toHaveLength(1);
 });
@@ -161,10 +161,10 @@ test('e2e_privacy_page', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('button', { name: 'Privacy & about' }).click();
   await expect(page.getByRole('heading', { name: 'Your data stays on your device' })).toBeVisible();
-  await expect(page.getByText(/not affiliated with, endorsed by or sponsored by Zerodha/)).toBeVisible();
+  await expect(page.getByText(/not affiliated with, endorsed by or sponsored by Zerodha, Angel One/)).toBeVisible();
   await expect(page).toHaveURL(/#privacy$/);
   await page.getByRole('button', { name: '← Back' }).click();
-  await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Drop your trade files' })).toBeVisible();
 });
 
 test('e2e_upload_xlsx', async ({ page }) => {
@@ -240,7 +240,7 @@ test('e2e_pwa_reload_offline', async ({ page, context }) => {
 
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Drop your trade files' })).toBeVisible();
   await page.getByTestId('file-input').setInputFiles(YEAR);
   await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
   await context.setOffline(false);
@@ -259,7 +259,7 @@ test('e2e_hindi_toggle_and_url', async ({ page }) => {
   await page.getByRole('button', { name: 'हिंदी में देखें' }).click();
   await expect(page).toHaveURL(/\?lang=hi/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'hi-IN');
-  await expect(page.getByRole('button', { name: 'अपनी ट्रेडबुक डालें' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'अपनी ट्रेड फ़ाइलें डालें' })).toBeVisible();
 
   await page.getByTestId('file-input').setInputFiles(YEAR);
   await expect(page.getByRole('heading', { name: 'आपका आँकड़ा' })).toBeVisible();
@@ -271,14 +271,14 @@ test('e2e_hindi_toggle_and_url', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
   // Nothing stored: a fresh load without ?lang follows the browser (English here).
   await page.goto('./');
-  await expect(page.getByRole('button', { name: 'Drop your tradebook' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Drop your trade files' })).toBeVisible();
 });
 
 test.describe('hindi browser', () => {
   test.use({ locale: 'hi-IN' });
   test('e2e_hindi_follows_browser_language', async ({ page }) => {
     await page.goto('./');
-    await expect(page.getByRole('button', { name: 'अपनी ट्रेडबुक डालें' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'अपनी ट्रेड फ़ाइलें डालें' })).toBeVisible();
     const { readFileSync: read } = await import('node:fs');
     const header = read(YEAR, 'utf8').split('\n')[0];
     const equity = `${header}\nINFY,INE009A01021,2026-09-22,NSE,EQ,EQ,buy,false,10.000000,1500.000000,1,2,2026-09-22T10:00:00,\n`;
@@ -301,4 +301,66 @@ test('e2e_choose_summary_stats', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Download image' })).toBeEnabled();
   // The image uses the chosen stats.
   await expect(page.getByTestId('share-image').locator('.si-label')).toHaveText(['Net P&L', 'Charges paid', 'Trades']);
+});
+
+/** A synthetic Dhan Global Transaction Report (docs/BROKERS.md §2.3): one NIFTY option row per day. */
+function dhanReport(days: number): string {
+  const pad = (s: string) => s + ','.repeat(15 - (s.match(/,/g)?.length ?? 0));
+  const rupees = (paise: number) => (paise / 100).toFixed(2);
+  const rows: string[] = [];
+  for (let i = 0; i < days; i++) {
+    const date = new Date(Date.UTC(2026, 3, 1 + i));
+    if (date.getUTCDay() === 0 || date.getUTCDay() === 6) continue;
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    const buy = 75 * 10000; // 75 @ ₹100
+    const sell = 75 * (10000 + ((i * 37) % 11) * 100 - 400);
+    const charges = [4000, 720, 1000, 1, 23, 350, 0];
+    const gross = sell - buy - charges.reduce((a, b) => a + b, 0);
+    rows.push(
+      [`${dd}-04-2026 00:00`, 'OPT NIFTY 28 Apr 2026 23000 CE', 'NSE', String(1000 + i), '75', rupees(buy), '75', rupees(sell), ...charges.map(rupees), rupees(gross)].join(','),
+    );
+  }
+  return [
+    pad('Global transction report,From 01-04-2026 to 30-04-2026'),
+    pad('Name'),
+    pad('UCC'),
+    pad('Mobile'),
+    pad('Email ID'),
+    pad(''),
+    'Date,Scrip Name,Exchange,Bill No.,Buy Qty.,Buy Value,Sell Qty.,Sell Value,Brokerage,GST,STT,SEBI Fees,Stamp Duty,Txn. Charges,Oth. Charges,Gross Amount',
+    ...rows,
+    pad(''),
+    pad('NOTE : This sheet was downloaded at 4/30/2026 12:43 AM'),
+  ].join('\n');
+}
+
+test('e2e_file_without_times_hides_time_cards', async ({ page }) => {
+  await upload(page, { name: 'dhan-gtr.csv', mimeType: 'text/csv', buffer: Buffer.from(dhanReport(28)) });
+  await expect(page.getByRole('heading', { name: 'The number' })).toBeVisible();
+  await expect(page.getByTestId('no-times-note')).toContainText('no trade times');
+  await expect(page.locator('section.card')).toContainText('Charges are your broker’s own figures');
+  const seen: string[] = [];
+  while (!(await page.getByRole('heading', { name: 'Your year' }).isVisible())) {
+    seen.push((await page.locator('section.card .card-title').first().textContent())!);
+    await page.keyboard.press('ArrowRight');
+  }
+  expect(seen).not.toContain('Your clock');
+  expect(seen).not.toContain('Revenge trades');
+  expect(seen).not.toContain('Diamond hands, paper hands');
+  expect(seen).toContain('Right but broke');
+});
+
+test('e2e_groww_file_is_explained', async ({ page }) => {
+  const groww = ['Name,TEST', 'Unique Client Code,', '', 'Stock name,Symbol,ISIN,Type,Quantity,Value,Exchange,Exchange Order Id,Execution date and time,Order status'].join('\n');
+  await upload(page, { name: 'groww.csv', mimeType: 'text/csv', buffer: Buffer.from(groww) });
+  await expect(page.getByText(/looks like a Groww file/)).toBeVisible();
+});
+
+test('e2e_broker_guides', async ({ page }) => {
+  await page.goto('./');
+  for (const name of ['Zerodha', 'Angel One', 'Upstox', 'Dhan', 'Groww']) {
+    await expect(page.locator('.guide summary', { hasText: name })).toBeVisible();
+  }
+  await page.locator('.guide summary', { hasText: 'Dhan' }).click();
+  await expect(page.getByText('Global Transaction Report', { exact: false }).first()).toBeVisible();
 });
