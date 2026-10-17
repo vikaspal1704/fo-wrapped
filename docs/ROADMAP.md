@@ -19,6 +19,8 @@ F&O Wrapped turns a tradebook into a small set of honest, shareable cards. It is
 
 ## 2. Principles (non-negotiable)
 
+These are **Wrapped's** principles: the free, signed-out app. The paid Journal (owner decision, 2026-10-17, [`BRIEF.md`](BRIEF.md)) has its own in §2.1; it never weakens these for Wrapped.
+
 Every roadmap item has to pass these. If one doesn’t, it is cut or redesigned. The principles don’t bend for a feature.
 
 | # | Principle | What it rules out |
@@ -28,6 +30,17 @@ Every roadmap item has to pass these. If one doesn’t, it is cut or redesigned.
 | P3 | **Correctness before features.** A new card ships only with tests and a documented formula. | Shipping a card we can’t verify against the broker |
 | P4 | **Free and no sign-up.** | Paywalls, email capture before results |
 | P5 | **No advice, no percentiles without real data.** | “You beat 80% of traders”, trade recommendations, tips |
+
+### 2.1 Journal principles (the paid tier)
+
+| # | Principle | What it rules out |
+|---|-----------|-------------------|
+| J1 | **Local-first.** Saved history lives on the device; the app works fully without sync. | Server-side analysis, features that only work online |
+| J2 | **Sync is opt-in and end-to-end encrypted.** Data is encrypted on the device with a key from the user's passphrase; the server stores ciphertext, the account and the subscription only. | Plaintext trades on a server, emails or notifications that contain numbers |
+| J3 | **An account only for billing and sync.** Wrapped never asks for one. | Gating Wrapped behind sign-up; email capture before results |
+| J4 | **No advice.** P2 and P5 apply unchanged: insights and rule checks describe the past only. | Recommendations, predictions, “you should…” |
+
+Stories and acceptance criteria: [`SPEC.md`](SPEC.md) §4.
 
 ## 3. Where we are (v0.3, live)
 
@@ -118,7 +131,7 @@ These are bets. Each one needs a decision against the principles before any work
 |---|------|---------------|
 | L1 | **Other segments:** equity intraday and delivery, commodity (MCX), currency | Different charges and settlement; is it still “F&O Wrapped”? |
 | L2 | **Opt-in anonymous benchmarks**, which would make percentile cards possible (P5) | Could it be done without breaking P1? For example, users submitting only aggregated card values, never trades, with explicit consent, k-anonymity and a public methodology. If not, don’t do it. |
-| L3 | **Personal rules check:** the user sets rules (“no trades in the first 15 minutes”) and sees how often they broke them | It must stay a mirror, not coaching (P5) |
+| L3 | **Personal rules check** (now the Journal's rules engine, [`SPEC.md`](SPEC.md) US-2.5): the user sets rules (“no trades in the first 15 minutes”) and sees how often they broke them | It must stay a mirror, not coaching (P5) |
 | L4 | **Embeddable engine:** publish the engine as an npm package so journaling tools and brokers can reuse it | License, versioning, and support load |
 | L5 | **Monthly Wrapped** | Is the novelty lasting, or is once a year better? |
 
@@ -126,7 +139,7 @@ These are bets. Each one needs a decision against the principles before any work
 
 ## 8. Explicitly not doing
 
-- Accounts, cloud sync, or storing tradebooks: this conflicts with P1
+- Accounts, cloud sync, or storing tradebooks **in Wrapped**: this conflicts with P1. The Journal does these only under J1–J3
 - Trading signals, tips, strategy advice, or “what you should have done”: this conflicts with P5
 - Tax computation or ITR filing: facts only; we point users to their CA
 - Connecting to broker APIs or reading live positions: exports only, a user-initiated file

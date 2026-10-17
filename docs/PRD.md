@@ -3,7 +3,8 @@
 **Product:** F&O Wrapped  
 **Owner:** Vikas Pal  
 **Version:** 1.0 (docs-first)  
-**Status:** Spec v1 — see §10 for decisions awaiting owner confirmation
+**Status:** Spec v1 — see §10 for decisions awaiting owner confirmation  
+**Scope:** this PRD covers **Wrapped**, the free app. The paid Journal, the launch-gate work and launch polish are specified in [`SPEC.md`](SPEC.md) (stories and Given/When/Then criteria) under the brief in [`BRIEF.md`](BRIEF.md).
 
 ---
 
@@ -21,7 +22,7 @@ A free, no-signup web app. An Indian F&O trader drops in their broker’s trade 
 
 ## 3. Non-goals
 
-- Accounts, sign-up, login, or any server-side storage
+- Accounts, sign-up, login, or any server-side storage **in Wrapped** (the Journal adds opt-in accounts and encrypted sync: [`SPEC.md`](SPEC.md) §4)
 - Brokers other than Zerodha in v1 (the parser is designed so others can be added later)
 - Equity delivery / intraday cash, currency (CDS) and commodity (MCX) segments
 - Tax computation, ITR / tax-audit turnover, or advice of any kind

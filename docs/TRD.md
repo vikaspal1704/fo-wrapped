@@ -148,6 +148,8 @@ npm run verify:real -- --dir ../fo-wrapped-private
 
 - Runs the engine without the P&L statement (estimated mode) and compares net P&L and charges against the P&L statement totals.
 - Prints only the account alias, the percentage difference, and PASS/FAIL. **No trade data, symbols, or amounts are printed.**
+- Writes the per-contract breakdown (MATCHED, DIFFERENT, ONLY_IN_TRADEBOOK, ONLY_IN_STATEMENT, EXCLUDED) and an attribution of the difference to `<dir>/verification-report-<alias>.json`, in the private folder. The console shows only its path and counts ([`SPEC.md`](SPEC.md) US-0.2).
+- `--markdown` prints a privacy-safe table for `docs/validation-report.md`. The gate also fails while any rate row is not checked against its primary source.
 - `.gitignore` excludes `*-private/`, `private-fixtures/`, and `verification-report*.json`.
 
 ## 10. CI (GitHub Actions)
@@ -163,6 +165,8 @@ npm run verify:real -- --dir ../fo-wrapped-private
 `.github/workflows/pages.yml` deploys `dist/` to GitHub Pages on push to `main`. Vite `base` must be `/fo-wrapped/` for the project page.
 
 ## 11. Non-requirements (tech)
+
+For Wrapped. The Journal's server pieces (Supabase Auth, Postgres with RLS, Edge Functions, Razorpay) are decided in ADRs (BRIEF §6) before any code.
 
 - No server, database, auth, or API routes
 - No service worker / offline mode in v1
