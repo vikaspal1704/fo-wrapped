@@ -39,7 +39,14 @@ Personas: **Trader** (a retail F&O trader, usually on a phone), **Owner** (Vikas
 | PV-3 | File names contain the Zerodha client ID. They are never shown in share images, synced, stored in an import history, or logged. | `share_image_has_no_file_names` (⏳), `import_history_strips_client_id` (⏳) |
 | PV-4 | The launch-gate harness prints only account aliases, percentages and PASS/FAIL. Anything more detailed goes to a gitignored file in the owner's private folder. | `verify_real_console_shows_no_trade_data` |
 
-### 1.2 No investment advice (SEBI)
+### 1.2 Reality first (owner direction, 2026-10-17)
+
+| ID | Rule |
+|----|------|
+| RL-1 | Reliability is the top priority. Every number shows what actually happened in the account, the way the broker's own records (Console) count it. A rule that makes a number differ from reality is changed, even if it is locked in the docs. |
+| RL-2 | Where a file genuinely lacks a fact (a settlement price, a charge the broker doesn't print), the app shows the gap and its size in words. It never fills the gap with a guess. |
+
+### 1.3 No investment advice (SEBI)
 
 Every user-visible sentence, in English and Hindi, passes this checklist. It is checked in review, and the wording tests below check it automatically.
 
@@ -107,10 +114,12 @@ Goal: be able to show, with evidence, that net P&L matches Zerodha Console withi
 | AC-0.4.2 | an option exercised or assigned (it disappears without a closing trade) | analysed in estimated mode | it is treated as settled at expiry (AC-0.4.1). The STT on exercise is not estimated, and the warning says that settled contracts are excluded | `exercised_option_is_excluded_not_valued` | ✅ |
 | AC-0.4.3 | one order filled in several parts | analysed | the parts form one FIFO position and brokerage is charged once per order per day | `fifo_partial_fills_same_order`, `brokerage_order_split_across_days_charged_per_day` | ✅ |
 | AC-0.4.4 | a position bought one day and sold on a later day (carry-forward) | analysed | one round trip, counted on its exit date; buy-side charges on the buy day and sell-side charges on the sell day | `carry_forward_round_trip_counts_on_exit_day` | ✅ |
-| AC-0.4.5 | a carried-forward lot and a new intraday buy in the same contract, then a sell for one lot | analysed | the tradebook has no product (MIS/NRML) column, so the contract is one FIFO queue: the sell closes the **older** lot and the newer one stays open. Whether Console agrees is measured by the launch gate | `intraday_and_carry_forward_share_one_fifo_queue` | ✅ |
+| AC-0.4.5 | a carried-forward lot and a new intraday buy in the same contract, then a sell for one lot | analysed | the tradebook has no product (MIS/NRML) column, so the contract is one FIFO queue: the sell closes the **older** lot (a partial round trip, AC-0.4.10) and the newer one stays open. Whether Console agrees is measured by the launch gate | `intraday_and_carry_forward_share_one_fifo_queue` | ✅ |
 | AC-0.4.6 | overlapping tradebook files | merged | duplicates (same exchange + trade ID) are dropped once; conflicting duplicates are rejected | `dedupes_overlapping_files_by_trade_id`, `rejects_conflicting_duplicate` | ✅ |
 | AC-0.4.7 | a trade bought on 31 Mar and sold on 1 Apr | the financial-year views are built | the round trip counts in the new FY; the buy-side charges count in the old FY | `view_counts_trade_where_it_closed_and_charges_where_paid` | ✅ |
 | AC-0.4.8 | trades exiting on 7 Nov 2026 and on 8 Nov 2026 (Muhurat) | Samvat labels are given | the first is Samvat 2082 and the second Samvat 2083 | `samvat_boundary_on_muhurat_day` | ✅ |
+| AC-0.4.10 | a position partly closed (e.g. 150 bought, 75 sold) that never returns to flat | analysed | the closed 75 is a round trip with `partial: true`, its realised P&L counted on the day of its last closing trade, as Console counts it. The other 75 stays unclosed, dated from its own buy, and a note says that the closed part is counted and the rest isn't (RL-1) | `partly_closed_position_counts_realised_part` | ✅ |
+| AC-0.4.11 | that position's remainder expires and the P&L statement has the contract's row | analysed with the statement | the remainder is valued as the row minus everything already closed, so the contract's total equals the statement's row exactly | `settled_remainder_plus_partial_equals_statement_row` | ✅ |
 | AC-0.4.9 | a stock F&O contract adjusted for a corporate action (bonus, split), so the closing trade is in a new symbol | analysed | the two symbols are never netted: both stay unclosed and excluded with a notice, and the harness lists them as `ONLY_IN_*` or `EXCLUDED` | `adjusted_contract_is_not_netted_with_original` | ✅ |
 
 ### US-0.5 A validation report decides go or no-go
@@ -128,7 +137,7 @@ Goal: be able to show, with evidence, that net P&L matches Zerodha Console withi
 | # | Risk | Effect in estimated mode | Where it shows | Decision |
 |---|------|--------------------------|----------------|----------|
 | R1 | Positions settled at expiry, exercised or assigned are left out (no settlement price in a tradebook) | Net P&L misses their value, and the STT on exercise | `EXCLUDED` rows and `excludedPaise` | By design (PRD F-EN-2). With the P&L statement they are valued exactly |
-| R2 | A position partly closed but never back to flat: the P&L already realised on the closed part is also left out, with the remainder | Net P&L misses realised P&L that Console counts | `EXCLUDED` rows | 👤 **Owner decision:** keep (ARCHITECTURE §4 counts only flat-to-flat round trips) or count realised chunks of unclosed positions. Needs an engine-semantics change and new tests |
+| R2 | ~~A position partly closed but never back to flat lost the P&L already realised on the closed part~~ | **Fixed** (owner decision 2026-10-17, RL-1): the closed part is a partial round trip (AC-0.4.10, AC-0.4.11) | `EXCLUDED` rows now carry the realised part on the tradebook side | Done |
 | R3 | Rates checked only against secondary sources; no windows before 2024-10-01 or for BSE futures | Charges wrong or unavailable for those dates | `chargesDiffPaise`, rates line | 👤 primary-source check |
 | R4 | ₹40 brokerage when an account misses the 50% cash-collateral rule (from 2026-04-01); IPFT and clearing charges not modelled | Charges understated | brokerage and `other` component diffs | Measure on real accounts (PRD D-12) |
 | R5 | No MIS/NRML column, so a contract is one FIFO queue across products | Only the split between round trips and open positions, unless Console nets differently | `DIFFERENT` rows | Measure on real accounts |
