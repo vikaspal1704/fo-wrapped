@@ -15,7 +15,8 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "types": ["node", "vite/client"],
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["src", "tests", "build", "scripts/verify-real.ts", "vite.config.ts", "eslint.config.js", "playwright.config.ts"]
+  "include": ["src", "tests", "build", "supabase/functions/_shared", "scripts/verify-real.ts", "vite.config.ts", "eslint.config.js", "playwright.config.ts"]
 }
