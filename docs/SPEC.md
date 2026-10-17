@@ -66,10 +66,10 @@ Goal: be able to show, with evidence, that net P&L matches Zerodha Console withi
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
 | AC-0.1.1 | an account folder with Zerodha tradebook(s) and one F&O P&L statement | the harness checks it | it runs the engine **without** the statement and reports `netDiffPct = abs(est − stmt) / abs(stmt) × 100` against the statement's realised P&L minus charges. PASS when ≤ 0.5 | `verify_real_passes_within_tolerance`, `verify_real_fails_outside_tolerance` | ✅ |
-| AC-0.1.2 | a tradebook with trades before and after the statement's period | the harness checks it | only trades dated inside the period are used | `verify_real_uses_only_trades_in_statement_period` | 🔨 |
+| AC-0.1.2 | a tradebook with trades before and after the statement's period | the harness checks it | only trades dated inside the period are used | `verify_real_uses_only_trades_in_statement_period` | ✅ |
 | AC-0.1.3 | a folder with zero, two or more P&L statements, or no tradebook | the harness checks it | the account is an ERROR with a plain reason, never a PASS | `verify_real_needs_one_statement` | ✅ |
-| AC-0.1.4 | results for several accounts | the gate is decided | the gate passes only if **at least 5 accounts ran and every account passed**. ERROR counts as not passed | `verify_real_gate_needs_five_passing_accounts` | 🔨 |
-| AC-0.1.5 | any run | it prints to the console | the output holds only aliases, percentages, counts, file paths it wrote, and PASS/FAIL/ERROR: no symbols, amounts or trade IDs | `verify_real_console_shows_no_trade_data` | 🔨 |
+| AC-0.1.4 | results for several accounts | the gate is decided | the gate passes only if **at least 5 accounts ran and every account passed**. ERROR counts as not passed | `verify_real_gate_needs_five_passing_accounts` | ✅ |
+| AC-0.1.5 | any run | it prints to the console | the output holds only aliases, percentages, counts, file paths it wrote, and PASS/FAIL/ERROR: no symbols, amounts or trade IDs | `verify_real_console_shows_no_trade_data` | ✅ |
 
 ### US-0.2 See why an account differs
 
@@ -77,14 +77,14 @@ Goal: be able to show, with evidence, that net P&L matches Zerodha Console withi
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-0.2.1 | an account checked by the harness | it finishes | it writes `verification-report-<alias>.json` in the private folder (never in the repo), with one row per contract: `symbol`, `tradebookPnlPaise`, `statementPnlPaise`, `diffPaise`, `status` | `verify_real_writes_contract_detail` | 🔨 |
-| AC-0.2.2 | a contract in both sources whose P&L differs by at most 1 paise | it is classified | status `MATCHED` (statement values are rounded to paise) | `verify_real_classifies_contracts` | 🔨 |
-| AC-0.2.3 | a contract that differs by more than 1 paise | it is classified | status `DIFFERENT` | `verify_real_classifies_contracts` | 🔨 |
-| AC-0.2.4 | a contract with closed trades in the tradebook but no statement row, or a statement row with realised P&L but no tradebook trades | it is classified | status `ONLY_IN_TRADEBOOK` or `ONLY_IN_STATEMENT` | `verify_real_classifies_contracts` | 🔨 |
-| AC-0.2.5 | a contract left unclosed in the tradebook (settled at expiry, exercised, assigned, or open) | it is classified | status `EXCLUDED`, carrying the statement's figure, because the estimate leaves it out by design (ARCHITECTURE §5) | `verify_real_attributes_expired_contract_as_excluded` | 🔨 |
-| AC-0.2.6 | any account | the detail is written | it adds an attribution that **adds up exactly**: `netDiffPaise = contractDiffPaise + excludedPaise − chargesDiffPaise` (estimate minus statement, each term in paise). A failure here is a bug in the harness | `verify_real_attribution_adds_up` | 🔨 |
-| AC-0.2.7 | the detail file's name | it is created | it matches the existing `.gitignore` pattern `verification-report*.json` | `verify_real_detail_file_is_gitignored` | 🔨 |
-| AC-0.2.8 | the detail file was written | the console reports it | the console shows its path and the count of contracts per status, never their names | `verify_real_console_shows_no_trade_data` | 🔨 |
+| AC-0.2.1 | an account checked by the harness | it finishes | it writes `verification-report-<alias>.json` in the private folder (never in the repo), with one row per contract: `symbol`, `tradebookPnlPaise`, `statementPnlPaise`, `diffPaise`, `status` | `verify_real_writes_contract_detail` | ✅ |
+| AC-0.2.2 | a contract in both sources whose P&L differs by at most 1 paise | it is classified | status `MATCHED` (statement values are rounded to paise) | `verify_real_classifies_contracts` | ✅ |
+| AC-0.2.3 | a contract that differs by more than 1 paise | it is classified | status `DIFFERENT` | `verify_real_classifies_contracts` | ✅ |
+| AC-0.2.4 | a contract with closed trades in the tradebook but no statement row, or a statement row with realised P&L but no tradebook trades | it is classified | status `ONLY_IN_TRADEBOOK` or `ONLY_IN_STATEMENT` | `verify_real_classifies_contracts` | ✅ |
+| AC-0.2.5 | a contract left unclosed in the tradebook (settled at expiry, exercised, assigned, or open) | it is classified | status `EXCLUDED`, carrying the statement's figure, because the estimate leaves it out by design (ARCHITECTURE §5) | `verify_real_attributes_expired_contract_as_excluded` | ✅ |
+| AC-0.2.6 | any account | the detail is written | it adds an attribution that **adds up exactly**: `netDiffPaise = contractDiffPaise + excludedPaise + statementRowsGapPaise − chargesDiffPaise`. Each term is estimate minus statement, in paise; `statementRowsGapPaise` is the statement's contract rows minus its realised total. A failure here is a bug in the harness | `verify_real_attribution_adds_up` | ✅ |
+| AC-0.2.7 | the detail file's name | it is created | it matches the existing `.gitignore` pattern `verification-report*.json` | `verify_real_detail_file_is_gitignored` | ✅ |
+| AC-0.2.8 | the detail file was written | the console reports it | the console shows its path and the count of contracts per status, never their names | `verify_real_console_shows_no_trade_data` | ✅ |
 
 ### US-0.3 Charges come from dated config
 
@@ -94,8 +94,8 @@ Goal: be able to show, with evidence, that net P&L matches Zerodha Console withi
 |----|-------|------|------|------|--------|
 | AC-0.3.1 | fills on dates covered by a rate window | charges are calculated | each fill uses the window containing its trade date | `uses_rate_window_for_trade_date`, `hand_worked_option_round_trip` | ✅ |
 | AC-0.3.2 | a fill on a date no window covers | charges are calculated | `ChargesUnavailableError` names the date and the charge. No nearby rate is borrowed | `missing_rate_window_throws`, `charges_unavailable_only_affects_its_period` | ✅ |
-| AC-0.3.3 | a copy of the rate table with one new window added | the same fills are charged with it | results change from that window's date onward, with **no code change** | `new_rate_window_applies_without_code_change` | 🔨 |
-| AC-0.3.4 | the shipped rate table | the gate is decided | the harness prints `Rates checked against primary sources: x of y`. The launch gate fails while any row is `secondary` | `verify_real_gate_needs_primary_rates` | 🔨 |
+| AC-0.3.3 | a copy of the rate table with one new window added | the same fills are charged with it | results change from that window's date onward, with **no code change** | `new_rate_window_applies_without_code_change` | ✅ |
+| AC-0.3.4 | the shipped rate table | the gate is decided | the harness prints `Rates checked against primary sources: x of y`. The launch gate fails while any row is `secondary` | `verify_real_gate_needs_primary_rates` | ✅ |
 
 ### US-0.4 Edge cases give the Console answer, or say why not
 
@@ -104,14 +104,14 @@ Goal: be able to show, with evidence, that net P&L matches Zerodha Console withi
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
 | AC-0.4.1 | an option held past its expiry with no closing trade | analysed | it is `SETTLED_AT_EXPIRY`, excluded from P&L with a notice, or valued from the P&L statement's contract row when one is added | `flags_option_past_expiry_as_settled`, `values_settled_position_from_pnl_statement` | ✅ |
-| AC-0.4.2 | an option exercised or assigned (it disappears without a closing trade) | analysed in estimated mode | it is treated as settled at expiry (AC-0.4.1). The STT on exercise is not estimated, and the warning says that settled contracts are excluded | `exercised_option_is_excluded_not_valued` | 🔨 |
+| AC-0.4.2 | an option exercised or assigned (it disappears without a closing trade) | analysed in estimated mode | it is treated as settled at expiry (AC-0.4.1). The STT on exercise is not estimated, and the warning says that settled contracts are excluded | `exercised_option_is_excluded_not_valued` | ✅ |
 | AC-0.4.3 | one order filled in several parts | analysed | the parts form one FIFO position and brokerage is charged once per order per day | `fifo_partial_fills_same_order`, `brokerage_order_split_across_days_charged_per_day` | ✅ |
-| AC-0.4.4 | a position bought one day and sold on a later day (carry-forward) | analysed | one round trip, counted on its exit date; buy-side charges on the buy day and sell-side charges on the sell day | `carry_forward_round_trip_counts_on_exit_day` | 🔨 |
-| AC-0.4.5 | an intraday round trip and a carry-forward round trip in the same contract | analysed | FIFO pairs the earliest open units first, whatever the product type | `intraday_and_carry_forward_share_one_fifo_queue` | 🔨 |
+| AC-0.4.4 | a position bought one day and sold on a later day (carry-forward) | analysed | one round trip, counted on its exit date; buy-side charges on the buy day and sell-side charges on the sell day | `carry_forward_round_trip_counts_on_exit_day` | ✅ |
+| AC-0.4.5 | a carried-forward lot and a new intraday buy in the same contract, then a sell for one lot | analysed | the tradebook has no product (MIS/NRML) column, so the contract is one FIFO queue: the sell closes the **older** lot and the newer one stays open. Whether Console agrees is measured by the launch gate | `intraday_and_carry_forward_share_one_fifo_queue` | ✅ |
 | AC-0.4.6 | overlapping tradebook files | merged | duplicates (same exchange + trade ID) are dropped once; conflicting duplicates are rejected | `dedupes_overlapping_files_by_trade_id`, `rejects_conflicting_duplicate` | ✅ |
-| AC-0.4.7 | a trade bought on 31 Mar and sold on 1 Apr | the financial-year views are built | the round trip counts in the new FY; the buy-side charges count in the old FY | `fy_boundary_trade_counts_in_exit_year` | 🔨 |
-| AC-0.4.8 | trades exiting on 7 Nov 2026 and on 8 Nov 2026 (Muhurat) | Samvat labels are given | the first is Samvat 2082 and the second Samvat 2083 | `samvat_boundary_on_muhurat_day` | 🔨 |
-| AC-0.4.9 | a stock F&O contract adjusted for a corporate action (bonus, split), so the closing trade is in a new symbol | analysed | the two symbols are never netted: both stay unclosed and excluded with a notice, and the harness lists them as `ONLY_IN_*` or `EXCLUDED` | `adjusted_contract_is_not_netted_with_original` | 🔨 |
+| AC-0.4.7 | a trade bought on 31 Mar and sold on 1 Apr | the financial-year views are built | the round trip counts in the new FY; the buy-side charges count in the old FY | `view_counts_trade_where_it_closed_and_charges_where_paid` | ✅ |
+| AC-0.4.8 | trades exiting on 7 Nov 2026 and on 8 Nov 2026 (Muhurat) | Samvat labels are given | the first is Samvat 2082 and the second Samvat 2083 | `samvat_boundary_on_muhurat_day` | ✅ |
+| AC-0.4.9 | a stock F&O contract adjusted for a corporate action (bonus, split), so the closing trade is in a new symbol | analysed | the two symbols are never netted: both stay unclosed and excluded with a notice, and the harness lists them as `ONLY_IN_*` or `EXCLUDED` | `adjusted_contract_is_not_netted_with_original` | ✅ |
 
 ### US-0.5 A validation report decides go or no-go
 
@@ -119,9 +119,20 @@ Goal: be able to show, with evidence, that net P&L matches Zerodha Console withi
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-0.5.1 | a harness run with `--markdown` | it finishes | it prints a Markdown table of alias, net %, gross % and result, the rates line, and the gate result. No amounts or symbols | `verify_real_markdown_has_no_amounts` | 🔨 |
-| AC-0.5.2 | the repository | before launch | `docs/validation-report.md` lists accounts checked, each difference, known gaps, and **GO** or **NO-GO** | *manual*, reviewed in the launch PR | 🔨 template, 👤 results |
+| AC-0.5.1 | a harness run with `--markdown` | it finishes | it prints a Markdown table of alias, net %, gross % and result, the rates line, and the gate result. No amounts or symbols | `verify_real_markdown_has_no_amounts` | ✅ |
+| AC-0.5.2 | the repository | before launch | `docs/validation-report.md` lists accounts checked, each difference, known gaps, and **GO** or **NO-GO** | *manual*, reviewed in the launch PR | ✅ template, 👤 results |
 | AC-0.5.3 | real exports from 5 volunteers, with identifying details removed | the owner runs the harness locally | every account is within ±0.5%; results are pasted into the report | 👤 | ⏳ |
+
+### Correctness risks found while writing this spec (ranked by impact on net P&L)
+
+| # | Risk | Effect in estimated mode | Where it shows | Decision |
+|---|------|--------------------------|----------------|----------|
+| R1 | Positions settled at expiry, exercised or assigned are left out (no settlement price in a tradebook) | Net P&L misses their value, and the STT on exercise | `EXCLUDED` rows and `excludedPaise` | By design (PRD F-EN-2). With the P&L statement they are valued exactly |
+| R2 | A position partly closed but never back to flat: the P&L already realised on the closed part is also left out, with the remainder | Net P&L misses realised P&L that Console counts | `EXCLUDED` rows | 👤 **Owner decision:** keep (ARCHITECTURE §4 counts only flat-to-flat round trips) or count realised chunks of unclosed positions. Needs an engine-semantics change and new tests |
+| R3 | Rates checked only against secondary sources; no windows before 2024-10-01 or for BSE futures | Charges wrong or unavailable for those dates | `chargesDiffPaise`, rates line | 👤 primary-source check |
+| R4 | ₹40 brokerage when an account misses the 50% cash-collateral rule (from 2026-04-01); IPFT and clearing charges not modelled | Charges understated | brokerage and `other` component diffs | Measure on real accounts (PRD D-12) |
+| R5 | No MIS/NRML column, so a contract is one FIFO queue across products | Only the split between round trips and open positions, unless Console nets differently | `DIFFERENT` rows | Measure on real accounts |
+| R6 | Corporate-action adjusted contracts change symbol mid-position | Both legs unclosed and excluded | `ONLY_IN_*` / `EXCLUDED` rows | Known gap; rare for index F&O |
 
 ### Phase 0 open items for the owner (not blocking the code)
 

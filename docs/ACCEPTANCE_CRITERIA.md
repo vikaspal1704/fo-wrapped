@@ -6,9 +6,9 @@ Binary checklist. v1 is **done** only when every box is true. v1 may **launch** 
 
 ## Status (v0.3)
 
-- **B–F:** implemented and passing (146 unit, 23 e2e including axe accessibility).
+- **B–F:** implemented and passing (162 unit, 23 e2e including axe accessibility).
 - **E:** CI and Pages are live. Make `main` the default branch so pushes to `main` deploy.
-- **A:** the harness is built (`npm run verify:real`). The run needs the owner’s real accounts and P&L statements, and the rates need primary-source checks.
+- **A:** the harness is built (`npm run verify:real`), with per-contract detail and a go/no-go table ([`SPEC.md`](SPEC.md) US-0.1 to US-0.5). The run needs the owner’s real accounts and P&L statements, and the rates need primary-source checks. Current decision: **NO-GO** ([`validation-report.md`](validation-report.md)).
 
 ## A. Launch gate (blocking)
 

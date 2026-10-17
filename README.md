@@ -69,6 +69,9 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Implementers / interviewers | Pipeline, FIFO worked example, charges, card formulas |
 | [`docs/ACCEPTANCE_CRITERIA.md`](docs/ACCEPTANCE_CRITERIA.md) | QA / agents | Launch gate and the binary “done” checklist |
 | [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) | Implementers | Required unit and e2e test names, and edge cases |
+| [`docs/BRIEF.md`](docs/BRIEF.md) | Everyone | The owner’s brief: from Wrapped to the paid F&O Journal |
+| [`docs/SPEC.md`](docs/SPEC.md) | Implementers / QA | User stories and Given/When/Then criteria, each with its test |
+| [`docs/validation-report.md`](docs/validation-report.md) | Owner | Launch-gate evidence and go/no-go |
 | [`AGENTS.md`](AGENTS.md) | Agents | Short pointer to the brief |
 
 ---
@@ -105,7 +108,7 @@ npm run brand        # regenerate the link-preview image and icons
 | Hindi, installable offline app, privacy page, link previews, accessibility (axe) | ✅ |
 | Console P&L statement (exact charges, expired positions valued) | ✅ (still to check against the owner’s own export) |
 | Angel One, Upstox (options), Dhan | ✅ beta: built from redacted real layouts; Groww recognised, not supported yet |
-| Launch gate: ±0.5% vs Console on ≥ 5 real accounts | ◐ harness ready (`npm run verify:real`); needs real accounts |
+| Launch gate: ±0.5% vs Console on ≥ 5 real accounts | ◐ harness ready (`npm run verify:real`, per-contract detail, [validation report](docs/validation-report.md)); needs real accounts |
 
 ## Project layout
 

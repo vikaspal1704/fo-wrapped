@@ -13,7 +13,7 @@ import {
   main,
   type AccountOutcome,
 } from '../../scripts/verify-real';
-import { buildRoundTrips, RATES, type ChargeRateTable, type IstDate } from '../../src/engine';
+import { buildRoundTrips, RATES, type ChargeRateTable, type IstDate, type Paise } from '../../src/engine';
 import { fill } from './helpers';
 
 const csv = (s: string) => new TextEncoder().encode(s).buffer as ArrayBuffer;
@@ -132,11 +132,11 @@ describe('launch-gate harness (SPEC US-0.1, US-0.2, US-0.5)', () => {
     ];
     const { roundTrips, unclosed } = buildRoundTrips(fills, '2025-11-28' as IstDate);
     const rows = classifyContracts(roundTrips, unclosed, [
-      { tradingSymbol: 'NIFTY25NOV24000CE', realizedPnlPaise: 150_001, openQuantity: 0 }, // 1 paise of rounding
-      { tradingSymbol: 'NIFTY25NOV24100CE', realizedPnlPaise: 70_000, openQuantity: 0 }, // Console says less
-      { tradingSymbol: 'NIFTY25NOV24300CE', realizedPnlPaise: -375_000, openQuantity: 0 }, // expired worthless
-      { tradingSymbol: 'NIFTY25NOV24400PE', realizedPnlPaise: 12_000, openQuantity: 0 }, // not in the tradebook
-      { tradingSymbol: 'NIFTY25NOV24500PE', realizedPnlPaise: 0, openQuantity: 75 }, // nothing realised: no row
+      { tradingSymbol: 'NIFTY25NOV24000CE', realizedPnlPaise: 150_001 as Paise, openQuantity: 0 }, // 1 paise of rounding
+      { tradingSymbol: 'NIFTY25NOV24100CE', realizedPnlPaise: 70_000 as Paise, openQuantity: 0 }, // Console says less
+      { tradingSymbol: 'NIFTY25NOV24300CE', realizedPnlPaise: -375_000 as Paise, openQuantity: 0 }, // expired worthless
+      { tradingSymbol: 'NIFTY25NOV24400PE', realizedPnlPaise: 12_000 as Paise, openQuantity: 0 }, // not in the tradebook
+      { tradingSymbol: 'NIFTY25NOV24500PE', realizedPnlPaise: 0 as Paise, openQuantity: 75 }, // nothing realised: no row
     ]);
     expect(rows.map((r) => [r.symbol, r.status, r.diffPaise])).toEqual([
       ['NIFTY25NOV24000CE', 'MATCHED', -1],
