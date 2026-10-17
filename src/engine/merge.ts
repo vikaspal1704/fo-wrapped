@@ -14,7 +14,7 @@ export function mergeFills(files: readonly (readonly Fill[])[]): { fills: Fill[]
 
   for (const file of files) {
     for (const fill of file) {
-      const key = `${fill.broker}:${fill.exchange}:${fill.tradeId}`;
+      const key = fillKey(fill);
       const existing = byKey.get(key);
       if (!existing) {
         byKey.set(key, fill);
@@ -30,6 +30,11 @@ export function mergeFills(files: readonly (readonly Fill[])[]): { fills: Fill[]
   return { fills, duplicatesDropped };
 }
 
+/** The dedupe key (PRD D-14, D-23): trade IDs are unique per broker and exchange. */
+export function fillKey(fill: Fill): string {
+  return `${fill.broker}:${fill.exchange}:${fill.tradeId}`;
+}
+
 export function compareFills(a: Fill, b: Fill): number {
   return (
     a.executedAt - b.executedAt ||
@@ -39,7 +44,8 @@ export function compareFills(a: Fill, b: Fill): number {
   );
 }
 
-function sameTrade(a: Fill, b: Fill): boolean {
+/** True when two fills with the same key describe the same trade. */
+export function sameTrade(a: Fill, b: Fill): boolean {
   return (
     a.orderId === b.orderId &&
     a.instrument.key === b.instrument.key &&

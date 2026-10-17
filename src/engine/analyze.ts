@@ -83,6 +83,8 @@ export function analyze(input: {
   pnlStatements?: readonly PnlStatement[];
   rates: ChargeRateTable;
   siteUrl: string;
+  /** Extra views to build, e.g. a week for the Journal (SPEC US-2.7). Appended after the standard ones. */
+  extraPeriods?: readonly Period[];
 }): AnalysisResult {
   const merged = mergeFills(input.tradebooks);
   const duplicatesDropped = merged.duplicatesDropped;
@@ -97,7 +99,7 @@ export function analyze(input: {
   const { roundTrips, unclosed } = valueExpiredFromStatements(built.roundTrips, built.unclosed, statements);
   const samvat = samvatLabel(roundTrips.length > 0 ? roundTrips.map((r) => r.exitDate) : dates);
 
-  const periods = periodsFor(dates);
+  const periods = [...periodsFor(dates), ...(input.extraPeriods ?? [])];
   const reported = dedupeChargeRecords(input.reportedCharges ?? []);
   const views = periods.map((period) =>
     buildView(period, { fills, roundTrips, unclosed, samvat, reported, statements, rates: input.rates, siteUrl: input.siteUrl }),
