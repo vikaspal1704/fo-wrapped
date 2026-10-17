@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Story } from '../cards/Story';
 import { LocaleProvider, useLocale } from './i18n';
 import { Landing } from './Landing';
@@ -7,6 +7,27 @@ import { Progress } from './Progress';
 import { useAnalysis } from './useAnalysis';
 
 const PRIVACY_HASH = '#privacy';
+const JOURNAL_HASH = '#journal';
+
+// The Journal is its own chunk; Wrapped never loads it (ADR-0001).
+const JournalApp = lazy(() => import('../journal/ui/JournalApp').then((m) => ({ default: m.JournalApp })));
+
+/** #journal, or ?journal=1 when coming back from sign-in or payment. */
+function useJournalRoute(): [boolean, (open: boolean) => void] {
+  const isJournal = () => window.location.hash === JOURNAL_HASH || new URLSearchParams(window.location.search).has('journal');
+  const [open, setOpen] = useState(isJournal);
+  useEffect(() => {
+    const onHash = () => setOpen(isJournal());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const set = (next: boolean) => {
+    if (!next && window.location.search) window.history.replaceState(null, '', window.location.pathname);
+    window.location.hash = next ? JOURNAL_HASH : '';
+    setOpen(next);
+  };
+  return [open, set];
+}
 
 /** The privacy page is a hash route so it works on static hosting and survives reloads. */
 function usePrivacyRoute(): [boolean, (open: boolean) => void] {
@@ -27,11 +48,20 @@ function Screens() {
   const { state, start, clear } = useAnalysis();
   const { locale } = useLocale();
   const [privacy, setPrivacy] = usePrivacyRoute();
+  const [journal, setJournal] = useJournalRoute();
+
+  if (journal) {
+    return (
+      <Suspense fallback={<p className="muted">…</p>}>
+        <JournalApp onBack={() => setJournal(false)} />
+      </Suspense>
+    );
+  }
 
   if (privacy && state.screen === 'landing') return <Privacy onBack={() => setPrivacy(false)} />;
   switch (state.screen) {
     case 'landing':
-      return <Landing onFiles={start} onPrivacy={() => setPrivacy(true)} files={state.files} error={state.error?.[locale] ?? null} />;
+      return <Landing onFiles={start} onPrivacy={() => setPrivacy(true)} onJournal={() => setJournal(true)} files={state.files} error={state.error?.[locale] ?? null} />;
     case 'working':
       return <Progress stage={state.stage} pct={state.pct} />;
     case 'cards':

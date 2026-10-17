@@ -1,6 +1,6 @@
 # Specification: F&O Wrapped and F&O Journal
 
-**Owner:** Vikas Pal · **Status:** v1 draft, 2026-10-17 · **Brief:** [`BRIEF.md`](BRIEF.md)
+**Owner:** Vikas Pal · **Status:** v1, 2026-10-17: Phases 0–2 built and tested; owner tasks marked 👤 · **Brief:** [`BRIEF.md`](BRIEF.md)
 
 This is the spec we build against. Every user story has acceptance criteria written as Given / When / Then. Every criterion has an ID and a named automated test, or it is marked *manual* or *owner* with the reason. Code is written to make these tests pass, and a criterion is done only when its test passes in CI.
 
@@ -35,8 +35,8 @@ Personas: **Trader** (a retail F&O trader, usually on a phone), **Owner** (Vikas
 | ID | Rule | Test |
 |----|------|------|
 | PV-1 | Wrapped (the free, signed-out app) never sends file contents or anything derived from them over the network, and never writes them to storage. | `e2e_no_network_during_analysis`, `e2e_no_storage_writes`, `e2e_no_request_carries_file_data` |
-| PV-2 | Journal data leaves the device only through opt-in sync, encrypted on the device first. The server holds ciphertext, the account, and the subscription. | 🧭 ADR-0002 |
-| PV-3 | File names contain the Zerodha client ID. They are never shown in share images, synced, stored in an import history, or logged. | `share_image_has_no_file_names` (✅), `import_history_strips_client_id` (⏳) |
+| PV-2 | Journal data leaves the device only through opt-in sync, encrypted on the device first. The server holds ciphertext, the account, and the subscription. | `sync_uploads_only_ciphertext`, `e2e_key_loss_warning_shown_and_sync_sends_only_ciphertext` (ADR-0002) |
+| PV-3 | File names contain the Zerodha client ID. They are never shown in share images, synced, stored in an import history, or logged. | `share_image_has_no_file_names` (✅), `import_history_strips_client_id` (✅) |
 | PV-4 | The launch-gate harness prints only account aliases, percentages and PASS/FAIL. Anything more detailed goes to a gitignored file in the owner's private folder. | `verify_real_console_shows_no_trade_data` |
 
 ### 1.2 Reality first (owner direction, 2026-10-17)
@@ -201,6 +201,8 @@ One PR per story.
 
 Architecture: [`adr/`](adr/README.md) (ADR-0001 to ADR-0005). Journal principles: ROADMAP §2.1 (local-first; sync opt-in and end-to-end encrypted; an account only for billing and sync; no advice; Wrapped stays free and signed-out). Owner inputs still open: final prices (shown from build config), employment-contract check, target income and hours (BRIEF §9). None of them block the code.
 
+Also covered: `e2e_journal_rules`, `e2e_journal_hindi`, `e2e_cloud_locked_until_plan_then_subscribe`, `create_subscription_needs_a_signed_in_user_and_a_plan`, `webhook_failure_lets_razorpay_retry`, `rls_rejects_readable_record_ids`, `record_ids_are_opaque_and_stable`, `sync_pulls_and_decrypts_on_another_device`, `entitlement_and_subscription_client`, `week_runs_monday_to_sunday`, `notes_tags_are_normalised`, `postgrest_store_uses_ignore_duplicates_for_events`.
+
 Code: pure analysis in `src/engine/journal/`; storage, crypto and cloud clients in `src/journal/`; server in `supabase/` (SQL migrations with RLS, Edge Functions whose logic lives in tested modules under `supabase/functions/_shared/`).
 
 ### US-2.1 Sign in and subscribe
@@ -209,53 +211,54 @@ Code: pure analysis in `src/engine/journal/`; storage, crypto and cloud clients 
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.1.1 | a signed-out visitor | they use Wrapped | everything works with no sign-in prompt before results (ROADMAP P4) | `e2e_wrapped_needs_no_account` | 🔨 |
-| AC-2.1.2 | a cloud build | "Sign in with Google" is pressed | the browser goes to Supabase's Google sign-in with a PKCE challenge; on return the code is exchanged and only the access/refresh tokens, user ID and email are kept | `auth_uses_pkce_and_keeps_only_tokens` | 🔨 |
-| AC-2.1.3 | a signed-in user | they choose monthly or annual | the `create-subscription` function, after checking their token, asks Razorpay for a subscription on the configured plan and returns its hosted `short_url` | `create_subscription_uses_configured_plan` | 🔨 |
-| AC-2.1.4 | a Razorpay webhook | it arrives | it is accepted only with a valid HMAC-SHA256 signature (constant-time compare); otherwise 401 and nothing changes | `webhook_rejects_bad_signature` | 🔨 |
-| AC-2.1.5 | the same event delivered twice, or an older event after a newer one | processed | the duplicate changes nothing; the older event doesn't overwrite the newer state | `webhook_is_idempotent`, `webhook_ignores_out_of_order_events` | 🔨 |
-| AC-2.1.6 | webhook events for activate, charge, cancel, halt | processed | the entitlement becomes `active` until `current_end`, or takes the cancelled/halted status | `entitlement_follows_subscription_events` | 🔨 |
-| AC-2.1.7 | a user without an active plan, or another user's rows | they call the database | RLS refuses: no sync rows readable or writable, no reminder opt-in | `rls_blocks_unentitled_user`, `rls_isolates_users` | 🔨 |
-| AC-2.1.8 | any billing code path | it logs | only the event ID and type; never the payload, card, UPI, bank or payment-method data | `billing_logs_have_no_payment_data` | 🔨 |
+| AC-2.1.1 | a signed-out visitor | they use Wrapped | everything works with no sign-in prompt before results (ROADMAP P4) | `e2e_wrapped_needs_no_account` | ✅ |
+| AC-2.1.2 | a cloud build | "Sign in with Google" is pressed | the browser goes to Supabase's Google sign-in with a PKCE challenge; on return the code is exchanged and only the access/refresh tokens, user ID and email are kept | `auth_uses_pkce_and_keeps_only_tokens` | ✅ |
+| AC-2.1.3 | a signed-in user | they choose monthly or annual | the `create-subscription` function, after checking their token, asks Razorpay for a subscription on the configured plan and returns its hosted `short_url` | `create_subscription_uses_configured_plan` | ✅ |
+| AC-2.1.4 | a Razorpay webhook | it arrives | it is accepted only with a valid HMAC-SHA256 signature (constant-time compare); otherwise 401 and nothing changes | `webhook_rejects_bad_signature` | ✅ |
+| AC-2.1.5 | the same event delivered twice, or an older event after a newer one | processed | the duplicate changes nothing; the older event doesn't overwrite the newer state | `webhook_is_idempotent`, `webhook_ignores_out_of_order_events` | ✅ |
+| AC-2.1.6 | webhook events for activate, charge, cancel, halt | processed | the entitlement becomes `active` until `current_end`, or takes the cancelled/halted status | `entitlement_follows_subscription_events` | ✅ |
+| AC-2.1.7 | a user without an active plan, or another user's rows | they call the database | RLS refuses: no sync rows readable or writable, no reminder opt-in | `rls_blocks_unentitled_user`, `rls_isolates_users` | ✅ |
+| AC-2.1.8 | any billing code path | it logs | only the event ID and type; never the payload, card, UPI, bank or payment-method data | `billing_logs_have_no_payment_data` | ✅ |
 | AC-2.1.9 | a key rotation | the runbook is followed | keys rotate without downtime (`docs/runbooks/rotate-keys.md`) | *manual drill* 👤 | ✅ runbook |
 
 ### US-2.2 My history is saved on my device
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.2.1 | the Journal | the user turns on "Save on this device" and imports files | they are stored in IndexedDB `fo-journal` on this device only | `history_saved_after_opt_in`, `e2e_journal_import_and_reload` | 🔨 |
+| AC-2.2.1 | the Journal | the user turns on "Save on this device" and imports files | they are stored in IndexedDB `fo-journal` on this device only | `history_saved_after_opt_in`, `e2e_journal_import_and_reload` | ✅ |
 | AC-2.2.2 | Wrapped, or the Journal before opting in | anything is analysed | nothing is written to storage (PV-1) | `e2e_no_storage_writes` | ✅ |
-| AC-2.2.3 | a database from an older schema version | the Journal opens | migrations run in order and keep the data; a failing migration leaves the old database untouched | `migrations_upgrade_every_old_version`, `failed_migration_keeps_old_data` | 🔨 |
-| AC-2.2.4 | saved data | "Delete everything" is confirmed | the database is deleted and a read-back finds nothing | `delete_everything_empties_database` | 🔨 |
+| AC-2.2.3 | a database from an older schema version | the Journal opens | migrations run in order and keep the data; a failing migration leaves the old database untouched | `migrations_upgrade_every_old_version`, `failed_migration_keeps_old_data` | ✅ |
+| AC-2.2.5 | the Journal screens | axe runs | no WCAG 2.1 AA violations | `a11y_journal_screens` | ✅ |
+| AC-2.2.4 | saved data | "Delete everything" is confirmed | the database is deleted and a read-back finds nothing | `delete_everything_empties_database` | ✅ |
 
 ### US-2.3 Optional encrypted sync
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.3.1 | a passphrase of at least 12 characters | data syncs | each record is AES-256-GCM encrypted on the device (ADR-0002); record IDs are HMACs; the server receives no plaintext, contract name or trade ID | `sync_uploads_only_ciphertext` | 🔨 |
-| AC-2.3.2 | a second device with the same passphrase | it syncs | the records decrypt and match; with a wrong passphrase nothing is decrypted or uploaded | `sync_round_trip_matches`, `wrong_passphrase_is_refused` | 🔨 |
-| AC-2.3.3 | the sync setup and the "forgot passphrase" screen | shown | they say plainly that synced data can't be recovered without the passphrase | `e2e_key_loss_warning_shown` | 🔨 |
-| AC-2.3.4 | a ciphertext moved to another user's or record's slot | decrypted | decryption fails (bound by additional data) | `ciphertext_is_bound_to_its_slot` | 🔨 |
+| AC-2.3.1 | a passphrase of at least 12 characters | data syncs | each record is AES-256-GCM encrypted on the device (ADR-0002); record IDs are HMACs; the server receives no plaintext, contract name or trade ID | `sync_uploads_only_ciphertext` | ✅ |
+| AC-2.3.2 | a second device with the same passphrase | it syncs | the records decrypt and match; with a wrong passphrase nothing is decrypted or uploaded | `sync_round_trip_matches`, `wrong_passphrase_is_refused` | ✅ |
+| AC-2.3.3 | the sync setup and the "forgot passphrase" screen | shown | they say plainly that synced data can't be recovered without the passphrase | `e2e_key_loss_warning_shown_and_sync_sends_only_ciphertext` | ✅ |
+| AC-2.3.4 | a ciphertext moved to another user's or record's slot | decrypted | decryption fails (bound by additional data) | `ciphertext_is_bound_to_its_slot` | ✅ |
 | AC-2.3.5 | `docs/security.md` | read by a non-expert | it explains what the server can and can't see | *manual review* | ✅ |
 
 ### US-2.4 Add new files without starting over
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.4.1 | saved history and a new file that overlaps it | imported | new fills are added, duplicates (broker + exchange + trade ID) counted and dropped, a conflicting duplicate rejects the import with the trade ID | `incremental_import_merges_and_dedupes`, `incremental_import_rejects_conflicts` | 🔨 |
-| AC-2.4.2 | any import | it completes | the history entry records date, broker, counts and a label with the client ID removed | `import_history_strips_client_id` | 🔨 |
-| AC-2.4.3 | an import in the history | it is undone | exactly its fills are removed and results recompute | `undo_import_removes_only_its_fills` | 🔨 |
+| AC-2.4.1 | saved history and a new file that overlaps it | imported | new fills are added, duplicates (broker + exchange + trade ID) counted and dropped, a conflicting duplicate rejects the import with the trade ID | `incremental_import_merges_and_dedupes`, `incremental_import_rejects_conflicts` | ✅ |
+| AC-2.4.2 | any import | it completes | the history entry records date, broker, counts and a label with the client ID removed | `import_history_strips_client_id` | ✅ |
+| AC-2.4.3 | an import in the history | it is undone | exactly its fills are removed and results recompute | `undo_import_removes_only_its_fills` | ✅ |
 
 ### US-2.5 Check my own rules
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.5.1 | rules: max loss per day (₹), max trades per day, stop after N losses in a row, no trades in the first N minutes | saved | each is validated with Zod (whole numbers, sensible ranges) | `rules_are_validated` | 🔨 |
-| AC-2.5.2 | history and a max-loss rule | checked | each day whose running realised P&L reached −limit is flagged, with the trades entered after that moment | `max_loss_rule_flags_days_and_later_trades` | 🔨 |
-| AC-2.5.3 | max trades, stop-after-losses and first-minutes rules | checked | the trades beyond the limit / after the streak / inside the opening minutes are flagged | `trade_count_streak_and_opening_rules` | 🔨 |
-| AC-2.5.4 | a flagged day | the cost is shown | cost = the P&L of the flagged trades, labelled before charges, exact in paise | `rule_breach_cost_is_pnl_after_breach` | 🔨 |
-| AC-2.5.5 | each rule's message | shown | facts only (NA-1 to NA-3) | `rule_messages_pass_no_advice_check` | 🔨 |
-| AC-2.5.6 | trades without times (Angel One, Dhan) | time-based rules run | they say "can't check without trade times"; a max-loss or max-trades breach is flagged for the day with cost unknown, never guessed | `time_rules_need_trade_times` | 🔨 |
+| AC-2.5.1 | rules: max loss per day (₹), max trades per day, stop after N losses in a row, no trades in the first N minutes | saved | each is validated with Zod (whole numbers, sensible ranges) | `rules_are_validated` | ✅ |
+| AC-2.5.2 | history and a max-loss rule | checked | each day whose running realised P&L reached −limit is flagged, with the trades entered after that moment | `max_loss_rule_flags_days_and_later_trades` | ✅ |
+| AC-2.5.3 | max trades, stop-after-losses and first-minutes rules | checked | the trades beyond the limit / after the streak / inside the opening minutes are flagged | `trade_count_streak_and_opening_rules` | ✅ |
+| AC-2.5.4 | a flagged day | the cost is shown | cost = the P&L of the flagged trades, labelled before charges, exact in paise | `rule_breach_cost_is_pnl_after_breach` | ✅ |
+| AC-2.5.5 | each rule's message | shown | facts only (NA-1 to NA-3) | `rule_messages_pass_no_advice_check` | ✅ |
+| AC-2.5.6 | trades without times (Angel One, Dhan) | time-based rules run | they say "can't check without trade times"; a max-loss or max-trades breach is flagged for the day with cost unknown, never guessed | `time_rules_need_trade_times` | ✅ |
 
 ### US-2.6 Behaviour insights
 
@@ -263,35 +266,35 @@ Each insight is a pure function over the period's round trips, reusing the card 
 
 | ID | Insight | Test | Status |
 |----|---------|------|--------|
-| AC-2.6.1 | Revenge trades in the period | `insight_revenge` | 🔨 |
-| AC-2.6.2 | Overtrading: busiest days vs other days | `insight_overtrading` | 🔨 |
-| AC-2.6.3 | Expiry-day P&L vs other days | `insight_expiry_day` | 🔨 |
-| AC-2.6.4 | Best and worst time of day | `insight_time_of_day` | 🔨 |
-| AC-2.6.5 | Holding time of winners vs losers | `insight_holding_time` | 🔨 |
-| AC-2.6.6 | Charges as a share of gross profit | `insight_charges_drag` | 🔨 |
-| AC-2.6.7 | Every insight's text in both languages passes NA-1 to NA-4; an insight without enough data is omitted, never shown as 0 | `insights_pass_no_advice_check`, `insights_omit_thin_data` | 🔨 |
+| AC-2.6.1 | Revenge trades in the period | `insight_revenge` | ✅ |
+| AC-2.6.2 | Overtrading: busiest days vs other days | `insight_overtrading` | ✅ |
+| AC-2.6.3 | Expiry-day P&L vs other days | `insight_expiry_day` | ✅ |
+| AC-2.6.4 | Best and worst time of day | `insight_time_of_day` | ✅ |
+| AC-2.6.5 | Holding time of winners vs losers | `insight_holding_time` | ✅ |
+| AC-2.6.6 | Charges as a share of gross profit | `insight_charges_drag` | ✅ |
+| AC-2.6.7 | Every insight's text in both languages passes NA-1 to NA-4; an insight without enough data is omitted, never shown as 0 | `insights_pass_no_advice_check`, `insights_omit_thin_data` | ✅ |
 
 ### US-2.7 Weekly report
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.7.1 | saved history | the weekly report opens | it is computed on the device for the latest week with trades (Monday–Sunday, IST): net P&L (or P&L before charges when charges can't be estimated), trades, rule breaches and insights, with a share image carrying the disclaimer | `weekly_report_built_on_device`, `e2e_weekly_report` | 🔨 |
-| AC-2.7.2 | a user opted in to the reminder | the weekly job runs | the email says only that the report is ready, with a link and an unsubscribe link: **no numbers, symbols or trades** | `weekly_email_has_no_numbers` | 🔨 |
-| AC-2.7.3 | a reminder's unsubscribe link | opened | the preference turns off; the token works only for its user | `unsubscribe_stops_emails` | 🔨 |
+| AC-2.7.1 | saved history | the weekly report opens | it is computed on the device for the latest week with trades (Monday–Sunday, IST): net P&L (or P&L before charges when charges can't be estimated), trades, rule breaches and insights, with a share image carrying the disclaimer | `weekly_report_built_on_device`, `e2e_weekly_report` | ✅ |
+| AC-2.7.2 | a user opted in to the reminder | the weekly job runs | the email says only that the report is ready, with a link and an unsubscribe link: **no numbers, symbols or trades** | `weekly_email_has_no_numbers` | ✅ |
+| AC-2.7.3 | a reminder's unsubscribe link | opened | the preference turns off; the token works only for its user | `unsubscribe_stops_emails` | ✅ |
 
 ### US-2.8 Notes and tags
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.8.1 | a trade or a day | the user adds a note and tags | they are saved locally, and synced encrypted if sync is on | `notes_saved_locally`, `e2e_journal_notes_search` | 🔨 |
-| AC-2.8.2 | notes and tags | the user searches | matching notes are found on the device, case-insensitive, by text or tag | `notes_search_on_device` | 🔨 |
+| AC-2.8.1 | a trade or a day | the user adds a note and tags | they are saved locally, and synced encrypted if sync is on | `notes_saved_locally`, `e2e_journal_notes_search` | ✅ |
+| AC-2.8.2 | notes and tags | the user searches | matching notes are found on the device, case-insensitive, by text or tag | `notes_search_on_device` | ✅ |
 
 ### US-2.9 Money math stays right (ADR-0005)
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-2.9.1 | each synthetic broker fixture | analysed | totals equal the reviewed golden file | `golden_totals_match` | 🔨 |
-| AC-2.9.2 | random seeded fill sequences | analysed | FIFO, merge and per-day charge invariants hold | `property_flat_books_balance`, `property_partial_books_balance`, `property_merge_order_independent`, `property_charges_split_by_day` | 🔨 |
+| AC-2.9.1 | each synthetic broker fixture | analysed | totals equal the reviewed golden file | `golden_totals_match` | ✅ |
+| AC-2.9.2 | random seeded fill sequences | analysed | FIFO, merge and per-day charge invariants hold | `property_flat_books_balance`, `property_partial_books_balance`, `property_merge_order_independent`, `property_charges_split_by_day` | ✅ |
 
 ## 5. Traceability
 

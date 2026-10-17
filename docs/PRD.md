@@ -76,7 +76,7 @@ A free, no-signup web app. An Indian F&O trader drops in their broker’s trade 
 | F-IN-4 | **MUST** validate every row with **Zod**. An unrecognised file is rejected with a human-readable error. **Never guess** at a column, format, or value. |
 | F-IN-5 | **MUST** reject files from unsupported segments (equity, currency, commodity) with a message naming the right Console download. |
 | F-IN-7 | **SHOULD** accept other brokers’ F&O exports (ROADMAP X1): Angel One Trades History, the Upstox trade report and Dhan’s Global Transaction Report, each only in a layout recorded in [`BROKERS.md`](BROKERS.md). When a broker’s file carries its own charges, those are used instead of an estimate. A broker whose F&O layout hasn’t been seen (Groww) is recognised and explained, never guessed. |
-| F-IN-6 | **MUST NOT** upload, persist (localStorage / IndexedDB / cookies), or transmit any file contents or derived data. |
+| F-IN-6 | **MUST NOT** upload, persist (localStorage / IndexedDB / cookies), or transmit any file contents or derived data. (Wrapped. The Journal stores on the device only after opt-in, and syncs only encrypted: [`SPEC.md`](SPEC.md) §4.) |
 
 ### 7.2 Engine (the part that must be correct)
 

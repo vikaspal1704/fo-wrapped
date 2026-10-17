@@ -288,6 +288,19 @@ Parsers are tested on synthetic files that mirror layouts seen in redacted real 
 | `build_has_no_third_party_origins` | e2e (reads `dist/`) | AC-1.4.3 |
 | CI `lighthouse` job (`lighthouserc.json`) | CI | AC-1.1.2 |
 
+### Journal ([`SPEC.md`](SPEC.md) §4)
+
+| File | Tests | Criteria |
+|------|-------|----------|
+| `tests/unit/journalEngine.test.ts` | rules, insights, weekly report, incremental import, notes | US-2.4 to US-2.8 |
+| `tests/unit/journalStore.test.ts` | IndexedDB store and migrations (fake-indexeddb), encryption (Web Crypto) | US-2.2, US-2.3 |
+| `tests/unit/journalCloud.test.ts` | PKCE sign-in, plan, encrypted push and pull against an in-memory Supabase | US-2.1, US-2.3 |
+| `tests/unit/billing.test.ts` | Razorpay webhook (signature, idempotency, ordering, retry, logs), create subscription, reminder email, unsubscribe | US-2.1, US-2.7 |
+| `tests/unit/supabaseRls.test.ts` | the shipped migration on real Postgres (PGlite): RLS blocks unentitled and other users | AC-2.1.7 |
+| `tests/unit/money.test.ts` | golden totals per fixture (`tests/golden/`), 200-seed property tests | US-2.9 |
+| `tests/e2e/journal.spec.ts` | opt-in, import/reload/undo/delete, rules, weekly report, notes, Hindi, axe | US-2.1 to US-2.8 |
+| `tests/e2e/journal-cloud.spec.ts` | cloud build with a mocked Supabase: locked until plan, PKCE sign-in, subscribe redirect, key-loss warning, ciphertext-only sync | US-2.1, US-2.3 |
+
 ## 3. Required e2e tests (Playwright)
 
 | Test | Flow | Expect |

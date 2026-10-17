@@ -4,6 +4,7 @@ coverage/
 playwright-report/
 test-results/
 .env*
+!.env.journal.example
 .DS_Store
 
 # Real broker exports must never be committed (TRD §9)
@@ -11,3 +12,4 @@ test-results/
 private-fixtures/
 verification-report*.json
 .lighthouseci/
+dist-cloud/

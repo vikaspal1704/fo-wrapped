@@ -12,7 +12,7 @@ const ROOT = join(__dirname, '../..');
 
 const stripComments = (code: string) => code.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
 
-const SOURCES = ['src/app/i18n.tsx', 'src/engine/i18n.ts'];
+const SOURCES = ['src/app/i18n.tsx', 'src/engine/i18n.ts', 'src/journal/ui/i18n.ts'];
 const launchDocs = () => readdirSync(join(ROOT, 'docs/launch')).filter((f) => f.endsWith('.md')).map((f) => `docs/launch/${f}`);
 
 describe('no advice (SPEC §1.3)', () => {

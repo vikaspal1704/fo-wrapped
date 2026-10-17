@@ -859,3 +859,61 @@ h1 {
 .chip:disabled {
   opacity: 0.5;
 }
+
+/* ---------- Journal ---------- */
+
+.journal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.journal-panel,
+.journal .danger {
+  margin-top: 1.5rem;
+}
+
+.journal-form {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.journal-form label,
+.journal .search {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.journal-form input,
+.journal-form textarea,
+.journal-form select,
+.journal .search input {
+  font: inherit;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--muted);
+  background: var(--surface);
+  color: inherit;
+}
+
+.journal-form fieldset {
+  border: 0;
+  padding: 0;
+  display: flex;
+  gap: 1rem;
+}
+
+.journal .notice {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.journal .check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 1rem;
+}

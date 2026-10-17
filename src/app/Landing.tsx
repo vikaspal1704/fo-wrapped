@@ -5,13 +5,14 @@ import type { FileStatus } from './useAnalysis';
 interface Props {
   onFiles: (files: File[]) => void;
   onPrivacy: () => void;
+  onJournal: () => void;
   files: FileStatus[];
   error: string | null;
 }
 
 const bold = (s: string) => <strong>{s}</strong>;
 
-export function Landing({ onFiles, onPrivacy, files, error }: Props) {
+export function Landing({ onFiles, onPrivacy, onJournal, files, error }: Props) {
   const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const guidesHeading = useRef<HTMLHeadingElement>(null);
@@ -104,6 +105,11 @@ export function Landing({ onFiles, onPrivacy, files, error }: Props) {
           {t.footer2}{' '}
           <button type="button" className="link" onClick={onPrivacy}>
             {t.privacyAbout}
+          </button>
+        </p>
+        <p>
+          <button type="button" className="link" onClick={onJournal}>
+            {t.journalLink}
           </button>
         </p>
       </footer>

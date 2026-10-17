@@ -297,6 +297,20 @@ UI labels stay honest when both extremes have the same sign. The worst underlyin
 
 ---
 
+## 8.3 Journal
+
+The Journal (docs/SPEC.md §4, ADRs in [`adr/`](adr/README.md)) is a lazy-loaded `#journal` route on the same app:
+
+```
+page ── useJournal ──► IndexedDB fo-journal (after opt-in)        src/journal/store
+  │          └──────► journal.worker: read files, analyze, rules, weekly report   src/worker
+  └─ useCloud (cloud builds only) ──► Supabase Auth (PKCE), REST with RLS, Edge Functions
+                                       encrypted push/pull (AES-GCM, HMAC IDs)    src/journal/cloud
+Razorpay ── signed webhook ──► razorpay-webhook ──► entitlements ──► RLS gates sync     supabase/
+```
+
+Rules, insights and the weekly report are pure engine functions over the same round trips and charges as Wrapped, so the numbers match everywhere. Weekly views reuse `analyze()` with an extra `WEEK` period.
+
 ## 9. Complexity
 
 | Stage | Cost |

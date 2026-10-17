@@ -34,7 +34,11 @@
 | Hosting | **GitHub Pages** | Deployed by GitHub Actions |
 | Package manager | **npm** (`package-lock.json` committed) | |
 
-No other runtime dependencies without updating this table. `write-excel-file` is a dev dependency, used only to build XLSX test inputs.
+| Journal storage | IndexedDB (browser API) | `src/journal/store`, opened only after opt-in (ADR-0003) |
+| Journal crypto | Web Crypto (PBKDF2-SHA256 → AES-256-GCM, HMAC) | No library (ADR-0002) |
+| Journal cloud | Supabase Auth, Postgres with RLS, Edge Functions (Deno); Razorpay Subscriptions via hosted pages | Cloud builds only (ADR-0001, ADR-0004); `supabase/` |
+
+No other runtime dependencies without updating this table. Dev dependencies used only in tests: `write-excel-file` (XLSX inputs), `fake-indexeddb` (store tests), `@electric-sql/pglite` (RLS tests on real Postgres).
 
 ## 3. Repository layout
 
@@ -123,7 +127,7 @@ Console exports prices and quantities with 6 decimal places (`152.350000`, `20.0
 | Control | Requirement |
 |---------|-------------|
 | CSP | `default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:` via `<meta http-equiv>` |
-| Storage | No `localStorage`, `sessionStorage`, IndexedDB, cookies, or Cache API for user data. |
+| Storage | Wrapped: no `localStorage`, `sessionStorage`, IndexedDB, cookies, or Cache API for user data. Journal: IndexedDB `fo-journal` only after the user opts in, and `sessionStorage` for the PKCE verifier during sign-in (cloud builds). |
 | Network | No `fetch` / XHR / beacon anywhere in `src/engine` or `src/worker` (enforced by ESLint `no-restricted-globals` and an e2e test). UI code may import engine *values* only from `engine/format`, so the parser and analysis stay in the worker bundle (ESLint `no-restricted-imports`). |
 | Third parties | No analytics, fonts, or scripts from third-party origins. Self-host fonts. |
 | Clear data | `worker.terminate()`, drop React state, `URL.revokeObjectURL` on any generated image. |

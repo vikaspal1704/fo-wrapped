@@ -417,6 +417,26 @@ Formulas and thresholds: [`ARCHITECTURE.md`](ARCHITECTURE.md) §7. When charges 
 
 ---
 
+## 6A. Journal analysis (`src/engine/journal/`, docs/SPEC.md §4)
+
+```ts
+// Periods gain kind 'WEEK'; analyze() takes extraPeriods and appends their views.
+analyze({ ..., extraPeriods?: Period[] }): AnalysisResult;
+
+parseRules(input: unknown): Rules;            // Zod; null turns a rule off
+checkRules(roundTrips, rules): { breaches: RuleBreach[]; gaps: RuleGap[] };
+tradeKey(rt: RoundTrip): string;              // stable across runs
+insightsFor(cards: CardSet): Insight[];       // omitted when a card lacks data
+weekOf(date: IstDate): Period;                // Monday–Sunday
+weeklyReport({ tradebooks, reportedCharges?, pnlStatements?, rates, rules, siteUrl, week? }): WeeklyReport | null;
+planImport(existing: Fill[], incoming: Fill[]): { added: Fill[]; duplicates: number };  // throws ConflictingDuplicateError
+fileLabel(name: string): string;              // masks client IDs
+searchNotes(notes: Note[], query: string): Note[];
+normalizeTags(input: string): string[];
+```
+
+A `RuleBreach` carries `{ rule, date, breachAt, trades: tradeKey[], costPaise, message }`; `costPaise` and `breachAt` are `null` when the file has no trade times. The worker protocol for the Journal is in `src/worker/journalProtocol.ts`.
+
 ## 7. Public functions
 
 ```ts
