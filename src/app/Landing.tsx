@@ -14,6 +14,11 @@ const bold = (s: string) => <strong>{s}</strong>;
 export function Landing({ onFiles, onPrivacy, files, error }: Props) {
   const t = useT();
   const input = useRef<HTMLInputElement>(null);
+  const guidesHeading = useRef<HTMLHeadingElement>(null);
+  const showGuides = () => {
+    guidesHeading.current?.scrollIntoView({ block: 'start' });
+    guidesHeading.current?.focus();
+  };
   const [dragging, setDragging] = useState(false);
 
   const take = (list: FileList | null) => {
@@ -68,13 +73,18 @@ export function Landing({ onFiles, onPrivacy, files, error }: Props) {
 
       {error && (
         <div className="alert" role="alert">
-          {error}
+          {error}{' '}
+          <button type="button" className="link" onClick={showGuides}>
+            {t.howToExport}
+          </button>
         </div>
       )}
       {files.length > 0 && <FileList files={files} />}
 
       <section aria-labelledby="how" className="how">
-        <h2 id="how">{t.howTitle}</h2>
+        <h2 id="how" ref={guidesHeading} tabIndex={-1}>
+          {t.howTitle}
+        </h2>
         {t.guides(bold).map((g, i) => (
           <details key={g.id} className="guide" open={i === 0}>
             <summary>{g.name}</summary>

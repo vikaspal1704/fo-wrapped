@@ -36,7 +36,7 @@ Personas: **Trader** (a retail F&O trader, usually on a phone), **Owner** (Vikas
 |----|------|------|
 | PV-1 | Wrapped (the free, signed-out app) never sends file contents or anything derived from them over the network, and never writes them to storage. | `e2e_no_network_during_analysis`, `e2e_no_storage_writes`, `e2e_no_request_carries_file_data` |
 | PV-2 | Journal data leaves the device only through opt-in sync, encrypted on the device first. The server holds ciphertext, the account, and the subscription. | 🧭 ADR-0002 |
-| PV-3 | File names contain the Zerodha client ID. They are never shown in share images, synced, stored in an import history, or logged. | `share_image_has_no_file_names` (⏳), `import_history_strips_client_id` (⏳) |
+| PV-3 | File names contain the Zerodha client ID. They are never shown in share images, synced, stored in an import history, or logged. | `share_image_has_no_file_names` (✅), `import_history_strips_client_id` (⏳) |
 | PV-4 | The launch-gate harness prints only account aliases, percentages and PASS/FAIL. Anything more detailed goes to a gitignored file in the owner's private folder. | `verify_real_console_shows_no_trade_data` |
 
 ### 1.2 Reality first (owner direction, 2026-10-17)
@@ -58,7 +58,7 @@ Every user-visible sentence, in English and Hindi, passes this checklist. It is 
 | NA-4 | No percentile or ranking claims without a real data source (ROADMAP P5). |
 | NA-5 | A disclaimer, *"Not investment, trading or tax advice"*, appears in the footer and inside every share image, in the image's language. |
 
-Automated: `copy_passes_no_advice_wordlist` scans the English and Hindi catalogues for banned phrases (⏳ Phase 1). Each Journal insight also has its own wording test (§4).
+Automated: `copy_passes_no_advice_wordlist` scans the English and Hindi catalogues and `docs/launch/` for banned phrases (✅). Each Journal insight also has its own wording test (§4).
 
 ---
 
@@ -161,7 +161,7 @@ One PR per story.
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
 | AC-1.1.1 | the app loaded once | the network goes away and the page reloads | the app works and analyses a file | `e2e_works_offline_after_load`, `e2e_pwa_reload_offline` | ✅ |
-| AC-1.1.2 | a push to a PR | CI runs | Lighthouse (mobile) runs on the built site: Accessibility = 100, Best Practices ≥ 95, Performance ≥ 90, installable. Below threshold fails CI | `ci: lighthouse` job | ⏳ |
+| AC-1.1.2 | a push to a PR | CI runs | Lighthouse (mobile) runs on the built site: Accessibility = 100, Best Practices ≥ 95, Performance ≥ 90, installable. Below threshold fails CI | `ci: lighthouse` job | ✅ |
 | AC-1.1.3 | every screen and card | axe runs | no WCAG 2.1 AA violations | `a11y_landing_privacy_and_every_card` | ✅ |
 
 ### US-1.2 Share cards I'm happy to post
@@ -169,8 +169,8 @@ One PR per story.
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
 | AC-1.2.1 | any card or the summary | I download its image | a 1080×1920 PNG | `e2e_download_image`, `e2e_share_single_card` | ✅ |
-| AC-1.2.2 | the app in English or Hindi | an image is made | it contains the disclaimer (NA-5) in that language | `share_image_has_disclaimer_in_its_language` | ⏳ |
-| AC-1.2.3 | files named `tradebook-AB1234-FO.csv` | an image is made | the image has no file name, client ID or symbol list | `share_image_has_no_file_names` | ⏳ |
+| AC-1.2.2 | the app in English or Hindi | an image is made | it contains the disclaimer (NA-5) in that language | `share_image_has_disclaimer_in_its_language` | ✅ |
+| AC-1.2.3 | files named `tradebook-AB1234-FO.csv` | an image is made | the image has no file name, client ID or symbol list | `share_image_has_no_file_names` | ✅ |
 | AC-1.2.4 | a phone that supports file sharing | I tap Share | the system share sheet opens with the image; otherwise it downloads | `e2e_share_single_card`, *manual* on Android Chrome and iOS Safari | ✅ / 👤 |
 | AC-1.2.5 | the site link pasted in WhatsApp or X | a preview is shown | it uses the Open Graph image and title | `e2e_manifest_is_installable` (meta), *manual* | ✅ |
 
@@ -179,21 +179,21 @@ One PR per story.
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
 | AC-1.3.1 | an equity tradebook, a PDF or an unrelated CSV | I drop it | a plain message says what the file is (if known) and what to download instead | `e2e_rejects_wrong_file_with_message` | ✅ |
-| AC-1.3.2 | that error message | it is shown | it has a link to the "how to export from your broker" guide for the detected broker, or to the guide list | `e2e_error_links_to_export_guide` | ⏳ |
+| AC-1.3.2 | that error message | it is shown | it has a link to the "how to export from your broker" guide for the detected broker, or to the guide list | `e2e_error_links_to_export_guide` | ✅ |
 
 ### US-1.4 I can check the privacy claim myself
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
 | AC-1.4.1 | the privacy page | I read it | it explains how to verify in DevTools (Network tab stays empty while analysing) | `e2e_privacy_page` | ✅ |
-| AC-1.4.2 | a file containing a unique marker string | it is analysed and every card and image is opened | no request is made after load except same-origin GETs for static files, and **no request URL or body contains the marker** | `e2e_no_request_carries_file_data` | ⏳ |
-| AC-1.4.3 | the built `dist/` | it is scanned | no analytics or tracker code and no third-party origins (owner decision: no analytics) | `build_has_no_third_party_origins` | ⏳ |
+| AC-1.4.2 | a file containing a unique marker string | it is analysed and every card and image is opened | no request is made after load except same-origin GETs for static files, and **no request URL or body contains the marker** | `e2e_no_request_carries_file_data` | ✅ |
+| AC-1.4.3 | the built `dist/` | it is scanned | no analytics or tracker code and no third-party origins (owner decision: no analytics) | `build_has_no_third_party_origins` | ✅ |
 
 ### US-1.5 Launch assets
 
 | ID | Given | When | Then | Test | Status |
 |----|-------|------|------|------|--------|
-| AC-1.5.1 | `docs/launch/` | before 8 Nov | it has an X thread, a LinkedIn post, an r/IndiaInvestments post and a demo GIF script, each passing the no-advice checklist (§1.2) and claiming nothing the app doesn't do | *manual review* | ⏳ |
+| AC-1.5.1 | `docs/launch/` | before 8 Nov | it has an X thread, a LinkedIn post, an r/IndiaInvestments post and a demo GIF script, each passing the no-advice checklist (§1.2) and claiming nothing the app doesn't do | *manual review* | ✅ |
 
 ---
 

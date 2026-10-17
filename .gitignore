@@ -10,3 +10,4 @@ test-results/
 *-private/
 private-fixtures/
 verification-report*.json
+.lighthouseci/

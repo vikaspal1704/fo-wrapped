@@ -72,6 +72,9 @@ const en = {
     },
   ],
   footer1: 'Free and open source. No sign-up, no tracking. Not investment, trading or tax advice.',
+  /** Inside every share image (SPEC NA-5). */
+  disclaimer: 'Not investment, trading or tax advice.',
+  howToExport: 'How to export from your broker',
   footer2: 'Independent project, not affiliated with any broker, NSE or BSE.',
   privacyAbout: 'Privacy & about',
   tradesRead: (n: number, broker: string) => `${broker}: ${n} trades read`,
@@ -336,6 +339,8 @@ const hi: UiMessages = {
     },
   ],
   footer1: 'मुफ़्त और ओपन सोर्स। न साइन-अप, न ट्रैकिंग। यह निवेश, ट्रेडिंग या टैक्स सलाह नहीं है।',
+  disclaimer: 'यह निवेश, ट्रेडिंग या टैक्स सलाह नहीं है।',
+  howToExport: 'अपने ब्रोकर से फ़ाइल कैसे निकालें',
   footer2: 'स्वतंत्र प्रोजेक्ट, किसी ब्रोकर, NSE या BSE से संबद्ध नहीं।',
   privacyAbout: 'प्राइवेसी और परिचय',
   tradesRead: (n, broker) => `${broker}: ${n} ट्रेड पढ़े गए`,

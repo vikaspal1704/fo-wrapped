@@ -276,6 +276,18 @@ Parsers are tested on synthetic files that mirror layouts seen in redacted real 
 | `settled_remainder_plus_partial_equals_statement_row` | AC-0.4.11 |
 | `verify_real_markdown_has_no_amounts` | AC-0.5.1 |
 
+### Launch polish ([`SPEC.md`](SPEC.md) §3)
+
+| Test | Kind | Criterion |
+|------|------|-----------|
+| `no_advice_wordlist_catches_examples`, `copy_passes_no_advice_wordlist` | unit | NA-1 to NA-4, AC-1.5.1 |
+| `share_image_has_disclaimer_in_its_language` | e2e | AC-1.2.2, NA-5 |
+| `share_image_has_no_file_names` | e2e | AC-1.2.3, PV-3 |
+| `e2e_error_links_to_export_guide` | e2e | AC-1.3.2 |
+| `e2e_no_request_carries_file_data` | e2e | AC-1.4.2, PV-1 |
+| `build_has_no_third_party_origins` | e2e (reads `dist/`) | AC-1.4.3 |
+| CI `lighthouse` job (`lighthouserc.json`) | CI | AC-1.1.2 |
+
 ## 3. Required e2e tests (Playwright)
 
 | Test | Flow | Expect |
