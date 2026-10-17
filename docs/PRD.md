@@ -140,7 +140,7 @@ The source spec leaves the items below open. Each has a **proposed default** tha
 
 | ID | Question | Proposed default |
 |----|----------|------------------|
-| D-1 | What is a “trade” for counts and per-trade stats? | One **closed round trip** (flat → flat per instrument), not one fill. “Total trades” on card 1 = closed round trips. |
+| D-1 | What is a “trade” for counts and per-trade stats? | One **closed round trip** (flat → flat per instrument), not one fill. “Total trades” on card 1 = closed round trips. The closed part of a position that never returned to flat also counts as one round trip, so its realised P&L is shown as Console shows it (owner decision 2026-10-17). |
 | D-2 | Gross or net P&L for per-trade cards (3, 4, 5, 6, 7, 8)? | **Gross** (before charges), labelled “before charges”. Charges cannot be attributed to individual trades exactly, and the P&L statement only gives totals. Cards 1–2 use net / charges. |
 | D-3 | Which timestamp buckets a trade on cards 4, 5, 8? | Card 4 and 8: **exit date** (when P&L is realised). Card 5: **entry time** (when the decision was made). |
 | D-4 | Definition of “expiry day” (card 4) | A round trip is an expiry-day trade if its **exit date equals its instrument’s expiry date**. |

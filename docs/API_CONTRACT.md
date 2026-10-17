@@ -2,7 +2,7 @@
 
 **Normative.** Implementations MUST match these types and behaviours.
 
-> **Implementation status (engine 0.3.0):** everything here is implemented, including the Zerodha **P&L statement** (§3) and the **Angel One, Upstox and Dhan** exports (§3A, [`BROKERS.md`](BROKERS.md)). Layouts were established from redacted real exports; each still needs a check against a user’s own export before launch (ACCEPTANCE §A). The TypeScript sources in `src/engine/` are the exact shapes; this document explains them.  
+> **Implementation status (engine 0.4.0):** everything here is implemented, including the Zerodha **P&L statement** (§3) and the **Angel One, Upstox and Dhan** exports (§3A, [`BROKERS.md`](BROKERS.md)). Layouts were established from redacted real exports; each still needs a check against a user’s own export before launch (ACCEPTANCE §A). The TypeScript sources in `src/engine/` are the exact shapes; this document explains them.  
 Import path: `src/engine/index.ts` (re-exports everything below). The engine is pure TypeScript with no DOM access.
 
 ---
@@ -302,6 +302,7 @@ export interface RoundTrip {
   grossPnlPaise: Paise;           // exact integer: Σ FIFO lot P&L
   holdingMs: number;              // qty-weighted mean FIFO lot holding time (ARCHITECTURE §4)
   fillIds: string[];              // tradeIds that contributed
+  partial: boolean;               // true: the closed part of a position never back to flat (ARCHITECTURE §4.1 rule 6)
 }
 
 export type UnclosedStatus = 'OPEN' | 'SETTLED_AT_EXPIRY';
@@ -312,7 +313,7 @@ export interface UnclosedPosition {
   side: PositionSide;
   qty: number;
   avgEntryPaise: number;
-  openedAt: EpochMs;
+  openedAt: EpochMs;              // oldest remaining lot
   status: UnclosedStatus;
 }
 

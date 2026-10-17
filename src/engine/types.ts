@@ -75,6 +75,12 @@ export interface RoundTrip {
   /** Qty-weighted mean FIFO lot holding time, rounded to the nearest ms. */
   holdingMs: number;
   fillIds: string[];
+  /**
+   * true: the closed part of a position that never returned to flat. Its
+   * realised P&L counts on its last closing trade, as Console counts it
+   * (SPEC AC-0.4.10); the rest of the position is an UnclosedPosition.
+   */
+  partial: boolean;
 }
 
 export type UnclosedStatus = 'OPEN' | 'SETTLED_AT_EXPIRY';

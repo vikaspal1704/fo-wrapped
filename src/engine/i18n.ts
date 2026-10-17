@@ -69,6 +69,7 @@ const en = {
   needsWin: 'Needs at least one winning trade.',
 
   // Warnings
+  partlyClosed: (n: number) => `${n} ${plural(n, 'position was', 'positions were')} partly closed: the closed part is counted, the rest isn’t.`,
   settledExcluded: (n: number) => `${n} ${plural(n, 'position', 'positions')} expired without a closing trade and ${plural(n, 'isn’t', 'aren’t')} counted in P&L.`,
   openExcluded: (n: number) => `${n} ${plural(n, 'position is', 'positions are')} still open and not counted in P&L.`,
   outOfSession: (n: number) => `${n} ${plural(n, 'fill was', 'fills were')} outside 09:15–15:30 and placed in the nearest time slot.`,
@@ -182,6 +183,7 @@ const hi: EngineMessages = {
   sizeNote: 'साइज़ यानी एंट्री पर वैल्यू (मात्रा × औसत एंट्री प्राइस)। बड़ी यानी आपके मीडियन से ऊपर।',
   needsWin: 'कम से कम एक मुनाफ़े वाला ट्रेड चाहिए।',
 
+  partlyClosed: (n) => `${n} पोज़िशन आंशिक रूप से बंद ${plural(n, 'हुई', 'हुईं')}: बंद हिस्सा गिना गया है, बाकी नहीं।`,
   settledExcluded: (n) => `${n} पोज़िशन बिना क्लोज़िंग ट्रेड के एक्सपायर हुईं और P&L में नहीं गिनी गईं।`,
   openExcluded: (n) => `${n} पोज़िशन अभी खुली ${plural(n, 'है', 'हैं')} और P&L में नहीं गिनी गईं।`,
   outOfSession: (n) => `${n} फ़िल 09:15–15:30 के बाहर थे और पास वाले टाइम स्लॉट में रखे गए।`,

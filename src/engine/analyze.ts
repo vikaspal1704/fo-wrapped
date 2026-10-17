@@ -16,7 +16,7 @@ import { buildRoundTrips } from './roundTrips';
 import { istDateOf, istMinuteOfDay } from './time';
 import type { Fill, IstDate, Paise, RoundTrip, UnclosedPosition } from './types';
 
-export const ENGINE_VERSION = '0.3.0';
+export const ENGINE_VERSION = '0.4.0';
 
 export interface ComparisonRow {
   key: 'netPnl' | 'grossPnl' | 'charges' | 'trades' | 'winRate' | 'revengeTrades' | 'loserHoldMs';
@@ -238,6 +238,10 @@ function buildView(
   }
   const open = unclosed.length - settled;
   if (open > 0) warnings.push(t.openExcluded(open));
+  const positionKey = (x: { broker: string; instrument: { key: string } }) => `${x.broker}|${x.instrument.key}`;
+  const partlyClosedKeys = new Set(ctx.roundTrips.filter((r) => r.partial).map(positionKey));
+  const partlyClosed = unclosed.filter((u) => partlyClosedKeys.has(positionKey(u))).length;
+  if (partlyClosed > 0) warnings.push(t.partlyClosed(partlyClosed));
   const outOfSession = fills.filter((f) => {
     if (f.timePrecision === 'date') return false;
     const m = istMinuteOfDay(f.executedAt);
@@ -345,6 +349,7 @@ function valueExpiredFromStatements(
       grossPnlPaise: pnl as Paise,
       holdingMs: exitAt - u.openedAt,
       fillIds: [],
+      partial: false,
     });
   }
   if (valued.length === 0) return { roundTrips, unclosed };

@@ -272,6 +272,8 @@ Parsers are tested on synthetic files that mirror layouts seen in redacted real 
 | `intraday_and_carry_forward_share_one_fifo_queue` | AC-0.4.5 |
 | `samvat_boundary_on_muhurat_day` | AC-0.4.8 |
 | `adjusted_contract_is_not_netted_with_original` | AC-0.4.9 |
+| `partly_closed_position_counts_realised_part` | AC-0.4.10 |
+| `settled_remainder_plus_partial_equals_statement_row` | AC-0.4.11 |
 | `verify_real_markdown_has_no_amounts` | AC-0.5.1 |
 
 ## 3. Required e2e tests (Playwright)

@@ -86,6 +86,7 @@ Process fills per `instrument.key` in sorted order. Keep a signed position and a
 3. **Flat → round trip closes** at the fill that brings the position to exactly 0.
 4. **Flip:** if a closing fill is larger than the open position, split it. The part that makes the position flat closes the round trip, and the remainder opens a new round trip in the opposite direction at the same timestamp and price.
 5. **Partial fills** of one order (same `order_id`, several `trade_id`s) are independent fills. Order grouping matters only for brokerage (§6).
+6. **Never back to flat** (owner decision 2026-10-17, [`SPEC.md`](SPEC.md) RL-1, AC-0.4.10): if a position is still open at the end of the data but some of it was closed, the closed units become a round trip with `partial: true`. It carries their realised P&L, exit time = the latest closing fill, and qty = the units closed, as Console counts realised P&L. The remaining lots are an unclosed position (§5), dated from the oldest remaining lot.
 
 ### 4.2 Outputs per round trip
 
@@ -147,7 +148,7 @@ After all fills are processed, any non-empty lot queue is an unclosed position. 
 | `instrument.expiry <= asOf` | `SETTLED_AT_EXPIRY` | Valued from the P&L statement’s per-symbol row if available (`API_CONTRACT.md` §3), otherwise **excluded** |
 | `instrument.expiry > asOf` | `OPEN` | **Excluded** |
 
-Applies to options and futures, including physically settled stock F&O (PRD D-11). Card 1 and card 2 show *“{n} positions that expired or are still open aren’t included.”* whenever any position is excluded.
+Only the units still open are unclosed: any part already closed is a partial round trip (§4.1 rule 6) and counts. With a P&L statement, the remainder is valued as the contract's row minus everything closed, partial round trips included, so the contract adds up to the statement exactly (AC-0.4.11). Applies to options and futures, including physically settled stock F&O (PRD D-11). Card 1 and card 2 show *“{n} positions that expired or are still open aren’t included.”* whenever any position is excluded.
 
 Why no intrinsic-value estimate: the tradebook has no settlement price. Estimating one would be an invented number.
 

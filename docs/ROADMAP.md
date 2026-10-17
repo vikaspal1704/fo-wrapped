@@ -26,7 +26,7 @@ Every roadmap item has to pass these. If one doesn’t, it is cut or redesigned.
 | # | Principle | What it rules out |
 |---|-----------|-------------------|
 | P1 | **Data never leaves the device.** | Uploads, accounts, server-side analysis, analytics that carry trade data |
-| P2 | **Honest numbers.** Never invent a value; label estimates; say what was excluded. | Guessed settlement prices, borrowed rates, silent rounding, flattering copy |
+| P2 | **Honest numbers, reality first.** Show what actually happened, the way the broker's records count it; reliability comes before every rule and feature. Never invent a value; label estimates; say what was excluded. | Guessed settlement prices, borrowed rates, silent rounding, flattering copy |
 | P3 | **Correctness before features.** A new card ships only with tests and a documented formula. | Shipping a card we can’t verify against the broker |
 | P4 | **Free and no sign-up.** | Paywalls, email capture before results |
 | P5 | **No advice, no percentiles without real data.** | “You beat 80% of traders”, trade recommendations, tips |

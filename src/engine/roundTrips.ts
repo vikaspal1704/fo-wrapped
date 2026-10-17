@@ -31,7 +31,11 @@ interface Open {
   openedQty: number;
   entryValue: number;
   closedQty: number;
+  /** Entry value of the units already closed. */
+  closedEntryValue: number;
   exitValue: number;
+  /** Time of the latest closing fill. */
+  lastExitAt: EpochMs;
   pnl: number;
   /** Σ chunk qty × holding ms. */
   holdingWeight: number;
@@ -95,6 +99,9 @@ export function buildRoundTrips(
     }
   }
 
+  // Positions that never returned to flat: what was closed is still realised.
+  for (const s of open.values()) if (s.closedQty > 0) drafts.push(finishPart(s));
+
   drafts.sort(
     (a, b) =>
       a.exitAt - b.exitAt ||
@@ -113,7 +120,8 @@ export function buildRoundTrips(
         side: s.side,
         qty,
         avgEntryPaise: value / qty,
-        openedAt: s.entryAt,
+        // The remaining units date from their own (oldest remaining) lot.
+        openedAt: s.lots[0]!.openedAt,
         status: classifyUnclosed(s.instrument, asOf),
       };
     })
@@ -133,7 +141,9 @@ function start(fill: Fill, side: PositionSide): Open {
     openedQty: 0,
     entryValue: 0,
     closedQty: 0,
+    closedEntryValue: 0,
     exitValue: 0,
+    lastExitAt: fill.executedAt,
     pnl: 0,
     holdingWeight: 0,
     fillIds: [],
@@ -153,7 +163,9 @@ function close(s: Open, fill: Fill, qty: number, value: number): { qty: number; 
     s.pnl += (exit - entry) * direction;
     s.holdingWeight += q * (fill.executedAt - lot.openedAt);
     s.closedQty += q;
+    s.closedEntryValue += entry;
     s.exitValue += exit;
+    s.lastExitAt = fill.executedAt;
     lot.qty -= q;
     lot.value -= entry;
     remainingQty -= q;
@@ -182,5 +194,16 @@ function finish(s: Open, exitAt: EpochMs): Draft {
     grossPnlPaise: s.pnl as Paise,
     holdingMs: Math.round(s.holdingWeight / s.closedQty),
     fillIds: s.fillIds,
+    partial: false,
+  };
+}
+
+/** The closed part of a position still open at the end of the data (SPEC AC-0.4.10). */
+function finishPart(s: Open): Draft {
+  return {
+    ...finish(s, s.lastExitAt),
+    qty: s.closedQty,
+    avgEntryPaise: s.closedEntryValue / s.closedQty,
+    partial: true,
   };
 }

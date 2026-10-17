@@ -38,7 +38,7 @@ Ranked by expected impact on net P&L. Details: [`SPEC.md`](SPEC.md) §2, "Correc
 | # | Gap | Effect on estimated net P&L |
 |---|-----|-----------------------------|
 | R1 | Positions settled at expiry, exercised or assigned are excluded (no settlement price in a tradebook) | Their value and the STT on exercise are missing; exact with the P&L statement |
-| R2 | A position partly closed and never back to flat drops its already-realised P&L too | Missing realised P&L; **owner decision pending** |
+| R2 | ~~A position partly closed and never back to flat dropped its already-realised P&L~~ | **Fixed** 2026-10-17: the closed part counts (partial round trip) |
 | R3 | No rate windows before 2024-10-01 or for BSE futures; all rates secondary-checked | Charges unavailable or possibly wrong |
 | R4 | ₹40 brokerage (50% cash-collateral rule), IPFT and clearing charges not modelled | Charges understated |
 | R5 | No MIS/NRML column: one FIFO queue per contract | Only if Console nets products differently |
@@ -49,5 +49,5 @@ Ranked by expected impact on net P&L. Details: [`SPEC.md`](SPEC.md) §2, "Correc
 - [ ] ≥ 5 accounts, every one PASS
 - [ ] Every rate row `primary`
 - [ ] Samvat 2083 Muhurat date checked against the NSE circular
-- [ ] Owner decision on R2 recorded
+- [x] Owner decision on R2 recorded (count the realised part, as Console does)
 - [ ] Decision changed to **GO** by the owner
