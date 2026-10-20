@@ -2,6 +2,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { SafeLogFields } from '../../supabase/functions/_shared/log.ts';
+import { handleCancelSubscription, handleDeleteAccount } from '../../supabase/functions/_shared/account.ts';
 import { billingStore } from '../../supabase/functions/_shared/postgrest.ts';
 import { handleWebhook, type BillingStore, type EntitlementRow } from '../../supabase/functions/_shared/razorpay.ts';
 import { handleUnsubscribe, reminderEmail, runWeeklyReminders } from '../../supabase/functions/_shared/reminders.ts';
@@ -207,5 +208,54 @@ describe('database adapter', () => {
     expect(await store.recordEvent('e1', 'subscription.charged')).toBe(false);
     expect(calls[0]!.url).toBe('https://proj.supabase.co/rest/v1/webhook_events?on_conflict=event_id');
     expect((calls[0]!.init.headers as Record<string, string>).Prefer).toBe('resolution=ignore-duplicates,return=representation');
+  });
+});
+
+describe('cancel and delete (SPEC US-2.10)', () => {
+  const ent = (status: string): EntitlementRow => ({
+    user_id: USER,
+    status: status as EntitlementRow['status'],
+    plan: 'monthly',
+    current_period_end: '2026-11-20T00:00:00.000Z',
+    razorpay_subscription_id: 'sub_TEST1',
+    last_event_at: '2026-10-20T00:00:00.000Z',
+  });
+  function deps(row: EntitlementRow | null) {
+    const calls: string[] = [];
+    return {
+      calls,
+      d: {
+        userFromToken: async (t: string) => (t === 'good' ? USER : null),
+        getEntitlement: async () => row,
+        cancelAtRazorpay: async (id: string, atEnd: boolean) => void calls.push(`cancel ${id} ${atEnd ? 'at-end' : 'now'}`),
+        markCancelAtPeriodEnd: async () => void calls.push('mark'),
+        deleteUser: async (u: string) => void calls.push(`delete ${u}`),
+        log: () => {},
+      },
+    };
+  }
+
+  it('cancel_subscription_at_period_end', async () => {
+    const { calls, d } = deps(ent('active'));
+    const out = await handleCancelSubscription('Bearer good', d);
+    expect(out.status).toBe(200);
+    expect(JSON.parse(out.body)).toEqual({ endsAt: '2026-11-20T00:00:00.000Z' });
+    expect(calls).toEqual(['cancel sub_TEST1 at-end', 'mark']);
+    expect((await handleCancelSubscription('Bearer forged', d)).status).toBe(401);
+    expect((await handleCancelSubscription('Bearer good', deps(ent('cancelled')).d)).status).toBe(409);
+    expect((await handleCancelSubscription('Bearer good', deps(null).d)).status).toBe(409);
+  });
+
+  it('delete_account_cancels_then_deletes', async () => {
+    const live = deps(ent('active'));
+    expect((await handleDeleteAccount('Bearer good', live.d)).status).toBe(200);
+    expect(live.calls).toEqual(['cancel sub_TEST1 now', `delete ${USER}`]);
+    const ended = deps(ent('cancelled'));
+    await handleDeleteAccount('Bearer good', ended.d);
+    expect(ended.calls).toEqual([`delete ${USER}`]);
+    const none = deps(null);
+    await handleDeleteAccount('Bearer good', none.d);
+    expect(none.calls).toEqual([`delete ${USER}`]);
+    expect((await handleDeleteAccount(null, none.d)).status).toBe(401);
   });
 });

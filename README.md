@@ -51,6 +51,16 @@ Open **F&O Journal** from the landing page (or `#journal`). Nothing is stored un
 - **Notes:** notes and tags on a day or a trade, searched on your device.
 - **Sync and plans** (only in builds given Supabase settings): Google sign-in, Razorpay subscriptions, and end-to-end encrypted sync with a passphrase. The server can't read your data. See [`docs/security.md`](docs/security.md) and [`docs/runbooks/journal-setup.md`](docs/runbooks/journal-setup.md).
 
+## Testing the whole product
+
+```bash
+npm test                                   # 224 unit tests: engine, Journal, server logic, RLS on real Postgres
+npx playwright test                        # 38 browser tests on three builds: Wrapped, the Journal, and the complete journey
+npx playwright test --project=journey      # just the complete user journey
+```
+
+The journey test (`tests/journey/`) runs the app against a local stack: the real database migration on Postgres (PGlite), the real PostgREST server enforcing RLS, and the real Edge Function code. One user goes from Wrapped to the Journal, signs in with Google, pays on Razorpay, imports, sets rules, writes notes, reads the weekly report, turns on reminders, syncs to a second device, unsubscribes from the email, cancels, deletes the synced copy and deletes the account. Every step is checked in the browser and in the database. Google's consent screen, Razorpay's checkout and the email provider are simulated; the real ones need the owner's accounts ([`docs/runbooks/journal-setup.md`](docs/runbooks/journal-setup.md)).
+
 ## What it is not
 
 - Not a tax tool, not advice, not a broker integration

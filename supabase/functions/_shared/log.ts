@@ -3,7 +3,7 @@
  * fields, so a payload, card, UPI or bank detail can't be logged by accident.
  */
 export interface SafeLogFields {
-  fn: 'razorpay-webhook' | 'create-subscription' | 'weekly-reminder' | 'unsubscribe';
+  fn: 'razorpay-webhook' | 'create-subscription' | 'cancel-subscription' | 'delete-account' | 'weekly-reminder' | 'unsubscribe';
   outcome: string;
   eventId?: string;
   eventType?: string;

@@ -15,6 +15,8 @@ export interface EntitlementRow {
   current_period_end: string | null;
   razorpay_subscription_id: string;
   last_event_at: string;
+  /** Set by cancel-subscription; webhooks leave it alone. */
+  cancel_at_period_end?: boolean;
 }
 
 export interface BillingStore {

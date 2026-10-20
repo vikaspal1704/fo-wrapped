@@ -299,6 +299,9 @@ Parsers are tested on synthetic files that mirror layouts seen in redacted real 
 | `tests/unit/supabaseRls.test.ts` | the shipped migration on real Postgres (PGlite): RLS blocks unentitled and other users | AC-2.1.7 |
 | `tests/unit/money.test.ts` | golden totals per fixture (`tests/golden/`), 200-seed property tests | US-2.9 |
 | `tests/e2e/journal.spec.ts` | opt-in, import/reload/undo/delete, rules, weekly report, notes, Hindi, axe | US-2.1 to US-2.8 |
+| `tests/journey/journey.spec.ts` | `e2e_journey_complete_user_flow`: the whole journey on two devices against the local stack (real migration, real PostgREST with RLS, real Edge Function handlers) | US-2.10, US-2.11 |
+| `tests/unit/billing.test.ts` (added) | `cancel_subscription_at_period_end`, `delete_account_cancels_then_deletes` | US-2.10 |
+| `tests/unit/supabaseRls.test.ts` (added) | `rls_lets_owner_delete_without_plan`, `server_stamps_sync_times` | AC-2.10.2, ADR-0002 |
 | `tests/e2e/journal-cloud.spec.ts` | cloud build with a mocked Supabase: locked until plan, PKCE sign-in, subscribe redirect, key-loss warning, ciphertext-only sync | US-2.1, US-2.3 |
 
 ## 3. Required e2e tests (Playwright)
@@ -371,6 +374,7 @@ npm test                 # vitest run
 npm run test:e2e         # playwright test
 npm run test:tz          # whole suite under TZ=America/New_York
 PW_CHROMIUM_PATH=/path/to/chrome npm run test:e2e   # when the local Chromium differs from Playwright's
+npx playwright test --project=journey               # just the complete user journey (downloads PostgREST once)
 npm run verify:real -- --dir ../fo-wrapped-private
 ```
 

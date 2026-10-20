@@ -38,7 +38,7 @@
 | Journal crypto | Web Crypto (PBKDF2-SHA256 → AES-256-GCM, HMAC) | No library (ADR-0002) |
 | Journal cloud | Supabase Auth, Postgres with RLS, Edge Functions (Deno); Razorpay Subscriptions via hosted pages | Cloud builds only (ADR-0001, ADR-0004); `supabase/` |
 
-No other runtime dependencies without updating this table. Dev dependencies used only in tests: `write-excel-file` (XLSX inputs), `fake-indexeddb` (store tests), `@electric-sql/pglite` (RLS tests on real Postgres).
+No other runtime dependencies without updating this table. Dev dependencies used only in tests: `write-excel-file` (XLSX inputs), `fake-indexeddb` (store tests), `@electric-sql/pglite` and `@electric-sql/pglite-socket` (Postgres for RLS tests and the journey stack). The journey also downloads the PostgREST v12.2.12 binary, checksum-pinned, into `.cache/` (`scripts/get-postgrest.mjs`); it is never part of the app.
 
 ## 3. Repository layout
 

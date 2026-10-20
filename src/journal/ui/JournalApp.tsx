@@ -61,7 +61,11 @@ export function JournalApp({ onBack }: { onBack: () => void }) {
             ))}
           </nav>
           {locked ? (
-            <p className="alert small">{t.locked}</p>
+            <>
+              <p className="alert small">{t.locked}</p>
+              {/* Your own data is never held hostage (AC-2.10.5). */}
+              <Confirm label={t.deleteAll} warn={t.deleteWarn} confirm={t.deleteConfirm} onConfirm={() => void journal.removeEverything()} />
+            </>
           ) : (
             <>
               {tab === 'history' && <History journal={journal} />}
@@ -102,7 +106,6 @@ const dateOf = (ms: number) => new Date(ms + 330 * 60_000).toISOString().slice(0
 function History({ journal }: { journal: Journal }) {
   const t = useJt();
   const input = useRef<HTMLInputElement>(null);
-  const [confirming, setConfirming] = useState(false);
   const { imports, busy } = journal.state;
   return (
     <section aria-labelledby="history">
@@ -136,23 +139,7 @@ function History({ journal }: { journal: Journal }) {
           ))}
         </ul>
       )}
-      <div className="danger">
-        {!confirming ? (
-          <button type="button" className="link" onClick={() => setConfirming(true)}>
-            {t.deleteAll}
-          </button>
-        ) : (
-          <>
-            <p>{t.deleteWarn}</p>
-            <button type="button" className="secondary" onClick={() => void journal.removeEverything()}>
-              {t.deleteConfirm}
-            </button>{' '}
-            <button type="button" className="link" onClick={() => setConfirming(false)}>
-              {t.deleteCancel}
-            </button>
-          </>
-        )}
-      </div>
+      <Confirm label={t.deleteAll} warn={t.deleteWarn} confirm={t.deleteConfirm} onConfirm={() => void journal.removeEverything()} />
     </section>
   );
 }
@@ -388,19 +375,53 @@ function NotesTab({ journal }: { journal: Journal }) {
   );
 }
 
+/** A destructive action behind a second, explicit button. */
+function Confirm({ label, warn, confirm, onConfirm, disabled = false }: { label: string; warn: string; confirm: string; onConfirm: () => void; disabled?: boolean }) {
+  const t = useJt();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="danger">
+      {!open ? (
+        <button type="button" className="link" disabled={disabled} onClick={() => setOpen(true)}>
+          {label}
+        </button>
+      ) : (
+        <>
+          <p>{warn}</p>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              setOpen(false);
+              onConfirm();
+            }}
+          >
+            {confirm}
+          </button>{' '}
+          <button type="button" className="link" onClick={() => setOpen(false)}>
+            {t.deleteCancel}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function AccountTab({ cloud }: { cloud: ReturnType<typeof useCloud> }) {
   const t = useJt();
   const prices = planPrices();
   const [passphrase, setPassphrase] = useState('');
-  const { session, entitlement, busy, error, synced } = cloud.cloud;
+  const { session, entitlement, busy, error, synced, reminders, accountDeleted, syncedCopyDeleted } = cloud.cloud;
+  const until = (entitlement?.periodEnd ?? '').slice(0, 10);
   return (
     <section aria-labelledby="account">
       <h2 id="account">{t.accountTitle}</h2>
       {error && (
         <p className="alert" role="alert">
-          {t.error}
+          {error === 'passphrase' ? t.wrongPassphrase : t.error}
         </p>
       )}
+      {accountDeleted && <p role="status">{t.accountDeletedNote}</p>}
       {!session ? (
         <button type="button" className="primary" onClick={() => void cloud.signIn()}>
           {t.signIn}
@@ -414,7 +435,7 @@ function AccountTab({ cloud }: { cloud: ReturnType<typeof useCloud> }) {
             </button>
           </p>
           {entitlement?.active ? (
-            <p role="status">{t.planActive(entitlement.plan === 'annual' ? t.planAnnual : t.planMonthly, (entitlement.periodEnd ?? '').slice(0, 10))}</p>
+            <p role="status">{entitlement.cancelAtPeriodEnd ? t.planEnds(until) : t.planActive(entitlement.plan === 'annual' ? t.planAnnual : t.planMonthly, until)}</p>
           ) : (
             <>
               <p>{t.planNone}</p>
@@ -454,10 +475,16 @@ function AccountTab({ cloud }: { cloud: ReturnType<typeof useCloud> }) {
                 <p>{t.forgotBody}</p>
               </details>
               <label className="check">
-                <input type="checkbox" onChange={(e) => void cloud.setReminders(e.target.checked)} /> {t.reminders}
+                <input type="checkbox" checked={reminders} onChange={(e) => void cloud.setReminders(e.target.checked)} /> {t.reminders}
               </label>
+              {!entitlement.cancelAtPeriodEnd && (
+                <Confirm label={t.cancelSub} warn={t.cancelWarn(until)} confirm={t.cancelConfirm} disabled={busy} onConfirm={() => void cloud.cancel()} />
+              )}
             </>
           )}
+          {syncedCopyDeleted && <p role="status">{t.syncedDeleted}</p>}
+          <Confirm label={t.deleteSynced} warn={t.deleteSyncedWarn} confirm={t.deleteSyncedConfirm} disabled={busy} onConfirm={() => void cloud.removeSyncedCopy()} />
+          <Confirm label={t.deleteAccount} warn={t.deleteAccountWarn} confirm={t.deleteAccountConfirm} disabled={busy} onConfirm={() => void cloud.removeAccount()} />
         </>
       )}
     </section>

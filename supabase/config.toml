@@ -10,3 +10,9 @@ verify_jwt = false   # called by the cron schedule with CRON_SECRET
 
 [functions.unsubscribe]
 verify_jwt = false   # opened from an email; the 64-hex token is the credential
+
+[functions.cancel-subscription]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

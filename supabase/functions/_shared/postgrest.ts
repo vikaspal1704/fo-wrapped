@@ -71,3 +71,27 @@ export async function turnOffReminders(r: Rest, token: string): Promise<boolean>
   });
   return ((await res.json()) as unknown[]).length === 1;
 }
+
+export async function markCancelAtPeriodEnd(r: Rest, userId: string): Promise<void> {
+  await call(r, `entitlements?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: headers(r, { Prefer: 'return=minimal' }),
+    body: JSON.stringify({ cancel_at_period_end: true, updated_at: new Date().toISOString() }),
+  });
+}
+
+/** Supabase Auth admin API; the database cascades the delete to every Journal table. */
+export async function deleteAuthUser(r: Rest, userId: string): Promise<void> {
+  const res = await r.fetch(`${r.url}/auth/v1/admin/users/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: headers(r) });
+  if (!res.ok) throw new Error(`auth admin ${res.status}`);
+}
+
+/** Razorpay: cancel now, or at the end of the paid period. */
+export async function cancelAtRazorpay(keys: { keyId: string; keySecret: string; fetch: typeof fetch }, subscriptionId: string, atPeriodEnd: boolean): Promise<void> {
+  const res = await keys.fetch(`https://api.razorpay.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Basic ${btoa(`${keys.keyId}:${keys.keySecret}`)}` },
+    body: JSON.stringify({ cancel_at_cycle_end: atPeriodEnd ? 1 : 0 }),
+  });
+  if (!res.ok) throw new Error(`razorpay ${res.status}`);
+}

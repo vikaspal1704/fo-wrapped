@@ -30,6 +30,10 @@ Paid plans are in rupees, monthly and annual (prices: owner, BRIEF §9). Entitle
   - `entitlements(user_id, status, plan, current_period_end, razorpay_subscription_id, last_event_at)`.
   - Users can read only their own row; only the service role writes.
   - `has_active_plan(uid)` is used by the RLS policies on `journal_records` and `reminder_prefs` (AC-2.1.5).
+- **Leaving** (SPEC US-2.10):
+  - `cancel-subscription` asks Razorpay to cancel at the end of the cycle and sets `cancel_at_period_end`.
+  - `delete-account` cancels any live subscription immediately, then deletes the Auth user; foreign keys cascade to every Journal table.
+  - Users can always read and delete their own synced rows; only writes need a plan.
 - **Keys:** live in Supabase function secrets only. Rotation steps: `docs/runbooks/rotate-keys.md` (AC-2.1.7).
 
 ## Revisit when

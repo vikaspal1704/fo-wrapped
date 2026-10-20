@@ -25,6 +25,7 @@ Journal principle J2: synced data is encrypted on the device; the server stores 
   - The additional data binds a ciphertext to its owner and slot, so rows can't be swapped.
 - **Record IDs:** `record_id = HMAC(hmacKey, localId)` in hex. Contract names and trade IDs never appear on the server.
 - **Passphrase check:** a fixed check value is encrypted the same way and stored, so a wrong passphrase is refused before any data is read or written.
+- **Change times:** the server stamps `updated_at` with a trigger, ignoring the client's value. Devices' clocks differ, and a pull cursor built from client times could skip a change from a device whose clock runs behind (found by the journey test).
 - **Key loss:** there is no recovery. The app says so before sync is turned on and again on the "forgot passphrase" screen (AC-2.3.3). The only way forward is to delete the synced copy and start again from a device that still has the data.
 - **Passphrase rules:** at least 12 characters. It is never stored, and never sent anywhere, the server included.
 

@@ -43,6 +43,7 @@ function mockSupabase(page: Page, opts: { active: boolean }) {
           }
           return json(route, records);
         }
+        if (url.pathname === '/rest/v1/reminder_prefs') return json(route, []);
         if (url.pathname === '/functions/v1/create-subscription') return json(route, { id: 'sub_1', url: 'https://rzp.io/i/test' });
         return json(route, { error: 'not mocked' }, 404);
       }),
@@ -60,7 +61,7 @@ test('e2e_cloud_locked_until_plan_then_subscribe', async ({ page }) => {
   await page.route('https://rzp.io/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>Razorpay hosted page</h1>' }));
   await enable(page);
   await expect(page.getByText('Sign in and choose a plan to use the Journal on this site.')).toBeVisible();
-  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
   await page.getByRole('button', { name: 'Sign in with Google' }).click();
   // Back from the (mocked) Google sign-in with a PKCE code.
   await expect(page.getByText('Signed in as trader@example.invalid')).toBeVisible();
@@ -76,7 +77,7 @@ test('e2e_key_loss_warning_shown_and_sync_sends_only_ciphertext', async ({ page 
   const sb = mockSupabase(page, { active: true });
   await sb.install();
   await enable(page);
-  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
   await page.getByRole('button', { name: 'Sign in with Google' }).click();
   await expect(page.getByText(/plan is active until 2099-01-01/)).toBeVisible();
   await expect(page.getByTestId('key-loss-warning')).toContainText('can’t be recovered by anyone');
@@ -86,7 +87,7 @@ test('e2e_key_loss_warning_shown_and_sync_sends_only_ciphertext', async ({ page 
   await page.getByRole('button', { name: 'History', exact: true }).click();
   await page.getByTestId('journal-file-input').setInputFiles(YEAR);
   await expect(page.getByRole('status').filter({ hasText: 'new trades added' })).toBeVisible();
-  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
   await page.getByLabel('Sync passphrase (at least 12 characters)').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Sync now' }).click();
   await expect(page.getByText(/^Synced: \d+ sent/)).toBeVisible({ timeout: 30_000 });

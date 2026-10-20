@@ -3,7 +3,7 @@
  * no network calls, when the build has no Supabase settings.
  */
 import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react';
-import { fetchEntitlement, setWeeklyReminder, startSubscription, type Entitlement } from '../cloud/api';
+import { cancelSubscription, deleteAccount, deleteSyncedCopy, fetchEntitlement, getWeeklyReminder, setWeeklyReminder, startSubscription, type Entitlement } from '../cloud/api';
 import { completeSignIn, refreshSession, signInUrl, signOut, type Session } from '../cloud/auth';
 import { cloudConfig } from '../cloud/config';
 import { pull, push, unlock, type Collection, type LocalRecord } from '../cloud/sync';
@@ -29,13 +29,18 @@ export interface CloudState {
   busy: boolean;
   error: string | null;
   synced: { up: number; down: number } | null;
+  /** The saved reminder choice (AC-2.10.4). */
+  reminders: boolean;
+  /** Set after the account was deleted, to explain what is left on the device. */
+  accountDeleted: boolean;
+  syncedCopyDeleted: boolean;
 }
 
 const returnUrl = () => `${window.location.origin}${window.location.pathname}?journal=1`;
 
 export function useCloud(db: RefObject<JournalDb | null>, dbReady: boolean, reload: () => Promise<void>) {
   const cfg = useMemo(cloudConfig, []);
-  const [state, setState] = useState<CloudState>({ enabled: cfg !== null, session: null, entitlement: null, unlocked: cfg === null, busy: false, error: null, synced: null });
+  const [state, setState] = useState<CloudState>({ enabled: cfg !== null, session: null, entitlement: null, unlocked: cfg === null, busy: false, error: null, synced: null, reminders: false, accountDeleted: false, syncedCopyDeleted: false });
   const patch = (p: Partial<CloudState>) => setState((s) => ({ ...s, ...p }));
 
   const checkPlan = useCallback(
@@ -48,6 +53,11 @@ export function useCloud(db: RefObject<JournalDb | null>, dbReady: boolean, relo
         const value = await fetchEntitlement(cfg, live);
         await db.current.setSession('entitlement', { value, checkedAt: Date.now() } satisfies CachedEntitlement);
         patch({ session: live, entitlement: value, unlocked: value.active });
+        // A side detail: if it can't be read, the plan above still stands.
+        getWeeklyReminder(cfg, live).then(
+          (reminders) => patch({ reminders }),
+          () => undefined,
+        );
       } catch {
         // Offline or the server is down: a recently confirmed plan still counts.
         const fresh = cached && cached.value.active && Date.now() - cached.checkedAt < OFFLINE_GRACE_MS;
@@ -112,7 +122,7 @@ export function useCloud(db: RefObject<JournalDb | null>, dbReady: boolean, relo
     async (passphrase: string) => {
       const store = db.current;
       if (!cfg || !state.session || !store) return;
-      patch({ busy: true, error: null });
+      patch({ busy: true, error: null, synced: null });
       try {
         const keys = await unlock(cfg, state.session, passphrase);
         const imports = await store.listImports();
@@ -148,16 +158,65 @@ export function useCloud(db: RefObject<JournalDb | null>, dbReady: boolean, relo
   const setReminders = useCallback(
     async (weekly: boolean) => {
       if (!cfg || !state.session) return;
+      // Show the choice at once; put it back if the server didn't take it.
+      patch({ reminders: weekly, error: null });
       try {
         await setWeeklyReminder(cfg, state.session, weekly);
       } catch {
-        patch({ error: 'reminders' });
+        patch({ reminders: !weekly, error: 'reminders' });
       }
     },
     [cfg, state.session],
   );
 
-  return { cloud: state, signIn, signOut: doSignOut, subscribe, sync, setReminders };
+  /** Runs one signed-in action with busy and error handling, then re-reads the plan. */
+  const guarded = useCallback(
+    async (name: string, action: (session: Session) => Promise<Partial<CloudState> | void>) => {
+      if (!cfg || !state.session) return;
+      patch({ busy: true, error: null });
+      try {
+        const extra = await action(state.session);
+        if (extra) patch(extra);
+      } catch {
+        patch({ error: name });
+      } finally {
+        patch({ busy: false });
+      }
+    },
+    [cfg, state.session],
+  );
+
+  const cancel = useCallback(
+    () =>
+      guarded('cancel', async (s) => {
+        await cancelSubscription(cfg!, s);
+        await checkPlan(s);
+      }),
+    [cfg, guarded, checkPlan],
+  );
+
+  const removeSyncedCopy = useCallback(
+    () =>
+      guarded('deleteSynced', async (s) => {
+        await deleteSyncedCopy(cfg!, s);
+        await db.current?.deleteMeta('syncCursor');
+        return { syncedCopyDeleted: true, synced: null };
+      }),
+    [cfg, db, guarded],
+  );
+
+  const removeAccount = useCallback(
+    () =>
+      guarded('deleteAccount', async (s) => {
+        await deleteAccount(cfg!, s);
+        await db.current?.clearSession();
+        await db.current?.deleteMeta('syncCursor');
+        return { session: null, entitlement: null, unlocked: false, synced: null, reminders: false, accountDeleted: true };
+      }),
+    [cfg, db, guarded],
+  );
+
+  return { cloud: state, signIn, signOut: doSignOut, subscribe, sync, setReminders, cancel, removeSyncedCopy, removeAccount };
 }
 
 /** Writes one decrypted record into the local store; remote data is validated like local data. */

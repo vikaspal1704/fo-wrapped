@@ -9,6 +9,8 @@ create table public.entitlements (
   plan text check (plan in ('monthly', 'annual')),
   current_period_end timestamptz,
   razorpay_subscription_id text unique,
+  -- The user asked to cancel; the plan runs to current_period_end and doesn't renew.
+  cancel_at_period_end boolean not null default false,
   -- Newest webhook applied; older events are ignored (ADR-0004).
   last_event_at timestamptz not null default 'epoch',
   updated_at timestamptz not null default now()
@@ -42,6 +44,17 @@ create table public.journal_records (
 );
 create index journal_records_changes on public.journal_records (user_id, updated_at);
 
+-- Devices' clocks differ; the pull cursor must use one clock, so the server
+-- stamps every write and ignores any updated_at a client sends.
+create function public.stamp_updated_at() returns trigger language plpgsql as $$
+begin
+  new.updated_at := clock_timestamp();
+  return new;
+end;
+$$;
+create trigger journal_records_stamp before insert or update on public.journal_records
+  for each row execute function public.stamp_updated_at();
+
 create table public.reminder_prefs (
   user_id uuid primary key references auth.users (id) on delete cascade,
   weekly boolean not null default false,
@@ -71,15 +84,26 @@ create policy entitlements_read_own on public.entitlements
 
 -- webhook_events: no policies at all, so only the service role can touch it.
 
-create policy profiles_own_with_plan on public.journal_profiles
-  for all to authenticated
-  using (user_id = auth.uid() and public.has_active_plan(auth.uid()))
-  with check (user_id = auth.uid() and public.has_active_plan(auth.uid()));
+-- Writing synced data needs a plan. Reading and deleting your own never does:
+-- it is your data, encrypted (DPDP Act: access and erasure, docs/SPEC.md AC-2.10.2).
+-- Postgres also applies the SELECT policy to rows a DELETE returns, so the two go together.
+create policy profiles_read_own on public.journal_profiles
+  for select to authenticated using (user_id = auth.uid());
+create policy profiles_write_with_plan on public.journal_profiles
+  for insert to authenticated with check (user_id = auth.uid() and public.has_active_plan(auth.uid()));
+create policy profiles_delete_own on public.journal_profiles
+  for delete to authenticated using (user_id = auth.uid());
 
-create policy records_own_with_plan on public.journal_records
-  for all to authenticated
+create policy records_read_own on public.journal_records
+  for select to authenticated using (user_id = auth.uid());
+create policy records_insert_with_plan on public.journal_records
+  for insert to authenticated with check (user_id = auth.uid() and public.has_active_plan(auth.uid()));
+create policy records_update_with_plan on public.journal_records
+  for update to authenticated
   using (user_id = auth.uid() and public.has_active_plan(auth.uid()))
   with check (user_id = auth.uid() and public.has_active_plan(auth.uid()));
+create policy records_delete_own on public.journal_records
+  for delete to authenticated using (user_id = auth.uid());
 
 -- Anyone signed in may turn reminders off; turning them on needs a plan.
 create policy reminders_own on public.reminder_prefs
@@ -87,9 +111,12 @@ create policy reminders_own on public.reminder_prefs
   using (user_id = auth.uid())
   with check (user_id = auth.uid() and (weekly = false or public.has_active_plan(auth.uid())));
 
+-- Supabase grants every new table to anon and authenticated by default; take
+-- that back and grant only what each role needs, so RLS is a second line, not the only one.
+revoke all on public.entitlements, public.webhook_events, public.journal_profiles, public.journal_records, public.reminder_prefs from anon, authenticated;
 grant select on public.entitlements to authenticated;
-grant select, insert, update, delete on public.journal_profiles, public.journal_records, public.reminder_prefs to authenticated;
-revoke all on public.webhook_events from anon, authenticated;
+grant select, insert, delete on public.journal_profiles to authenticated;
+grant select, insert, update, delete on public.journal_records, public.reminder_prefs to authenticated;
 
 -- Recipients for the weekly reminder: opted in and with an active plan.
 -- Service role only (the reminder Edge Function).
@@ -100,3 +127,4 @@ language sql stable security definer set search_path = public, auth as $$
   where p.weekly and public.has_active_plan(p.user_id) and u.email is not null;
 $$;
 revoke execute on function public.weekly_recipients() from public, anon, authenticated;
+grant execute on function public.weekly_recipients() to service_role;

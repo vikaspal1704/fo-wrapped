@@ -83,6 +83,19 @@ const en = {
   forgotBody: 'Synced data can’t be recovered without the passphrase. Your data on this device is unaffected. To start again, delete the synced copy from a device that still has your data, then sync with a new passphrase.',
   reminders: 'Email me when my weekly report is ready (the email has no numbers in it)',
   error: 'Something went wrong. Please try again.',
+  wrongPassphrase: 'That passphrase doesn’t open your synced Journal. Nothing was sent or changed.',
+  planEnds: (until: string) => `Your plan won’t renew. It ends on ${until}.`,
+  cancelSub: 'Cancel subscription',
+  cancelWarn: (until: string) => `Your plan will stop renewing. It keeps working until ${until}, and you won’t be charged again.`,
+  cancelConfirm: 'Yes, stop renewing',
+  deleteSynced: 'Delete the synced copy',
+  deleteSyncedWarn: 'This removes your encrypted data from the server. Data on this device stays.',
+  deleteSyncedConfirm: 'Yes, delete the synced copy',
+  syncedDeleted: 'The synced copy was deleted from the server.',
+  deleteAccount: 'Delete my account',
+  deleteAccountWarn: 'This cancels any subscription at once, then deletes your account, plan, reminders and synced copy. Data on this device stays; delete it from History if you want.',
+  deleteAccountConfirm: 'Yes, delete my account',
+  accountDeletedNote: 'Your account was deleted. Your data on this device is still here; use “Delete everything” to remove it.',
 };
 
 export type JournalMessages = typeof en;
@@ -164,6 +177,19 @@ const hi: JournalMessages = {
   forgotBody: 'पासफ़्रेज़ के बिना सिंक किया डेटा वापस नहीं आ सकता। इस डिवाइस का डेटा सुरक्षित है। दोबारा शुरू करने के लिए, जिस डिवाइस पर आपका डेटा है वहाँ से सिंक की कॉपी मिटाएँ, फिर नए पासफ़्रेज़ से सिंक करें।',
   reminders: 'साप्ताहिक रिपोर्ट तैयार होने पर मुझे ईमेल करें (ईमेल में कोई संख्या नहीं होती)',
   error: 'कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।',
+  wrongPassphrase: 'इस पासफ़्रेज़ से आपका सिंक किया जर्नल नहीं खुलता। कुछ भेजा या बदला नहीं गया।',
+  planEnds: (until) => `आपका प्लान रिन्यू नहीं होगा। यह ${until} को ख़त्म होगा।`,
+  cancelSub: 'सब्सक्रिप्शन रद्द करें',
+  cancelWarn: (until) => `आपका प्लान अब रिन्यू नहीं होगा। यह ${until} तक चलेगा, और आपसे दोबारा पैसे नहीं लिए जाएँगे।`,
+  cancelConfirm: 'हाँ, रिन्यू बंद करें',
+  deleteSynced: 'सिंक की कॉपी मिटाएँ',
+  deleteSyncedWarn: 'इससे सर्वर से आपका एन्क्रिप्टेड डेटा हट जाएगा। इस डिवाइस का डेटा रहेगा।',
+  deleteSyncedConfirm: 'हाँ, सिंक की कॉपी मिटाएँ',
+  syncedDeleted: 'सिंक की कॉपी सर्वर से मिटा दी गई।',
+  deleteAccount: 'मेरा खाता मिटाएँ',
+  deleteAccountWarn: 'इससे कोई भी सब्सक्रिप्शन तुरंत रद्द होगा, फिर आपका खाता, प्लान, रिमाइंडर और सिंक की कॉपी मिट जाएगी। इस डिवाइस का डेटा रहेगा; चाहें तो उसे इतिहास से मिटाएँ।',
+  deleteAccountConfirm: 'हाँ, मेरा खाता मिटाएँ',
+  accountDeletedNote: 'आपका खाता मिटा दिया गया। इस डिवाइस पर आपका डेटा अभी भी है; उसे हटाने के लिए “सब कुछ मिटाएँ” इस्तेमाल करें।',
 };
 
 const CATALOGS = { en, hi } as const;

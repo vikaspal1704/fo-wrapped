@@ -217,7 +217,7 @@ Code: pure analysis in `src/engine/journal/`; storage, crypto and cloud clients 
 | AC-2.1.4 | a Razorpay webhook | it arrives | it is accepted only with a valid HMAC-SHA256 signature (constant-time compare); otherwise 401 and nothing changes | `webhook_rejects_bad_signature` | ✅ |
 | AC-2.1.5 | the same event delivered twice, or an older event after a newer one | processed | the duplicate changes nothing; the older event doesn't overwrite the newer state | `webhook_is_idempotent`, `webhook_ignores_out_of_order_events` | ✅ |
 | AC-2.1.6 | webhook events for activate, charge, cancel, halt | processed | the entitlement becomes `active` until `current_end`, or takes the cancelled/halted status | `entitlement_follows_subscription_events` | ✅ |
-| AC-2.1.7 | a user without an active plan, or another user's rows | they call the database | RLS refuses: no sync rows readable or writable, no reminder opt-in | `rls_blocks_unentitled_user`, `rls_isolates_users` | ✅ |
+| AC-2.1.7 | a user without an active plan, or another user's rows | they call the database | RLS refuses writes (no new sync rows, no reminder opt-in) and hides other users' rows; a user can always read and delete their own encrypted rows (AC-2.10.2) | `rls_blocks_unentitled_user`, `rls_isolates_users` | ✅ |
 | AC-2.1.8 | any billing code path | it logs | only the event ID and type; never the payload, card, UPI, bank or payment-method data | `billing_logs_have_no_payment_data` | ✅ |
 | AC-2.1.9 | a key rotation | the runbook is followed | keys rotate without downtime (`docs/runbooks/rotate-keys.md`) | *manual drill* 👤 | ✅ runbook |
 
@@ -288,6 +288,26 @@ Each insight is a pure function over the period's round trips, reusing the card 
 |----|-------|------|------|------|--------|
 | AC-2.8.1 | a trade or a day | the user adds a note and tags | they are saved locally, and synced encrypted if sync is on | `notes_saved_locally`, `e2e_journal_notes_search` | ✅ |
 | AC-2.8.2 | notes and tags | the user searches | matching notes are found on the device, case-insensitive, by text or tag | `notes_search_on_device` | ✅ |
+
+### US-2.10 Manage, cancel and leave
+
+*As a Subscriber, I want to stop paying, remove my synced data or delete my account myself, so that I stay in control (DPDP Act 2023: erasure on request).*
+
+| ID | Given | When | Then | Test | Status |
+|----|-------|------|------|------|--------|
+| AC-2.10.1 | an active plan | the user cancels | Razorpay is asked to cancel **at the end of the paid period**; the plan stays active until then and the app says it won't renew | `cancel_subscription_at_period_end`, `e2e_journey_complete_user_flow` | ✅ |
+| AC-2.10.2 | synced data, with or without an active plan | the user deletes the synced copy | every synced record and the key profile are removed from the server; data on the device stays | `rls_lets_owner_delete_without_plan`, `e2e_journey_complete_user_flow` | ✅ |
+| AC-2.10.3 | a signed-in user | they delete their account | any live subscription is cancelled at once, then the account is deleted, which removes the plan, reminders and synced data with it; the device's local data stays and the app says how to delete it too | `delete_account_cancels_then_deletes`, `e2e_journey_complete_user_flow` | ✅ |
+| AC-2.10.4 | reminders were turned on | the Account tab opens on any device | the checkbox shows the saved choice | `e2e_journey_complete_user_flow` | ✅ |
+| AC-2.10.5 | a cloud build whose plan has ended | the Journal opens | the user's own local data can still be deleted from the locked screen | `e2e_journey_complete_user_flow` | ✅ |
+
+How the journey runs: `tests/journey/stack.ts` starts Postgres (PGlite) with the shipped migration and Supabase's default privileges, the real PostgREST binary (v12.2.12, checksum-pinned by `scripts/get-postgrest.mjs`) with real JWTs, and the real Edge Function handlers; Playwright drives a cloud build of the app on two devices. Simulated: Google's consent screen (the PKCE check is real), Razorpay's checkout and API (webhooks are HMAC-signed for real), and the email provider. Known limit: PGlite ends a PostgREST session on any SQL error, so error responses come back as 503 instead of 401/403 there; error semantics are covered on Postgres directly in `tests/unit/supabaseRls.test.ts`.
+
+### US-2.11 The whole journey works end to end
+
+| ID | Given | When | Then | Test | Status |
+|----|-------|------|------|------|--------|
+| AC-2.11.1 | the production code paths: the built app (cloud build), the migration on real Postgres, the real PostgREST server enforcing RLS, and the Edge Function handlers; with Google's consent screen, Razorpay's checkout and the email provider simulated | one user goes from Wrapped to Journal, signs in, pays, imports, sets rules, writes notes, reads the weekly report, turns on reminders, syncs to a second device, gets and uses the reminder's unsubscribe link, cancels, deletes the synced copy and deletes the account | every step shows the right result in the browser **and** in the database, and no step sends plaintext trade data off the device | `e2e_journey_complete_user_flow` | ✅ |
 
 ### US-2.9 Money math stays right (ADR-0005)
 

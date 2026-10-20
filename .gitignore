@@ -13,3 +13,5 @@ private-fixtures/
 verification-report*.json
 .lighthouseci/
 dist-cloud/
+.cache/
+dist-journey/

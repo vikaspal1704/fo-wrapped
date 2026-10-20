@@ -27,6 +27,12 @@ Plain language first; the technical decisions are in [`adr/0002`](adr/0002-sync-
 
 **If you forget your passphrase,** nobody can recover your synced data, including us: that is the point of the encryption. Your data on each device is not affected. To start again, delete the synced copy from a device that still has your data, then sync with a new passphrase.
 
+**Leaving is in your hands.**
+- **Cancel subscription** stops renewal; the plan runs to the end of the period you paid for.
+- **Delete the synced copy** removes your encrypted data and key profile from the server at any time, plan or no plan.
+- **Delete my account** cancels any subscription at once, then deletes your account. That removes your plan, reminders and synced data with it.
+- Data on your device stays until you press **Delete everything**, which works even after a plan ends.
+
 **The weekly email** only tells you that your report is ready. The report is built on your device, so the email contains no numbers, contract names or trades.
 
 ## What this does not protect against

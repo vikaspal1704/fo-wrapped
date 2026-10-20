@@ -60,7 +60,8 @@ export async function push(cfg: CloudConfig, s: Session, keys: JournalKeys, reco
     records.map(async (r) => {
       const id = await recordId(keys, `${r.collection}:${r.localId}`);
       const sealed = await encryptRecord(keys, { userId: s.userId, collection: r.collection, recordId: id }, { localId: r.localId, value: r.value });
-      return { user_id: s.userId, collection: r.collection, record_id: id, iv: sealed.iv, ciphertext: sealed.ciphertext, deleted: r.value === null, updated_at: new Date().toISOString() };
+      // No updated_at: the server stamps it (one clock for every device, so pull cursors never skip a change).
+      return { user_id: s.userId, collection: r.collection, record_id: id, iv: sealed.iv, ciphertext: sealed.ciphertext, deleted: r.value === null };
     }),
   );
   await rest(cfg, s, 'journal_records?on_conflict=user_id,collection,record_id', {

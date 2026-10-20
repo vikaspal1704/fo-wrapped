@@ -18,7 +18,7 @@ Owner task. The free Wrapped site on GitHub Pages needs none of this; it is only
    | `RESEND_API_KEY`, `REMINDER_FROM` | Email provider key and a verified sender, e.g. `F&O Journal <reports@example.in>` |
    | `CRON_SECRET` | A long random string; the schedule sends it |
 
-5. Deploy: `supabase functions deploy razorpay-webhook create-subscription weekly-reminder unsubscribe` (settings in `supabase/config.toml`).
+5. Deploy: `supabase functions deploy razorpay-webhook create-subscription cancel-subscription delete-account weekly-reminder unsubscribe` (settings in `supabase/config.toml`). `delete-account` uses the Auth admin API with the service-role key, which Supabase gives deployed functions automatically.
 6. **Schedule:** run the `weekly-reminder` function every Monday at 08:00 IST (02:30 UTC). Use Supabase cron (`pg_cron` + `pg_net`) with the header `Authorization: Bearer <CRON_SECRET>`.
 
 ## 2. Razorpay
@@ -43,8 +43,11 @@ The build adds exactly the Supabase origin to the page's `connect-src`. Without 
 
 ## 4. Check before going live
 
+First run the whole journey locally against the real migration and PostgREST: `npx playwright test --project=journey`. Then, on the real project:
+
 - [ ] `npm run test:e2e` passes, including the cloud build tests.
 - [ ] In Razorpay test mode: subscribe, then check `entitlements` shows `active`. Replay the webhook from the dashboard: nothing changes the second time.
-- [ ] Cancel in test mode: the status becomes `cancelled`.
+- [ ] **Cancel subscription** in the app: Razorpay shows the subscription set to cancel at cycle end, and the app says when the plan ends.
+- [ ] **Delete my account** with a test subscription: Razorpay shows it cancelled, and the user and every Journal row for them are gone.
 - [ ] Sync on two browsers with the same passphrase: the data matches. A wrong passphrase is refused.
 - [ ] The function logs show only event IDs and types.

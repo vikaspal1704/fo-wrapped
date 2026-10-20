@@ -17,7 +17,7 @@ const bannedGlobals = [
 ].map((name) => ({ name, message: 'Not allowed in engine/worker code (TRD §7).' }));
 
 export default tseslint.config(
-  { ignores: ['dist', 'dist-cloud', 'node_modules', 'coverage', '.lighthouseci'] },
+  { ignores: ['dist', 'dist-cloud', 'dist-journey', '.cache', 'node_modules', 'coverage', '.lighthouseci'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
