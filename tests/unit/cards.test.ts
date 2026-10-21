@@ -31,6 +31,7 @@ function rt(pnlRupees: number, entry = '2025-11-20T10:00:00', holdMin = 10, expi
     exitAt,
     exitDate: new Date(exitAt + 5.5 * 3600_000).toISOString().slice(0, 10) as IstDate,
     exitKind: 'TRADE',
+    partial: false,
     qty: 1,
     avgEntryPaise: 0,
     avgExitPaise: 0,

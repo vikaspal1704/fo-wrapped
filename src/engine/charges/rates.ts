@@ -1,5 +1,5 @@
 import type { IstDate, Paise } from '../types';
-import type { ChargeRateTable, RateWindow } from './types';
+import type { ChargeRateTable, EquityRateTable, RateWindow } from './types';
 
 /**
  * Zerodha F&O charges (ARCHITECTURE §6.2).
@@ -71,4 +71,33 @@ export const RATES: ChargeRateTable = {
     futures: [w(pct(2, 100_000), 'Indian Stamp Act: 0.002% on buy side')],
   },
   gst: [w(pct(18, 100), 'GST 18% on brokerage + exchange charges + SEBI fees')],
+};
+
+/**
+ * Zerodha equity charges (docs/SPEC.md §5). Checked against secondary sources
+ * on 2026-10-21: they agree on all but NSE's transaction rate (0.00297% most
+ * cited; 0.00307% and 0.00322% also seen), so the owner check in AC-3.1.14
+ * comes before launch.
+ */
+const EQ_CHECKED_ON = '2026-10-21' as IstDate;
+const eq = <T>(value: T, source: string): RateWindow<T> => ({ effectiveFrom: FROM_2024_10, value, source, checked: 'secondary', checkedOn: EQ_CHECKED_ON });
+
+export const EQUITY_RATES: EquityRateTable = {
+  version: '2026.10.1',
+  intradayBrokerage: [eq({ capPaise: 2000 as Paise, pct: pct(3, 10_000) }, ZERODHA)],
+  stt: {
+    intradaySell: [eq(pct(25, 100_000), 'STT 0.025% on intraday sells; Zerodha support: unchanged by the April 2026 revision')],
+    delivery: [eq(pct(1, 1_000), 'STT 0.1% on delivery buys and sells; Zerodha support: unchanged by the April 2026 revision')],
+  },
+  exchangeTxn: {
+    NSE: [eq(pct(297, 10_000_000), 'NSE: 0.00297% of turnover (uniform rate from 1 Oct 2024)')],
+    BSE: [eq(pct(375, 10_000_000), 'BSE: 0.00375% of turnover, groups A and B')],
+  },
+  bseGroups: ['A', 'B'],
+  sebi: RATES.sebi,
+  stampDutyBuy: {
+    intraday: [eq(pct(3, 100_000), 'Indian Stamp Act: 0.003% on intraday buys')],
+    delivery: [eq(pct(15, 100_000), 'Indian Stamp Act: 0.015% on delivery buys')],
+  },
+  gst: RATES.gst,
 };

@@ -86,3 +86,17 @@ export interface ReportedCharges {
   broker: BrokerId;
   records: ChargeRecord[];
 }
+
+/** Zerodha equity (cash market) charges (docs/SPEC.md §5, AC-3.1.7). */
+export interface EquityRateTable {
+  version: string;
+  /** Intraday units: min(capPaise, pct × the order's intraday value) per executed order. Delivery is free. */
+  intradayBrokerage: RateWindow<{ capPaise: Paise; pct: Rational }>[];
+  stt: { intradaySell: RateWindow<Rational>[]; delivery: RateWindow<Rational>[] };
+  exchangeTxn: Record<Exchange, RateWindow<Rational>[]>;
+  /** BSE groups charged at the BSE rate above; other groups have rates we haven't checked. */
+  bseGroups: readonly string[];
+  sebi: RateWindow<Rational>[];
+  stampDutyBuy: { intraday: RateWindow<Rational>[]; delivery: RateWindow<Rational>[] };
+  gst: RateWindow<Rational>[];
+}

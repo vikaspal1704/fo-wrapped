@@ -1,0 +1,18 @@
+# Supabase project settings used by `supabase functions deploy` (docs/runbooks/journal-setup.md).
+[functions.razorpay-webhook]
+verify_jwt = false   # Razorpay can't send a Supabase JWT; the HMAC signature is checked instead.
+
+[functions.create-subscription]
+verify_jwt = true
+
+[functions.weekly-reminder]
+verify_jwt = false   # called by the cron schedule with CRON_SECRET
+
+[functions.unsubscribe]
+verify_jwt = false   # opened from an email; the 64-hex token is the credential
+
+[functions.cancel-subscription]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

@@ -35,3 +35,18 @@ Expected results (`parses_synthetic_console_fixture`):
 This is a made-up year of NIFTY weekly option trades: 240 fills, 120 round trips, from 2025-11-04 to 2026-03-04. It is dense enough for all 8 cards to render, and it's used by the Playwright tests.
 
 The data is deliberately "right but broke": slightly more wins than losses, but bigger losses, with some quick re-entries after losses. Regenerate it with `npm run fixtures`. The generator is deterministic, so the file only changes if the script changes.
+
+## `zerodha-eq-tradebook.synthetic.csv`
+
+An invented Zerodha Console **equity** tradebook (13 columns: the F&O layout without `expiry_date`). The ISINs are made up but in the Indian format. Expected results, worked out by hand (`equity_golden_totals_match`, golden file `tests/golden/zerodha-eq-tradebook.synthetic.csv.json`):
+
+| Day | Stock | What happens | Result |
+|-----|-------|--------------|--------|
+| 10-05 | TESTA | buys 10 @ ₹100 and 5 @ ₹102 (delivery) | lots |
+| 10-06 | TESTA | sells 8 @ ₹110 | delivery sale: cost ₹800, P&L **₹80** |
+| 10-06 | TESTB | buys 20 @ ₹50, sells 20 @ ₹51.50 | intraday P&L **₹30** |
+| 10-07 | TESTA | buys 3 @ ₹105 on BSE (group A), sells 10 @ ₹108 on NSE | intraday 3: **₹9**; delivery 7 from the 10-05 lots: cost ₹710, P&L **₹46** |
+| 10-08 | TESTC | sells 4 @ ₹200, then buys 6 @ ₹190 | intraday 4 (short first): **₹40**; 2 shares held at ₹190 |
+| 10-09 | TESTB | sells 5 @ ₹52 | **unmatched**: no buy in the file, left out of P&L |
+
+Totals: intraday ₹79, delivery ₹126, DP stock-days 3, holdings TESTC 2 at ₹380 cost. Charges (paise): brokerage 127, STT 433, exchange 24, SEBI 0, stamp 35, GST 28, total **647**; intraday brokerage with its GST 150.

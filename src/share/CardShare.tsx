@@ -17,7 +17,7 @@ interface Props {
  * "Share this card" (ROADMAP X6). The card is rendered into an off-screen
  * 1080×1920 frame only while exporting, then removed, so there is never a
  * second copy of the card on the page for assistive tech. The image holds
- * what the card shows plus the period and site URL: no file names, symbols
+ * what the card shows plus the period, site URL and disclaimer: no file names, symbols
  * beyond the card, or account details.
  */
 export function CardShare({ node, title, fileSlug, periodTitle, siteUrl }: Props) {
@@ -62,6 +62,7 @@ export function CardShare({ node, title, fileSlug, periodTitle, siteUrl }: Props
           <p className="si-url">
             {periodTitle} · {SITE_LABEL}
           </p>
+          <p className="si-disclaimer">{t.disclaimer}</p>
         </div>
       )}
     </>

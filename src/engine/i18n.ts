@@ -69,6 +69,7 @@ const en = {
   needsWin: 'Needs at least one winning trade.',
 
   // Warnings
+  partlyClosed: (n: number) => `${n} ${plural(n, 'position was', 'positions were')} partly closed: the closed part is counted, the rest isn’t.`,
   settledExcluded: (n: number) => `${n} ${plural(n, 'position', 'positions')} expired without a closing trade and ${plural(n, 'isn’t', 'aren’t')} counted in P&L.`,
   openExcluded: (n: number) => `${n} ${plural(n, 'position is', 'positions are')} still open and not counted in P&L.`,
   outOfSession: (n: number) => `${n} ${plural(n, 'fill was', 'fills were')} outside 09:15–15:30 and placed in the nearest time slot.`,
@@ -109,6 +110,8 @@ const en = {
   chargeSebi: 'SEBI fees',
   chargeStamp: 'stamp duty',
   chargeGst: 'GST',
+  bseGroupNotChecked: (group: string) => `BSE group ${group} transaction charges, which we haven’t checked`,
+  equityChargesUnavailable: (date: string, what: string) => `We can’t estimate charges for equity trades on ${date} (${what}). P&L is shown before charges.`,
   legacyXls: (file: string) => `${file} is an old .xls file. Please download it again as CSV or XLSX.`,
   noFilesRead: 'None of the files could be read. See the details above.',
   pnlWrongSegment: (file: string, segment: string) => `${file} is a P&L statement for ${segment}. F&O Wrapped needs the F&O P&L statement.`,
@@ -128,6 +131,36 @@ const en = {
   contractNotRecognised: 'It isn’t in a format we have seen in a real export.',
   rowDoesntAddUp: (file: string, row: number) => `${file}, row ${row}: the amounts don’t add up. The file may have been edited. Please download a fresh copy.`,
   genericFailure: 'Something went wrong while reading your files. Please try again with a fresh download.',
+  // Journal (SPEC §4)
+  journalDay: (date: string) => {
+    const [y, mo, d] = date.split('-');
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${Number(d)} ${months[Number(mo) - 1]!.slice(0, 3)} ${y}`;
+  },
+  week: (from: string) => `Week of ${from}`,
+  ruleMaxLoss: (day: string, limit: string, time: string, n: number, cost: string) =>
+    `${day}: your loss for the day reached ${limit} at ${time}. The ${n} ${plural(n, 'trade', 'trades')} after that made ${cost} before charges.`,
+  ruleMaxLossNoTimes: (day: string, limit: string) => `${day}: your loss for the day passed ${limit}. Without trade times it isn’t possible to tell which trades came after.`,
+  ruleMaxTrades: (day: string, limit: number, n: number, cost: string) =>
+    `${day}: you took ${limit + n} trades, ${n} more than your limit of ${limit}. ${plural(n, 'That trade', 'Those trades')} made ${cost} before charges.`,
+  ruleMaxTradesNoTimes: (day: string, limit: number, n: number) => `${day}: you took ${limit + n} trades, ${n} more than your limit of ${limit}. Without trade times it isn’t possible to tell which came last.`,
+  ruleStreak: (day: string, losses: number, time: string, n: number, cost: string) =>
+    `${day}: after ${losses} losses in a row (at ${time}) you took ${n} more ${plural(n, 'trade', 'trades')}, which made ${cost} before charges.`,
+  ruleOpening: (day: string, minutes: number, n: number, cost: string) =>
+    `${day}: ${n} ${plural(n, 'trade was', 'trades were')} entered in the first ${minutes} minutes after 09:15, making ${cost} before charges.`,
+  ruleNeedsTimes: (day: string) => `${day}: this rule can’t check without trade times.`,
+  insightRevenge: (n: number, pnl: string) =>
+    n === 0
+      ? 'No trades were entered within 15 minutes of a big loss.'
+      : `${n} ${plural(n, 'trade was', 'trades were')} entered within 15 minutes of a big loss; together they made ${pnl} before charges.`,
+  insightOvertrading: (busy: number, busyAvg: string, otherAvg: string) =>
+    `On your ${busy} busiest days the average day made ${busyAvg}; on other days, ${otherAvg} (before charges).`,
+  insightExpiry: (expiryTrades: number, expiryPnl: string, otherTrades: number, otherPnl: string) =>
+    `${expiryTrades} ${plural(expiryTrades, 'trade', 'trades')} on expiry days made ${expiryPnl}; ${otherTrades} on other days made ${otherPnl} (before charges).`,
+  insightClock: (best: string, worst: string) => `Your best 15-minute slot by entry time was ${best} and your worst was ${worst} (before charges).`,
+  insightHolding: (winners: string, losers: string) => `You held winning trades for ${winners} (median) and losing trades for ${losers}.`,
+  insightCharges: (charges: string, pct: string | null) =>
+    pct === null ? `You paid ${charges} in charges on top of a gross loss.` : `You paid ${charges} in charges, ${pct} of your gross profit.`,
 };
 
 export type EngineMessages = typeof en;
@@ -182,6 +215,7 @@ const hi: EngineMessages = {
   sizeNote: 'साइज़ यानी एंट्री पर वैल्यू (मात्रा × औसत एंट्री प्राइस)। बड़ी यानी आपके मीडियन से ऊपर।',
   needsWin: 'कम से कम एक मुनाफ़े वाला ट्रेड चाहिए।',
 
+  partlyClosed: (n) => `${n} पोज़िशन आंशिक रूप से बंद ${plural(n, 'हुई', 'हुईं')}: बंद हिस्सा गिना गया है, बाकी नहीं।`,
   settledExcluded: (n) => `${n} पोज़िशन बिना क्लोज़िंग ट्रेड के एक्सपायर हुईं और P&L में नहीं गिनी गईं।`,
   openExcluded: (n) => `${n} पोज़िशन अभी खुली ${plural(n, 'है', 'हैं')} और P&L में नहीं गिनी गईं।`,
   outOfSession: (n) => `${n} फ़िल 09:15–15:30 के बाहर थे और पास वाले टाइम स्लॉट में रखे गए।`,
@@ -219,6 +253,8 @@ const hi: EngineMessages = {
   chargeSebi: 'SEBI फ़ीस',
   chargeStamp: 'स्टांप ड्यूटी',
   chargeGst: 'GST',
+  bseGroupNotChecked: (group: string) => `BSE ग्रुप ${group} के ट्रांज़ैक्शन चार्जेस, जिन्हें हमने अभी जाँचा नहीं है`,
+  equityChargesUnavailable: (date: string, what: string) => `${date} के इक्विटी ट्रेड के चार्जेस का अनुमान हम नहीं लगा सकते (${what})। P&L चार्जेस से पहले दिखाया गया है।`,
   legacyXls: (file) => `${file} पुरानी .xls फ़ाइल है। कृपया इसे CSV या XLSX में फिर से डाउनलोड करें।`,
   noFilesRead: 'कोई भी फ़ाइल पढ़ी नहीं जा सकी। ऊपर विवरण देखें।',
   pnlWrongSegment: (file, segment) => `${file} ${segment} का P&L स्टेटमेंट है। F&O Wrapped को F&O का P&L स्टेटमेंट चाहिए।`,
@@ -238,6 +274,27 @@ const hi: EngineMessages = {
   contractNotRecognised: 'यह किसी असली एक्सपोर्ट में देखे गए फ़ॉर्मैट में नहीं है।',
   rowDoesntAddUp: (file, row) => `${file}, पंक्ति ${row}: रक़में आपस में मेल नहीं खातीं। हो सकता है फ़ाइल बदली गई हो। कृपया नई कॉपी डाउनलोड करें।`,
   genericFailure: 'आपकी फ़ाइलें पढ़ते समय कुछ गड़बड़ हुई। कृपया नई डाउनलोड की हुई फ़ाइल के साथ फिर कोशिश करें।',
+  journalDay: (date) => {
+    const [y, mo, d] = date.split('-');
+    const months = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+    return `${Number(d)} ${months[Number(mo) - 1]} ${y}`;
+  },
+  week: (from) => `${from} से शुरू हफ़्ता`,
+  ruleMaxLoss: (day, limit, time, n, cost) => `${day}: दिन का घाटा ${time} पर ${limit} तक पहुँचा। उसके बाद के ${n} ट्रेड से चार्जेस से पहले ${cost} बने।`,
+  ruleMaxLossNoTimes: (day, limit) => `${day}: दिन का घाटा ${limit} से ज़्यादा हुआ। ट्रेड के समय के बिना यह बताना संभव नहीं कि कौन-से ट्रेड बाद में हुए।`,
+  ruleMaxTrades: (day, limit, n, cost) => `${day}: आपने ${limit + n} ट्रेड किए, आपकी ${limit} की सीमा से ${n} ज़्यादा। उन ट्रेड से चार्जेस से पहले ${cost} बने।`,
+  ruleMaxTradesNoTimes: (day, limit, n) => `${day}: आपने ${limit + n} ट्रेड किए, आपकी ${limit} की सीमा से ${n} ज़्यादा। ट्रेड के समय के बिना यह बताना संभव नहीं कि आख़िरी कौन-से थे।`,
+  ruleStreak: (day, losses, time, n, cost) => `${day}: लगातार ${losses} घाटों के बाद (${time} पर) आपने ${n} और ट्रेड किए, जिनसे चार्जेस से पहले ${cost} बने।`,
+  ruleOpening: (day, minutes, n, cost) => `${day}: 09:15 के बाद पहले ${minutes} मिनट में ${n} ट्रेड लिए गए, जिनसे चार्जेस से पहले ${cost} बने।`,
+  ruleNeedsTimes: (day) => `${day}: ट्रेड के समय के बिना यह नियम जाँचा नहीं जा सकता।`,
+  insightRevenge: (n, pnl) =>
+    n === 0 ? 'बड़े घाटे के 15 मिनट के अंदर कोई ट्रेड नहीं लिया गया।' : `बड़े घाटे के 15 मिनट के अंदर ${n} ट्रेड लिए गए; उनसे मिलाकर चार्जेस से पहले ${pnl} बने।`,
+  insightOvertrading: (busy, busyAvg, otherAvg) => `आपके ${busy} सबसे व्यस्त दिनों में औसत दिन में ${busyAvg} बने; बाकी दिनों में ${otherAvg} (चार्जेस से पहले)।`,
+  insightExpiry: (expiryTrades, expiryPnl, otherTrades, otherPnl) =>
+    `एक्सपायरी के दिनों के ${expiryTrades} ट्रेड से ${expiryPnl} बने; बाकी दिनों के ${otherTrades} ट्रेड से ${otherPnl} (चार्जेस से पहले)।`,
+  insightClock: (best, worst) => `एंट्री के समय के हिसाब से आपका सबसे अच्छा 15 मिनट का स्लॉट ${best} और सबसे बुरा ${worst} था (चार्जेस से पहले)।`,
+  insightHolding: (winners, losers) => `आपने मुनाफ़े वाले ट्रेड ${winners} (मीडियन) और घाटे वाले ट्रेड ${losers} तक रखे।`,
+  insightCharges: (charges, pct) => (pct === null ? `कुल घाटे के ऊपर आपने ${charges} चार्जेस दिए।` : `आपने ${charges} चार्जेस दिए, जो आपके कुल मुनाफ़े का ${pct} है।`),
 };
 
 const CATALOGS: Record<Locale, EngineMessages> = { en, hi };

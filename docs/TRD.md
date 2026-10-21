@@ -34,7 +34,11 @@
 | Hosting | **GitHub Pages** | Deployed by GitHub Actions |
 | Package manager | **npm** (`package-lock.json` committed) | |
 
-No other runtime dependencies without updating this table. `write-excel-file` is a dev dependency, used only to build XLSX test inputs.
+| Journal storage | IndexedDB (browser API) | `src/journal/store`, opened only after opt-in (ADR-0003) |
+| Journal crypto | Web Crypto (PBKDF2-SHA256 → AES-256-GCM, HMAC) | No library (ADR-0002) |
+| Journal cloud | Supabase Auth, Postgres with RLS, Edge Functions (Deno); Razorpay Subscriptions via hosted pages | Cloud builds only (ADR-0001, ADR-0004); `supabase/` |
+
+No other runtime dependencies without updating this table. Dev dependencies used only in tests: `write-excel-file` (XLSX inputs), `fake-indexeddb` (store tests), `@electric-sql/pglite` and `@electric-sql/pglite-socket` (Postgres for RLS tests and the journey stack). The journey also downloads the PostgREST v12.2.12 binary, checksum-pinned, into `.cache/` (`scripts/get-postgrest.mjs`); it is never part of the app.
 
 ## 3. Repository layout
 
@@ -123,7 +127,7 @@ Console exports prices and quantities with 6 decimal places (`152.350000`, `20.0
 | Control | Requirement |
 |---------|-------------|
 | CSP | `default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:` via `<meta http-equiv>` |
-| Storage | No `localStorage`, `sessionStorage`, IndexedDB, cookies, or Cache API for user data. |
+| Storage | Wrapped: no `localStorage`, `sessionStorage`, IndexedDB, cookies, or Cache API for user data. Journal: IndexedDB `fo-journal` only after the user opts in, and `sessionStorage` for the PKCE verifier during sign-in (cloud builds). |
 | Network | No `fetch` / XHR / beacon anywhere in `src/engine` or `src/worker` (enforced by ESLint `no-restricted-globals` and an e2e test). UI code may import engine *values* only from `engine/format`, so the parser and analysis stay in the worker bundle (ESLint `no-restricted-imports`). |
 | Third parties | No analytics, fonts, or scripts from third-party origins. Self-host fonts. |
 | Clear data | `worker.terminate()`, drop React state, `URL.revokeObjectURL` on any generated image. |
@@ -148,6 +152,8 @@ npm run verify:real -- --dir ../fo-wrapped-private
 
 - Runs the engine without the P&L statement (estimated mode) and compares net P&L and charges against the P&L statement totals.
 - Prints only the account alias, the percentage difference, and PASS/FAIL. **No trade data, symbols, or amounts are printed.**
+- Writes the per-contract breakdown (MATCHED, DIFFERENT, ONLY_IN_TRADEBOOK, ONLY_IN_STATEMENT, EXCLUDED) and an attribution of the difference to `<dir>/verification-report-<alias>.json`, in the private folder. The console shows only its path and counts ([`SPEC.md`](SPEC.md) US-0.2).
+- `--markdown` prints a privacy-safe table for `docs/validation-report.md`. The gate also fails while any rate row is not checked against its primary source.
 - `.gitignore` excludes `*-private/`, `private-fixtures/`, and `verification-report*.json`.
 
 ## 10. CI (GitHub Actions)
@@ -163,6 +169,8 @@ npm run verify:real -- --dir ../fo-wrapped-private
 `.github/workflows/pages.yml` deploys `dist/` to GitHub Pages on push to `main`. Vite `base` must be `/fo-wrapped/` for the project page.
 
 ## 11. Non-requirements (tech)
+
+For Wrapped. The Journal's server pieces (Supabase Auth, Postgres with RLS, Edge Functions, Razorpay) are decided in ADRs (BRIEF §6) before any code.
 
 - No server, database, auth, or API routes
 - No service worker / offline mode in v1

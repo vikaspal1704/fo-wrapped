@@ -626,6 +626,12 @@ h1 {
   font-size: 40px;
 }
 
+.si-disclaimer {
+  margin-top: 16px !important;
+  color: #a4aab6;
+  font-size: 30px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .progress > div {
     transition: none;
@@ -794,6 +800,16 @@ h1 {
   text-align: center;
 }
 
+.share-frame .si-disclaimer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  margin: 0;
+  text-align: center;
+  font-size: 28px;
+}
+
 /* ---------- Language ---------- */
 
 .top-row {
@@ -842,4 +858,62 @@ h1 {
 
 .chip:disabled {
   opacity: 0.5;
+}
+
+/* ---------- Journal ---------- */
+
+.journal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.journal-panel,
+.journal .danger {
+  margin-top: 1.5rem;
+}
+
+.journal-form {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.journal-form label,
+.journal .search {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.journal-form input,
+.journal-form textarea,
+.journal-form select,
+.journal .search input {
+  font: inherit;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--muted);
+  background: var(--surface);
+  color: inherit;
+}
+
+.journal-form fieldset {
+  border: 0;
+  padding: 0;
+  display: flex;
+  gap: 1rem;
+}
+
+.journal .notice {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.journal .check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 1rem;
 }

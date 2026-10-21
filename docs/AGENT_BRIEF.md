@@ -5,6 +5,8 @@ Author: Vikas Pal · Repo: https://github.com/vikaspal1704/fo-wrapped
 
 Read this file completely before writing code.
 
+> **Now building the Trade Journal** (the paid Journal, F&O plus other segments; SPEC §5). The owner's brief is [`BRIEF.md`](BRIEF.md) and the spec we build against is [`SPEC.md`](SPEC.md): user stories, Given/When/Then acceptance criteria, and the test name for each. Work spec-first: add or update the criteria, write the failing tests, then the code. Everything below still governs Wrapped and the engine.
+
 ---
 
 ## 1. Mission
@@ -17,6 +19,7 @@ Build a static, browser-only web app that turns a Zerodha Console F&O tradebook 
 
 ## 2. Read order (mandatory)
 
+0. [`BRIEF.md`](BRIEF.md) and [`SPEC.md`](SPEC.md): the current goal, phases and acceptance criteria
 1. [`PRD.md`](PRD.md): goals, MUST requirements, and **§10 decisions**
 2. [`TRD.md`](TRD.md): stack, layout, numeric/time model, privacy controls, CI
 3. [`API_CONTRACT.md`](API_CONTRACT.md): input schemas, types, errors, functions, worker protocol
@@ -139,5 +142,5 @@ Full types: [`API_CONTRACT.md`](API_CONTRACT.md). Worked example: [`ARCHITECTURE
 
 ## 9. Out of scope reminder
 
-No backend, accounts, or storage. No brokers other than Zerodha, no equity, currency, or commodity data, and no tax computation. No percentiles or advice.  
+Wrapped: no backend, accounts, or storage. The Journal's accounts, local storage and encrypted sync follow ROADMAP §2.1 and wait for the ADRs (BRIEF §6). Brokers: Zerodha, Angel One, Upstox and Dhan only; no equity, currency, or commodity data, and no tax computation. No percentiles or advice.  
 Correct, honest numbers matter more than features.

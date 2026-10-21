@@ -1,0 +1,18 @@
+{
+  "fills": 482,
+  "roundTrips": 241,
+  "partialRoundTrips": 0,
+  "unclosed": 0,
+  "grossPnlPaise": 1284375,
+  "charges": {
+    "brokerage": 964000,
+    "stt": 525915,
+    "exchangeTxn": 304892,
+    "sebi": 869,
+    "stampDuty": 13039,
+    "gst": 228556,
+    "other": 0,
+    "total": 2037271
+  },
+  "netPnlPaise": -752896
+}
