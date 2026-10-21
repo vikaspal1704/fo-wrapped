@@ -4,7 +4,7 @@
  * injected so tests can use an in-memory one.
  */
 import { z } from 'zod';
-import { parseNote, parseRules, type ChargeRecord, type Fill, type Note, type PnlStatement, type Rules } from '../../engine';
+import { parseNote, parseRules, type ChargeRecord, type EquityFill, type Fill, type Note, type PnlStatement, type Rules } from '../../engine';
 
 export const JOURNAL_DB = 'fo-journal';
 
@@ -20,6 +20,8 @@ export interface ImportRecord {
   fills: Fill[];
   charges: ChargeRecord[];
   statements: PnlStatement[];
+  /** Equity trades (docs/SPEC.md US-3.1). Absent on imports saved before equity support. */
+  equity?: EquityFill[];
 }
 
 const ImportShape = z.object({
@@ -31,6 +33,7 @@ const ImportShape = z.object({
   fills: z.array(z.object({ tradeId: z.string(), broker: z.string() }).passthrough()),
   charges: z.array(z.unknown()),
   statements: z.array(z.unknown()),
+  equity: z.array(z.object({ tradeId: z.string(), isin: z.string() }).passthrough()).optional(),
 });
 
 /** One step per schema version: MIGRATIONS[n] upgrades version n to n + 1. */
@@ -132,7 +135,7 @@ function wrap(db: IDBDatabase): JournalDb {
   return {
     version: db.version,
     close: () => db.close(),
-    saveImport: (rec) => put('imports', ImportShape.parse(rec)),
+    saveImport: async (rec) => put('imports', ImportShape.parse(rec)),
     async listImports() {
       const all = (await getAll<unknown>('imports')).map((r) => ImportShape.parse(r) as unknown as ImportRecord);
       return all.sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));

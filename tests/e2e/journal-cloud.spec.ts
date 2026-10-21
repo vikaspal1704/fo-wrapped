@@ -1,5 +1,5 @@
 /**
- * F&O Journal, cloud build, against a mocked Supabase (docs/SPEC.md US-2.1,
+ * Trade Journal, cloud build, against a mocked Supabase (docs/SPEC.md US-2.1,
  * US-2.3). The build is given VITE_SUPABASE_URL=https://cloud.test, so its CSP
  * allows exactly that origin; Playwright answers for it.
  */

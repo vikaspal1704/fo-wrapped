@@ -5,7 +5,7 @@ Author: Vikas Pal · Repo: https://github.com/vikaspal1704/fo-wrapped
 
 Read this file completely before writing code.
 
-> **Now building toward F&O Journal.** The owner's brief is [`BRIEF.md`](BRIEF.md) and the spec we build against is [`SPEC.md`](SPEC.md): user stories, Given/When/Then acceptance criteria, and the test name for each. Work spec-first: add or update the criteria, write the failing tests, then the code. Everything below still governs Wrapped and the engine.
+> **Now building the Trade Journal** (the paid Journal, F&O plus other segments; SPEC §5). The owner's brief is [`BRIEF.md`](BRIEF.md) and the spec we build against is [`SPEC.md`](SPEC.md): user stories, Given/When/Then acceptance criteria, and the test name for each. Work spec-first: add or update the criteria, write the failing tests, then the code. Everything below still governs Wrapped and the engine.
 
 ---
 

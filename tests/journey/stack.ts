@@ -329,7 +329,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     sub.status = 'active';
     sub.currentEnd = Math.floor(Date.now() / 1000) + 30 * 86_400;
     for (const e of ['subscription.authenticated', 'subscription.activated', 'subscription.charged']) await sendEvent(sub, e);
-    return send(res, 200, html('Payment successful', `<h1>Payment successful</h1><a href="${SITE}?journal=1">Back to F&amp;O Journal</a>`), 'text/html; charset=utf-8');
+    return send(res, 200, html('Payment successful', `<h1>Payment successful</h1><a href="${SITE}?journal=1">Back to Trade Journal</a>`), 'text/html; charset=utf-8');
   }
 
   // Test controls.

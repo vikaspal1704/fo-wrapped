@@ -1,4 +1,4 @@
-# Security and privacy: what each part of F&O Wrapped and F&O Journal can see
+# Security and privacy: what each part of F&O Wrapped and the Trade Journal can see
 
 Plain language first; the technical decisions are in [`adr/0002`](adr/0002-sync-encryption.md) and [`adr/0004`](adr/0004-billing-entitlements.md).
 
@@ -11,6 +11,7 @@ Plain language first; the technical decisions are in [`adr/0002`](adr/0002-sync-
 ## Journal, on your device
 
 - When you press **Save on this device**, your imports, rules and notes are stored in this browser's storage (IndexedDB) on this device. Before that, nothing is stored.
+- Equity trades are stored inside the same import records as F&O trades, so undo, encrypted sync and deletion treat them exactly the same way. The ISIN and stock symbol are encrypted with the rest before any sync.
 - **Delete everything** removes it all and then checks that it is gone.
 - Anyone who can use your browser profile can open your Journal, just as they could open your files. Lock your device.
 

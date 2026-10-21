@@ -12,9 +12,9 @@ export interface ReminderEmail {
 
 export function reminderEmail(siteUrl: string, unsubscribeUrl: string): ReminderEmail {
   return {
-    subject: 'Your weekly F&O Journal report is ready',
+    subject: 'Your weekly Trade Journal report is ready',
     text: [
-      'Your weekly report is ready in F&O Journal.',
+      'Your weekly report is ready in Trade Journal.',
       'It is built on your own device from your saved history, so this email has no numbers in it.',
       '',
       `Open the Journal: ${siteUrl}#journal`,

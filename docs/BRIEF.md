@@ -9,6 +9,12 @@ Repo: `vikaspal1704/fo-wrapped` (public, MIT, Vite + React + TypeScript, Web Wor
 > 2. **Weekly report is built on the device.** Any email is only a "your weekly report is ready" reminder with no numbers in it.
 > 3. **Harness detail stays local.** The console prints alias, percentages and PASS/FAIL only. Per-contract mismatches go to a gitignored `verification-report-<alias>.json` on the owner's machine.
 > 4. **Spec first.** User stories and Given/When/Then acceptance criteria live in [`SPEC.md`](SPEC.md). Code is written against them, and every criterion maps to a named test.
+>
+> **Decisions recorded on 2026-10-21** (extending the Journal beyond F&O):
+>
+> 5. **Equity first.** The paid Journal covers more segments, starting with Zerodha equity. Currency (CDS) and commodity (MCX) follow once the owner shares redacted real tradebooks; no parser is written for an unseen layout.
+> 6. **Mutual funds as a portfolio from the CAS**, not as trades, after an ADR on reading the statement on the device.
+> 7. **Naming.** The paid product is the **Trade Journal**; **F&O Wrapped** keeps its name and stays F&O only. The brief below keeps its original wording.
 
 ## 1. Goal
 

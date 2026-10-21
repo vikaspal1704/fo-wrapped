@@ -15,7 +15,8 @@ const SITE = 'https://example.invalid/';
 
 describe('golden totals (SPEC AC-2.9.1)', () => {
   it('golden_totals_match', async () => {
-    const files = readdirSync(join(__dirname, '../fixtures')).filter((f) => /\.(csv|xlsx)$/.test(f));
+    // Equity fixtures have their own golden test (equity_golden_totals_match).
+    const files = readdirSync(join(__dirname, '../fixtures')).filter((f) => /\.(csv|xlsx)$/.test(f) && !f.includes('-eq-'));
     expect(files.length).toBeGreaterThanOrEqual(3);
     for (const name of files) {
       const read = await readBrokerFile(name, fixture(name));

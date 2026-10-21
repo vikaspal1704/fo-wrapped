@@ -1,4 +1,4 @@
-import type { ChargeRecord, Fill, IstDate, Locale, PnlStatement, RuleBreach, RuleGap, Rules, WeeklyReport } from '../engine';
+import type { ChargeRecord, EquityFill, EquitySummary, Fill, IstDate, Locale, PnlStatement, RuleBreach, RuleGap, Rules, WeeklyReport } from '../engine';
 import type { Localized } from './protocol';
 
 /** One saved import as the worker needs it. */
@@ -6,6 +6,7 @@ export interface ImportData {
   fills: Fill[];
   charges: ChargeRecord[];
   statements: PnlStatement[];
+  equity: EquityFill[];
 }
 
 /** A closed trade, for attaching notes. */
@@ -21,6 +22,8 @@ export interface JournalReport {
   breaches: RuleBreach[];
   gaps: RuleGap[];
   trades: TradeRow[];
+  /** Equity results (US-3.1), or null without equity trades. */
+  equity: EquitySummary | null;
 }
 
 export type JournalRequest =
@@ -34,6 +37,7 @@ export interface ReadResult {
   fills?: Fill[];
   charges?: ChargeRecord[];
   statement?: PnlStatement;
+  equity?: EquityFill[];
   message?: Localized;
 }
 

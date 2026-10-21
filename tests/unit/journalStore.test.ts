@@ -48,6 +48,23 @@ describe('local store (SPEC US-2.2)', () => {
     db.close();
   });
 
+  it('equity_saved_with_its_import_and_old_imports_still_load', async () => {
+    // AC-3.1.10: equity trades live in the import record, so undo and sync treat them the same way.
+    const db = await openJournal(new IDBFactory());
+    await db.saveImport(imp('old', ['T1'])); // saved before equity support: no `equity` field
+    const eqFill = { broker: 'zerodha', tradeId: '8000001', orderId: '1', symbol: 'TESTA', isin: 'INE0TESTA001', exchange: 'NSE', series: 'EQ', side: 'BUY', auction: false, qty: 1, pricePaise: 100, valuePaise: 100, tradeDate: '2026-10-05', executedAt: 0, sourceFile: 'eq.csv', sourceRow: 2 };
+    await db.saveImport({ ...imp('eq', []), equity: [eqFill as never] });
+    const all = await db.listImports();
+    expect(all.map((i) => [i.id, i.equity?.length ?? 0])).toEqual([
+      ['eq', 1],
+      ['old', 0],
+    ].sort());
+    await expect(db.saveImport({ ...imp('bad', []), equity: [{ tradeId: 1 } as never] })).rejects.toThrow();
+    await db.deleteImport('eq');
+    expect((await db.listImports()).flatMap((i) => i.equity ?? [])).toEqual([]);
+    db.close();
+  });
+
   it('migrations_upgrade_every_old_version', async () => {
     const factory = new IDBFactory();
     // A version-1 database with data, as an older app left it.

@@ -1,4 +1,4 @@
-/** F&O Journal, local-only build (docs/SPEC.md §4). */
+/** Trade Journal, local-only build (docs/SPEC.md §4). */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import AxeBuilder from '@axe-core/playwright';
@@ -6,10 +6,11 @@ import { expect, test, type Page } from '@playwright/test';
 
 const YEAR = fileURLToPath(new URL('../fixtures/synthetic-year.csv', import.meta.url));
 const SMALL = fileURLToPath(new URL('../fixtures/zerodha-fo-tradebook.synthetic.csv', import.meta.url));
+const EQUITY = fileURLToPath(new URL('../fixtures/zerodha-eq-tradebook.synthetic.csv', import.meta.url));
 
 async function openJournal(page: Page) {
   await page.goto('./#journal');
-  await expect(page.getByRole('heading', { name: 'F&O Journal' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Trade Journal' })).toBeVisible();
 }
 
 async function enableAndImport(page: Page, file = YEAR) {
@@ -113,7 +114,7 @@ test('e2e_journal_notes_search', async ({ page }) => {
 
 test('e2e_journal_hindi', async ({ page }) => {
   await page.goto('./?lang=hi#journal');
-  await expect(page.getByRole('heading', { name: 'F&O जर्नल' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ट्रेड जर्नल' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'इसी डिवाइस पर सहेजें' })).toBeVisible();
 });
 
@@ -131,8 +132,71 @@ test('a11y_journal_screens', async ({ page }) => {
   await page.getByRole('button', { name: 'Save on this device' }).click();
   await page.getByTestId('journal-file-input').setInputFiles(YEAR);
   await expect(page.getByRole('status').filter({ hasText: 'new trades added' })).toBeVisible();
-  for (const tab of ['History', 'Rules', 'Weekly report', 'Notes']) {
+  await page.getByTestId('journal-file-input').setInputFiles(EQUITY);
+  await expect(page.getByRole('status').filter({ hasText: '10 new trades added' })).toBeVisible();
+  for (const tab of ['History', 'Equity', 'Rules', 'Weekly report', 'Notes']) {
     await page.getByRole('button', { name: tab, exact: true }).click();
     await check(tab);
   }
+});
+
+test('e2e_journal_named_trade_journal', async ({ page }) => {
+  // AC-3.5.1: the paid product is the Trade Journal; Wrapped keeps its name.
+  await page.goto('./');
+  await expect(page.getByRole('heading', { name: /F&O Wrapped/ }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Trade Journal/ })).toBeVisible();
+  await openJournal(page);
+  await expect(page.getByRole('button', { name: '← F&O Wrapped' })).toBeVisible();
+});
+
+test('e2e_journal_equity', async ({ page }) => {
+  // US-3.1 in the browser: F&O and equity side by side, every gap in words, all on the device.
+  await page.goto('./');
+  await page.waitForLoadState('networkidle');
+  const requests: string[] = [];
+  page.on('request', (r) => requests.push(`${r.method()} ${r.url()}`));
+  await enableAndImport(page, SMALL);
+  await page.getByTestId('journal-file-input').setInputFiles({ name: 'tradebook-AB1234-EQ.csv', mimeType: 'text/csv', buffer: readFileSync(EQUITY) });
+  await expect(page.getByRole('status')).toHaveText('10 new trades added, 0 already saved.');
+
+  await page.getByRole('button', { name: 'Equity', exact: true }).click();
+  await expect(page.getByText('10 equity trades from 2026-10-05 to 2026-10-09.')).toBeVisible();
+  const headlines = page.getByTestId('equity-headlines');
+  await expect(headlines.getByText('Intraday P&L').locator('..')).toContainText('₹79');
+  await expect(headlines.getByText('Delivery P&L (sold)').locator('..')).toContainText('₹126');
+  await expect(headlines.getByText('Charges (estimated)').locator('..')).toContainText('₹6');
+  await expect(headlines.getByText('Net after estimated charges').locator('..')).toContainText('₹199');
+  const gaps = page.getByTestId('equity-gaps');
+  await expect(gaps).toContainText('may be up to ₹2 lower');
+  await expect(gaps).toContainText('DP charges aren’t included');
+  await expect(gaps).toContainText('(3 here)');
+  await expect(page.getByTestId('equity-unmatched')).toHaveText('2026-10-09 · TESTB · 5 shares');
+  await expect(page.getByTestId('equity-holdings')).toHaveText('TESTC · 2 shares · average buy ₹190 · cost ₹380');
+  await expect(page.getByText('no current prices are fetched')).toBeVisible();
+  await expect(page.getByTestId('equity-sales').getByRole('listitem')).toHaveText([
+    '2026-10-07 · TESTA · 7 shares · ₹46 (bought 2026-10-05)',
+    '2026-10-06 · TESTA · 8 shares · ₹80 (bought 2026-10-05)',
+  ]);
+  await expect(page.getByTestId('equity-intraday').getByRole('listitem')).toHaveCount(3);
+
+  // Rules and the weekly report say they cover F&O only (AC-3.1.15).
+  await page.getByRole('button', { name: 'Rules', exact: true }).click();
+  await expect(page.getByText('Rules and the weekly report cover F&O trades only for now.')).toBeVisible();
+
+  // The same file again adds nothing; reload keeps it; Hindi shows the same facts.
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await page.getByTestId('journal-file-input').setInputFiles(EQUITY);
+  await expect(page.getByRole('status')).toHaveText('No new trades in these files.');
+  await page.goto('./?lang=hi#journal');
+  await page.getByRole('button', { name: 'इक्विटी', exact: true }).click();
+  await expect(page.getByTestId('equity-holdings')).toHaveText('TESTC · 2 शेयर · औसत खरीद ₹190 · लागत ₹380');
+
+  // Undo removes exactly that import's equity trades.
+  await page.goto('./#journal');
+  await page.getByRole('button', { name: 'Undo import tradebook-•••-EQ.csv' }).click();
+  await page.getByRole('button', { name: 'Equity', exact: true }).click();
+  await expect(page.getByText('No equity trades yet.')).toBeVisible();
+
+  const origin = new URL(page.url()).origin;
+  for (const r of requests) expect(r.startsWith('GET ') && r.slice(4).startsWith(origin), r).toBe(true);
 });

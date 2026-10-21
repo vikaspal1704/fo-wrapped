@@ -92,7 +92,7 @@ test('e2e_journey_complete_user_flow', async ({ browser, baseURL }) => {
     await expect(a.getByRole('heading', { name: 'Razorpay Checkout' })).toBeVisible();
     await a.getByRole('button', { name: 'Pay with UPI' }).click();
     await expect(a.getByRole('heading', { name: 'Payment successful' })).toBeVisible();
-    await a.getByRole('link', { name: 'Back to F&O Journal' }).click();
+    await a.getByRole('link', { name: 'Back to Trade Journal' }).click();
     await a.getByRole('button', { name: 'Account', exact: true }).click();
     await expect(a.getByText(/Your Monthly plan is active until \d{4}-\d\d-\d\d\./)).toBeVisible();
     const [ent] = await sql('select status, plan, cancel_at_period_end from entitlements where user_id = $1', [await userId()]);

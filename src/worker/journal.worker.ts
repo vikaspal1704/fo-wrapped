@@ -3,9 +3,11 @@
 // Wrapped worker it never touches storage or the network; the page stores
 // what it returns, on the device only (ADR-0003).
 import {
+  EQUITY_RATES,
   FoWrappedError,
   RATES,
   analyze,
+  analyzeEquity,
   checkRules,
   engineMessages,
   readBrokerFile,
@@ -43,10 +45,11 @@ async function messageFor(e: unknown, retry: () => unknown): Promise<Localized> 
 async function read(files: { name: string; bytes: ArrayBuffer }[]): Promise<ReadResult[]> {
   const out: ReadResult[] = [];
   for (const f of files) {
-    const attempt = () => readBrokerFile(f.name, f.bytes);
+    const attempt = () => readBrokerFile(f.name, f.bytes, { equity: true });
     try {
       const got = await attempt();
       if (got.kind === 'pnlStatement') out.push({ name: f.name, ok: true, broker: 'zerodha', statement: got.statement });
+      else if (got.kind === 'equity') out.push({ name: f.name, ok: true, broker: got.broker, equity: got.fills });
       else out.push({ name: f.name, ok: true, broker: got.broker, fills: got.fills, charges: got.charges ?? [] });
     } catch (e) {
       out.push({ name: f.name, ok: false, message: await messageFor(e, attempt) });
@@ -56,8 +59,9 @@ async function read(files: { name: string; bytes: ArrayBuffer }[]): Promise<Read
 }
 
 function report(req: Extract<JournalRequest, { type: 'report' }>): JournalReport {
+  const equity = analyzeEquity(req.imports.flatMap((i) => i.equity), EQUITY_RATES);
   const tradebooks = req.imports.map((i) => i.fills).filter((f) => f.length > 0);
-  if (tradebooks.length === 0) return { weekly: null, breaches: [], gaps: [], trades: [] };
+  if (tradebooks.length === 0) return { weekly: null, breaches: [], gaps: [], trades: [], equity };
   const byBroker = new Map<string, ReportedCharges>();
   for (const rec of req.imports.flatMap((i) => i.charges)) {
     const r = byBroker.get(rec.broker) ?? { broker: rec.broker, records: [] };
@@ -73,7 +77,7 @@ function report(req: Extract<JournalRequest, { type: 'report' }>): JournalReport
     .slice(-200)
     .reverse()
     .map((rt) => ({ key: tradeKey(rt), exitDate: rt.exitDate, symbol: rt.instrument.tradingSymbol, grossPnlPaise: rt.grossPnlPaise }));
-  return { weekly, breaches, gaps, trades };
+  return { weekly, breaches, gaps, trades, equity };
 }
 
 self.onmessage = async (event: MessageEvent<JournalRequest>) => {

@@ -1,8 +1,8 @@
 /**
- * F&O Journal screens (docs/SPEC.md §4). Lazy-loaded at #journal so Wrapped's
+ * Trade Journal screens (docs/SPEC.md §4, §5). Lazy-loaded at #journal so Wrapped's
  * bundle and storage rules are unchanged (ADR-0001).
  */
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { LanguageToggle, useLocale } from '../../app/i18n';
 import { formatInr } from '../../engine/format';
 import { normalizeTags, searchNotes, type Note } from '../../engine/journal/notes';
@@ -16,7 +16,7 @@ import { useJt, type JournalMessages } from './i18n';
 import { useCloud } from './useCloud';
 import { useJournal, type JournalState, type Notice } from './useJournal';
 
-type Tab = 'history' | 'rules' | 'report' | 'notes' | 'account';
+type Tab = 'history' | 'equity' | 'rules' | 'report' | 'notes' | 'account';
 
 export function JournalApp({ onBack }: { onBack: () => void }) {
   const t = useJt();
@@ -25,7 +25,7 @@ export function JournalApp({ onBack }: { onBack: () => void }) {
   const cloud = useCloud(journal.db, state.status === 'ready', journal.reload);
   // Coming back from Google sign-in lands on the Account tab.
   const [tab, setTab] = useState<Tab>(() => (new URLSearchParams(window.location.search).has('code') ? 'account' : 'history'));
-  const tabs: Tab[] = cloud.cloud.enabled ? ['history', 'rules', 'report', 'notes', 'account'] : ['history', 'rules', 'report', 'notes'];
+  const tabs: Tab[] = ['history', 'equity', 'rules', 'report', 'notes', ...(cloud.cloud.enabled ? (['account'] as const) : [])];
   const locked = cloud.cloud.enabled && !cloud.cloud.unlocked && tab !== 'account';
 
   return (
@@ -69,6 +69,7 @@ export function JournalApp({ onBack }: { onBack: () => void }) {
           ) : (
             <>
               {tab === 'history' && <History journal={journal} />}
+              {tab === 'equity' && <EquityTab state={state} />}
               {tab === 'rules' && <RulesTab journal={journal} />}
               {tab === 'report' && <ReportTab state={state} />}
               {tab === 'notes' && <NotesTab journal={journal} />}
@@ -174,6 +175,7 @@ function RulesTab({ journal }: { journal: Journal }) {
     <section aria-labelledby="rules">
       <h2 id="rules">{t.tabs.rules}</h2>
       <p className="muted">{t.rulesIntro}</p>
+      <FoOnlyNote state={journal.state} />
       <form className="journal-form" onSubmit={(e) => void submit(e)}>
         {RULE_FIELDS.map((f) => (
           <label key={f.key}>
@@ -220,7 +222,13 @@ function ReportTab({ state }: { state: JournalState }) {
   const imageRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<string | null>(null);
   const weekly = state.reports?.[locale]?.weekly ?? null;
-  if (!weekly) return <p className="muted">{t.reportEmpty}</p>;
+  if (!weekly)
+    return (
+      <>
+        <p className="muted">{t.reportEmpty}</p>
+        <FoOnlyNote state={state} />
+      </>
+    );
   const headline = weekly.netPnlPaise !== null ? { label: t.net, value: formatInr(weekly.netPnlPaise) } : { label: t.gross, value: formatInr(weekly.grossPnlPaise) };
   const save = async () => {
     if (!imageRef.current) return;
@@ -241,6 +249,7 @@ function ReportTab({ state }: { state: JournalState }) {
         </div>
       </dl>
       {weekly.chargesEstimated && <p className="muted">{t.estimated}</p>}
+      <FoOnlyNote state={state} />
       {weekly.breaches.length > 0 && (
         <>
           <h3>{t.breachesTitle}</h3>
@@ -284,6 +293,111 @@ function ReportTab({ state }: { state: JournalState }) {
         <p className="si-disclaimer">{t.disclaimer}</p>
       </div>
     </section>
+  );
+}
+
+/** Rules and the weekly report don't cover equity yet (AC-3.1.15); say so where it matters. */
+function FoOnlyNote({ state }: { state: JournalState }) {
+  const t = useJt();
+  if (!state.imports.some((i) => (i.equity?.length ?? 0) > 0)) return null;
+  return <p className="muted">{t.foOnly}</p>;
+}
+
+/** The latest rows of a list, newest first. */
+const LIST_LIMIT = 100;
+const latest = <T,>(xs: readonly T[]) => xs.slice(-LIST_LIMIT).reverse();
+
+/** Equity results (docs/SPEC.md AC-3.1.11): what happened, at cost, with every gap in words. */
+function EquityTab({ state }: { state: JournalState }) {
+  const t = useJt();
+  const { locale } = useLocale();
+  const eq = state.reports?.[locale]?.equity ?? null;
+  if (!eq) return <p className="muted">{t.eqEmpty}</p>;
+  const gross = eq.intradayPnlPaise + eq.deliveryPnlPaise;
+  return (
+    <section aria-labelledby="equity">
+      <h2 id="equity">{t.tabs.equity}</h2>
+      <p className="muted">{t.eqPeriod(eq.from, eq.to, eq.trades)}</p>
+      <dl className="headlines" data-testid="equity-headlines">
+        <div>
+          <dt>{t.eqIntraday}</dt>
+          <dd>{formatInr(eq.intradayPnlPaise)}</dd>
+        </div>
+        <div>
+          <dt>{t.eqDelivery}</dt>
+          <dd>{formatInr(eq.deliveryPnlPaise)}</dd>
+        </div>
+        {eq.charges.available && (
+          <>
+            <div>
+              <dt>{t.eqCharges}</dt>
+              <dd>{formatInr(eq.charges.breakdown.total)}</dd>
+            </div>
+            <div>
+              <dt>{t.eqNet}</dt>
+              <dd>{formatInr(gross - eq.charges.breakdown.total)}</dd>
+            </div>
+          </>
+        )}
+      </dl>
+      <ul className="notes" data-testid="equity-gaps">
+        <li>{t.eqBeforeCharges}</li>
+        <li>{t.eqMethod}</li>
+        {eq.charges.available ? (
+          eq.charges.intradayBrokerageWithGstPaise > 0 && <li>{t.eqBrokerageGap(formatInr(eq.charges.intradayBrokerageWithGstPaise))}</li>
+        ) : (
+          <li>{eq.charges.reason}</li>
+        )}
+        {eq.dpStockDays > 0 && <li>{t.eqDpGap(eq.dpStockDays)}</li>}
+      </ul>
+      {eq.unmatched.length > 0 && (
+        <>
+          <h3>{t.eqUnmatchedTitle}</h3>
+          <p className="muted">{t.eqUnmatchedIntro}</p>
+          <ul className="notes" data-testid="equity-unmatched">
+            {latest(eq.unmatched).map((u) => (
+              <li key={`${u.date}-${u.isin}`}>{t.eqUnmatchedRow(u.date, u.symbol, u.qty)}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {eq.holdings.length > 0 && (
+        <>
+          <h3>{t.eqHoldingsTitle}</h3>
+          <ul className="notes" data-testid="equity-holdings">
+            {eq.holdings.map((h) => (
+              <li key={h.isin}>{t.eqHoldingRow(h.symbol, h.qty, formatInr(Math.round(h.avgPricePaise)), formatInr(h.costPaise))}</li>
+            ))}
+          </ul>
+          <p className="muted">{t.eqHoldingsNote}</p>
+        </>
+      )}
+      <EquityList title={t.eqSalesTitle} total={eq.sales.length} testId="equity-sales">
+        {latest(eq.sales).map((s) => (
+          <li key={`${s.date}-${s.isin}`}>{t.eqSaleRow(s.date, s.symbol, s.qty, formatInr(s.pnlPaise), s.boughtFrom, s.boughtTo)}</li>
+        ))}
+      </EquityList>
+      <EquityList title={t.eqIntradayTitle} total={eq.intraday.length} testId="equity-intraday">
+        {latest(eq.intraday).map((d) => (
+          <li key={`${d.date}-${d.isin}`}>{t.eqIntradayRow(d.date, d.symbol, d.qty, formatInr(d.pnlPaise))}</li>
+        ))}
+      </EquityList>
+      <p className="muted disclaimer">{t.disclaimer}</p>
+    </section>
+  );
+}
+
+function EquityList({ title, total, testId, children }: { title: string; total: number; testId: string; children: ReactNode }) {
+  const t = useJt();
+  if (total === 0) return null;
+  return (
+    <>
+      <h3>{title}</h3>
+      <ul className="notes" data-testid={testId}>
+        {children}
+      </ul>
+      {total > LIST_LIMIT && <p className="muted">{t.eqShowing(LIST_LIMIT, total)}</p>}
+    </>
   );
 }
 

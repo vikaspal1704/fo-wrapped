@@ -3,6 +3,7 @@
 **Product:** F&O Wrapped  
 **Owner:** Vikas Pal  
 **Last updated:** 2026-09-26. Shipped: N2, N3, N8, most of N6 and N7, X1 (beta: Angel One, Upstox, Dhan), X2, X3, X5, X6, X4 (except custom range) and the six new cards. The N1 harness is built; the run needs real accounts. Groww waits on a real F&O export.  
+**Trade Journal (2026-10-21):** the paid Journal is renamed Trade Journal and grows by segment: Zerodha equity is built (SPEC §5, US-3.1); currency, commodity and mutual funds from the CAS wait on redacted real samples (US-3.2 to US-3.4). F&O Wrapped stays F&O only.  
 **F&O Journal (2026-10-17):** Phases 0–2 of [`BRIEF.md`](BRIEF.md) are built and tested against [`SPEC.md`](SPEC.md). Launch still waits on the owner tasks in [`validation-report.md`](validation-report.md), and the paid tier on the Supabase and Razorpay setup in [`runbooks/journal-setup.md`](runbooks/journal-setup.md).  
 **Format:** Now / Next / Later. Phases are ordered by priority, not by date. The only fixed date is the Diwali launch window.
 

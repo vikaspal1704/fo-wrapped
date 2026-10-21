@@ -6,9 +6,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FoWrappedError } from '../../engine/errors';
 import { m, withLocaleSync, type Locale } from '../../engine/i18n';
-import { fileLabel, planImport } from '../../engine/journal/imports';
+import { fileLabel, planEquityImport, planImport } from '../../engine/journal/imports';
 import { parseRules, type Rules } from '../../engine/journal/rules';
 import type { Note } from '../../engine/journal/notes';
+import type { EquityFill } from '../../engine/equity/types';
 import type { Fill } from '../../engine/types';
 import type { JournalReport, JournalRequest, JournalResponse } from '../../worker/journalProtocol';
 import type { Localized } from '../../worker/protocol';
@@ -79,7 +80,7 @@ export function useJournal(factory: IDBFactory = indexedDB) {
   const recompute = useCallback(
     async (imports: ImportRecord[], rules: Rules) => {
       if (imports.length === 0) return patch({ reports: null });
-      const res = await call({ type: 'report', imports: imports.map(({ fills, charges, statements }) => ({ fills, charges, statements })), rules, week: null });
+      const res = await call({ type: 'report', imports: imports.map(({ fills, charges, statements, equity }) => ({ fills, charges, statements, equity: equity ?? [] })), rules, week: null });
       if (res.type === 'report') patch({ reports: res.reports });
       else if (res.type === 'error') patch({ notice: { kind: 'error', text: res.message } });
     },
@@ -130,15 +131,19 @@ export function useJournal(factory: IDBFactory = indexedDB) {
         const failed = res.results.filter((r) => !r.ok);
         const existing: Fill[] = state.imports.flatMap((i) => i.fills);
         const incoming = ok.flatMap((r) => r.fills ?? []);
-        let plan: { added: Fill[]; duplicates: number };
+        const existingEquity: EquityFill[] = state.imports.flatMap((i) => i.equity ?? []);
+        const incomingEquity = ok.flatMap((r) => r.equity ?? []);
+        const plans = () => ({ fo: planImport(existing, incoming), eq: planEquityImport(existingEquity, incomingEquity) });
+        let fo: { added: Fill[]; duplicates: number };
+        let eq: { added: EquityFill[]; duplicates: number };
         try {
-          plan = planImport(existing, incoming);
+          ({ fo, eq } = plans());
         } catch (e) {
           if (!(e instanceof FoWrappedError)) throw e;
           // Engine errors are worded in the current locale; rebuild the message in each language.
           const reword = () => {
             try {
-              planImport(existing, incoming);
+              plans();
             } catch (err) {
               if (err instanceof FoWrappedError) return err.userMessage;
             }
@@ -152,7 +157,9 @@ export function useJournal(factory: IDBFactory = indexedDB) {
           patch({ notice: { kind: 'error', text: failed[0]!.message! } });
           return;
         }
-        if (plan.added.length === 0 && statements.length === 0) {
+        const added = fo.added.length + eq.added.length;
+        const duplicates = fo.duplicates + eq.duplicates;
+        if (added === 0 && statements.length === 0) {
           patch({ notice: { kind: 'ok', code: 'nothingNew' } });
           return;
         }
@@ -161,14 +168,15 @@ export function useJournal(factory: IDBFactory = indexedDB) {
           at: Date.now(),
           label: ok.map((r) => fileLabel(r.name)).join(', '),
           broker: [...new Set(ok.map((r) => r.broker ?? ''))].join(', '),
-          counts: { added: plan.added.length, duplicates: plan.duplicates, rejected: failed.length },
-          fills: plan.added,
+          counts: { added, duplicates, rejected: failed.length },
+          fills: fo.added,
           charges: ok.flatMap((r) => r.charges ?? []),
           statements,
+          ...(eq.added.length > 0 ? { equity: eq.added } : {}),
         };
         await db.saveImport(rec);
         const imports = await db.listImports();
-        patch({ imports, notice: { kind: 'ok', code: 'imported', added: plan.added.length, duplicates: plan.duplicates } });
+        patch({ imports, notice: { kind: 'ok', code: 'imported', added, duplicates } });
         await recompute(imports, state.rules);
       } finally {
         patch({ busy: false });

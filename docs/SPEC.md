@@ -1,6 +1,6 @@
-# Specification: F&O Wrapped and F&O Journal
+# Specification: F&O Wrapped and the Trade Journal
 
-**Owner:** Vikas Pal · **Status:** v1, 2026-10-17: Phases 0–2 built and tested; owner tasks marked 👤 · **Brief:** [`BRIEF.md`](BRIEF.md)
+**Owner:** Vikas Pal · **Status:** v2, 2026-10-21: Phases 0–2 built and tested; Phase 3 equity built, other segments wait on samples; owner tasks marked 👤 · **Brief:** [`BRIEF.md`](BRIEF.md)
 
 This is the spec we build against. Every user story has acceptance criteria written as Given / When / Then. Every criterion has an ID and a named automated test, or it is marked *manual* or *owner* with the reason. Code is written to make these tests pass, and a criterion is done only when its test passes in CI.
 
@@ -316,7 +316,84 @@ How the journey runs: `tests/journey/stack.ts` starts Postgres (PGlite) with the
 | AC-2.9.1 | each synthetic broker fixture | analysed | totals equal the reviewed golden file | `golden_totals_match` | ✅ |
 | AC-2.9.2 | random seeded fill sequences | analysed | FIFO, merge and per-day charge invariants hold | `property_flat_books_balance`, `property_partial_books_balance`, `property_merge_order_independent`, `property_charges_split_by_day` | ✅ |
 
-## 5. Traceability
+## 5. Phase 3: the Trade Journal across segments (from 2026-10-21)
+
+Owner decisions (2026-10-21): the paid product is renamed **Trade Journal** and grows segment by segment, **equity first**. **F&O Wrapped** keeps its name and stays F&O only. Mutual funds come in as a **portfolio from the CAS statement**, not as trades. Currency (CDS) and commodity (MCX) wait for redacted real samples from the owner: no parser is written for a layout we haven't seen (RL-2).
+
+Rules RL-1, RL-2, PV-1 to PV-4 and NA-1 to NA-5 apply to every story here. In addition:
+
+- A share of a stock is held per **ISIN**, so NSE and BSE buys and sells of the same stock share one holding.
+- Nothing in this phase uses a live or closing price. Holdings are shown at **cost**, never at a market value we would have to fetch or guess.
+- Code: `src/engine/equity/` (pure); the Journal stores equity trades next to F&O fills in the same import record, so undo, sync and delete work the same way.
+
+### US-3.1 Equity trades from Zerodha
+
+*As a Trader who also trades stocks, I want my Zerodha equity tradebook in the same Journal, so that I see what my intraday and delivery trades actually made.*
+
+| ID | Given | When | Then | Test | Status |
+|----|-------|------|------|------|--------|
+| AC-3.1.1 | a Zerodha Console equity tradebook (segment `EQ`, no `expiry_date` column), CSV or XLSX | it is added to the Trade Journal | every row is validated (ISIN in the 12-character Indian format, positive whole quantity, price in whole paise, digit-only IDs, IST times); one bad row rejects the file and names the row | `equity_tradebook_parses`, `equity_tradebook_rejects_bad_rows` | ✅ |
+| AC-3.1.2 | F&O Wrapped | an equity tradebook is uploaded | it is still refused with "is an Equity tradebook. F&O Wrapped needs the F&O segment" (Wrapped doesn't change) | `rejects_equity_tradebook`, `wrapped_still_refuses_equity` | ✅ |
+| AC-3.1.3 | buys and sells of one stock (ISIN) on one day | analysed | the quantity both bought and sold that day, `min(bought, sold)`, is **intraday**; the earliest units of each side that day (by time, then trade ID) are the ones matched; the rest is **delivery**. Intraday P&L = sell value − buy value of the matched units | `equity_splits_intraday_and_delivery`, `equity_intraday_short_first` | ✅ |
+| AC-3.1.4 | delivery buys and sells across days | analysed | sales use the oldest bought units first (FIFO per ISIN), and each sale's P&L counts **on the day of the sale**, with the dates of the buys it used | `equity_delivery_fifo_realises_on_sale_date` | ✅ |
+| AC-3.1.5 | a delivery sale of more shares than the file shows bought (shares bought before the file starts, or from a bonus, split, IPO allotment or transfer) | analysed | the unmatched quantity is **left out** of P&L and listed with stock, date and quantity, with the reason in words; it is never treated as bought at zero or at any other price | `equity_unmatched_sales_are_shown_not_guessed` | ✅ |
+| AC-3.1.6 | delivery shares not sold by the end of the file | shown | each holding shows quantity and average buy price (cost) only: no market value and no unrealised P&L. A note says that splits, bonuses and other corporate actions aren't in the tradebook, so quantities can differ from the demat account | `equity_holdings_at_cost` | ✅ |
+| AC-3.1.7 | equity trades on dates with a rate window | charges are estimated | Zerodha equity rates apply (§5 rates below), each charge summed per day and rounded once; trades on a date with no window, or BSE trades outside groups A and B, make charges **unavailable** with the reason instead of borrowing a rate | `equity_charges_follow_dated_rates`, `equity_charges_unavailable_outside_windows` | ✅ |
+| AC-3.1.8 | intraday units | brokerage is estimated | it is estimated as for intraday (MIS) orders, ₹20 or 0.03% per executed order, whichever is lower. Because the tradebook doesn't show the product, the app says that delivery (CNC) orders sold the same day pay no brokerage, and states the most this can overstate charges by | `equity_intraday_brokerage_gap_is_stated` | ✅ |
+| AC-3.1.9 | delivery sales | charges are shown | DP charges are **not** included (the tradebook doesn't show them); the app says so and counts the stock-days they apply to, without an amount | `equity_dp_charges_shown_as_gap` | ✅ |
+| AC-3.1.10 | an equity file that overlaps saved history | imported | new trades are added, identical duplicates (broker + exchange + segment + trade ID) are counted and dropped, a conflicting duplicate rejects the import; undo removes exactly that import's equity trades | `equity_import_dedupes`, `equity_import_rejects_conflicts`, `equity_saved_with_its_import_and_old_imports_still_load`, `e2e_journal_equity` | ✅ |
+| AC-3.1.11 | saved equity trades | the Equity tab opens | it shows intraday P&L, delivery P&L, estimated charges (or why not), the sales list, holdings at cost, and every gap above in words, in English and Hindi | `e2e_journal_equity`, `a11y_journal_screens` | ✅ |
+| AC-3.1.12 | the synthetic equity fixture | analysed | totals equal the reviewed golden file, exact in paise | `equity_golden_totals_match` | ✅ |
+| AC-3.1.13 | every equity sentence, English and Hindi | checked | passes NA-1 to NA-4 | `copy_passes_no_advice_wordlist`, `equity_copy_passes_no_advice_check` | ✅ |
+| AC-3.1.14 | real Zerodha equity tradebooks for at least 3 accounts | compared with Console's tax P&L (intraday and short-term rows) | realised P&L matches to the paise, or each difference is explained; the rates are re-checked at zerodha.com/charges and marked `primary` | *owner check* | 👤 |
+| AC-3.1.15 | equity trades | rules, insights and the weekly report run | they cover equity too. Until then, those tabs say they cover F&O only | `e2e_journal_equity` (the note) | ⏳ |
+| AC-3.1.16 | equity files from Angel One, Upstox, Dhan | added | supported once a redacted real export of each has been seen; until then their equity rows stay skipped, as today | *needs samples* | 👤 |
+
+**Equity rates** (`EQUITY_RATES` in `src/engine/charges/rates.ts`, all from 2024-10-01, `checked: secondary` until AC-3.1.14):
+
+| Charge | Intraday | Delivery |
+|--------|----------|----------|
+| Brokerage (Zerodha) | ₹20 or 0.03% per executed order, lower of the two | ₹0 |
+| STT | 0.025% on sells | 0.1% on buys and sells |
+| Exchange transaction | NSE 0.00297%; BSE 0.00375% (groups A and B only) | same |
+| SEBI fee | ₹10 per crore | same |
+| Stamp duty | 0.003% on buys | 0.015% on buys |
+| GST | 18% on brokerage + exchange + SEBI | same |
+| DP charge | none | not estimated (AC-3.1.9) |
+
+Sources disagree on NSE's equity transaction rate (0.00297% is the most cited; 0.00307% and 0.00322% also appear), which is why the owner check in AC-3.1.14 matters before launch.
+
+### US-3.2 Currency derivatives (CDS)
+
+*As a Trader, I want my currency futures and options in the Trade Journal.*
+
+| ID | Given | When | Then | Test | Status |
+|----|-------|------|------|------|--------|
+| AC-3.2.1 | a currency or commodity tradebook today | added to the Journal or to Wrapped | it is refused, naming its segment, and nothing from it is read | `rejects_currency_and_commodity_tradebooks` | ✅ |
+| AC-3.2.2 | a redacted real CDS tradebook from the owner | it arrives | contract symbols, lot sizes and charges (STT doesn't apply to currency; exchange, SEBI, stamp and brokerage do) are specified from it and its Console P&L, then built with tests | *needs a sample* | 👤 |
+
+### US-3.3 Commodity (MCX)
+
+| ID | Given | When | Then | Test | Status |
+|----|-------|------|------|------|--------|
+| AC-3.3.1 | a redacted real MCX tradebook from the owner | it arrives | contract symbols, multipliers (price is quoted per unit but traded per lot), CTT on non-agri contracts and charges are specified from it and its Console P&L, then built with tests | *needs a sample* | 👤 |
+
+### US-3.4 Mutual funds from the CAS
+
+*As an investor, I want my mutual fund holdings from my Consolidated Account Statement, so that the Journal shows them next to my trades.*
+
+| ID | Given | When | Then | Test | Status |
+|----|-------|------|------|------|--------|
+| AC-3.4.1 | a redacted real CAS (CAMS/KFintech or NSDL/CDSL) from the owner | it arrives | the format, password handling (the PDF is opened on the device only) and the fields kept (scheme, folio masked, units, cost, transactions) are specified in an ADR first | *needs a sample* | 👤 🧭 |
+| AC-3.4.2 | a CAS | read | holdings are shown at cost and by the NAV printed in the statement, with its date; nothing is fetched | *after AC-3.4.1* | ⏳ |
+
+### US-3.5 The paid product is called Trade Journal
+
+| ID | Given | When | Then | Test | Status |
+|----|-------|------|------|------|--------|
+| AC-3.5.1 | the Journal screens, in English and Hindi | shown | the product is called "Trade Journal" ("ट्रेड जर्नल"); Wrapped is still "F&O Wrapped" everywhere | `e2e_journal_named_trade_journal` | ✅ |
+
+## 6. Traceability
 
 Each criterion above lists its test. The checks that keep this true:
 
@@ -324,6 +401,6 @@ Each criterion above lists its test. The checks that keep this true:
 - A PR that makes a test pass changes its status here to ✅.
 - `TEST_PLAN.md` lists every Phase 0 and Phase 1 test name; ACCEPTANCE_CRITERIA §A points here for the launch gate.
 
-## 6. Out of scope (from BRIEF Phase 3)
+## 7. Out of scope (from BRIEF Phase 3)
 
 Direct broker APIs, a mobile app, a public streaks page, and team or coach sharing.
