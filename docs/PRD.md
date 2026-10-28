@@ -3,7 +3,8 @@
 **Product:** F&O Wrapped  
 **Owner:** Vikas Pal  
 **Version:** 1.0 (docs-first)  
-**Status:** Spec v1 — see §10 for decisions awaiting owner confirmation
+**Status:** Spec v1 — see §10 for decisions awaiting owner confirmation  
+**Scope:** this PRD covers **Wrapped**, the free app. The paid Journal, the launch-gate work and launch polish are specified in [`SPEC.md`](SPEC.md) (stories and Given/When/Then criteria) under the brief in [`BRIEF.md`](BRIEF.md).
 
 ---
 
@@ -21,7 +22,7 @@ A free, no-signup web app. An Indian F&O trader drops in their broker’s trade 
 
 ## 3. Non-goals
 
-- Accounts, sign-up, login, or any server-side storage
+- Accounts, sign-up, login, or any server-side storage **in Wrapped** (the Journal adds opt-in accounts and encrypted sync: [`SPEC.md`](SPEC.md) §4)
 - Brokers other than Zerodha in v1 (the parser is designed so others can be added later)
 - Equity delivery / intraday cash, currency (CDS) and commodity (MCX) segments
 - Tax computation, ITR / tax-audit turnover, or advice of any kind
@@ -75,7 +76,7 @@ A free, no-signup web app. An Indian F&O trader drops in their broker’s trade 
 | F-IN-4 | **MUST** validate every row with **Zod**. An unrecognised file is rejected with a human-readable error. **Never guess** at a column, format, or value. |
 | F-IN-5 | **MUST** reject files from unsupported segments (equity, currency, commodity) with a message naming the right Console download. |
 | F-IN-7 | **SHOULD** accept other brokers’ F&O exports (ROADMAP X1): Angel One Trades History, the Upstox trade report and Dhan’s Global Transaction Report, each only in a layout recorded in [`BROKERS.md`](BROKERS.md). When a broker’s file carries its own charges, those are used instead of an estimate. A broker whose F&O layout hasn’t been seen (Groww) is recognised and explained, never guessed. |
-| F-IN-6 | **MUST NOT** upload, persist (localStorage / IndexedDB / cookies), or transmit any file contents or derived data. |
+| F-IN-6 | **MUST NOT** upload, persist (localStorage / IndexedDB / cookies), or transmit any file contents or derived data. (Wrapped. The Journal stores on the device only after opt-in, and syncs only encrypted: [`SPEC.md`](SPEC.md) §4.) |
 
 ### 7.2 Engine (the part that must be correct)
 
@@ -139,7 +140,7 @@ The source spec leaves the items below open. Each has a **proposed default** tha
 
 | ID | Question | Proposed default |
 |----|----------|------------------|
-| D-1 | What is a “trade” for counts and per-trade stats? | One **closed round trip** (flat → flat per instrument), not one fill. “Total trades” on card 1 = closed round trips. |
+| D-1 | What is a “trade” for counts and per-trade stats? | One **closed round trip** (flat → flat per instrument), not one fill. “Total trades” on card 1 = closed round trips. The closed part of a position that never returned to flat also counts as one round trip, so its realised P&L is shown as Console shows it (owner decision 2026-10-17). |
 | D-2 | Gross or net P&L for per-trade cards (3, 4, 5, 6, 7, 8)? | **Gross** (before charges), labelled “before charges”. Charges cannot be attributed to individual trades exactly, and the P&L statement only gives totals. Cards 1–2 use net / charges. |
 | D-3 | Which timestamp buckets a trade on cards 4, 5, 8? | Card 4 and 8: **exit date** (when P&L is realised). Card 5: **entry time** (when the decision was made). |
 | D-4 | Definition of “expiry day” (card 4) | A round trip is an expiry-day trade if its **exit date equals its instrument’s expiry date**. |

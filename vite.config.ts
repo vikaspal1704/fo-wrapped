@@ -1,6 +1,8 @@
 import { readdirSync } from 'node:fs';
+import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { journalCsp } from './build/cspPlugin';
 import { serviceWorker } from './build/swPlugin';
 
 // Icons and the manifest are precached; the Open Graph image is only for
@@ -8,12 +10,12 @@ import { serviceWorker } from './build/swPlugin';
 const publicFiles = readdirSync(new URL('./public', import.meta.url)).filter((f) => f !== 'og.png');
 
 // `base` matches the GitHub Pages project path (TRD §10).
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: '/fo-wrapped/',
-  plugins: [react(), serviceWorker(publicFiles)],
+  plugins: [react(), serviceWorker(publicFiles), journalCsp(loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL)],
   test: {
     include: ['tests/unit/**/*.test.ts'],
     exclude: ['tests/e2e/**', 'node_modules/**'],
     environment: 'node',
   },
-});
+}));

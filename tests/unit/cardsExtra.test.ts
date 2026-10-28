@@ -28,6 +28,7 @@ function rt(s: Spec): RoundTrip {
     exitAt: entryAt + 10 * MIN,
     exitDate: day as IstDate,
     exitKind: 'TRADE',
+    partial: false,
     qty,
     avgEntryPaise: (s.entry ?? 100) * 100,
     avgExitPaise: 0,

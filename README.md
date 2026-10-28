@@ -8,7 +8,7 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 
 | | |
 |---|---|
-| **Status** | v0.3: Zerodha tradebooks and P&L statement, Angel One, Upstox and Dhan (beta), 14 cards, period views, English and हिंदी, and it works offline. Pre-launch: the ±0.5% accuracy check on real accounts |
+| **Status** | v0.4: Wrapped (Zerodha tradebooks and P&L statement, Angel One, Upstox and Dhan in beta, 14 cards, period views, English and हिंदी, offline) plus **Trade Journal** (F&O and Zerodha equity; saved history on your device, your own rules checked, weekly report, notes; optional encrypted sync and plans). Pre-launch: the ±0.5% accuracy check on real accounts |
 | **Stack** | Vite · React · TypeScript · Web Worker · Zod · installable (PWA) |
 | **Live** | https://vikaspal1704.github.io/fo-wrapped/ |
 | **Hosting** | GitHub Pages (static, no backend) |
@@ -41,10 +41,31 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 6. The app is available in **English and हिंदी**.
 7. **Clear data** wipes everything from memory.
 
+## Trade Journal
+
+Open **Trade Journal** from the landing page (or `#journal`). It holds F&O and, from Zerodha, equity trades. Nothing is stored until you press **Save on this device**. Then:
+
+- **History:** add trade files at any time (F&O from any supported broker; equity tradebooks from Zerodha Console). Overlaps are deduplicated, each import can be undone, and client IDs are masked in the list.
+- **Equity:** intraday P&L (same-day buys and sells of a stock), delivery P&L (sales matched to the oldest buys), and holdings at cost. Estimated charges, with the gaps stated: sales of shares the file doesn't show being bought are left out, DP charges aren't in the tradebook, and no market prices are fetched. Currency, commodity and mutual funds (from the CAS) are specified in [`docs/SPEC.md`](docs/SPEC.md) §5 and wait on real sample files.
+- **Rules:** set a max loss per day, max trades per day, a stop after N losses in a row, or no trades in the first N minutes. The Journal lists past days that went past them, and what the later trades made before charges, as facts.
+- **Weekly report:** net P&L (or P&L before charges), trades, rule breaches and insights for the latest week, with a share image. It is built on your device.
+- **Notes:** notes and tags on a day or a trade, searched on your device.
+- **Sync and plans** (only in builds given Supabase settings): Google sign-in, Razorpay subscriptions, and end-to-end encrypted sync with a passphrase. The server can't read your data. See [`docs/security.md`](docs/security.md) and [`docs/runbooks/journal-setup.md`](docs/runbooks/journal-setup.md).
+
+## Testing the whole product
+
+```bash
+npm test                                   # 243 unit tests: engine, Journal, server logic, RLS on real Postgres
+npx playwright test                        # 40 browser tests on three builds: Wrapped, the Journal, and the complete journey
+npx playwright test --project=journey      # just the complete user journey
+```
+
+The journey test (`tests/journey/`) runs the app against a local stack: the real database migration on Postgres (PGlite), the real PostgREST server enforcing RLS, and the real Edge Function code. One user goes from Wrapped to the Journal, signs in with Google, pays on Razorpay, imports, sets rules, writes notes, reads the weekly report, turns on reminders, syncs to a second device, unsubscribes from the email, cancels, deletes the synced copy and deletes the account. Every step is checked in the browser and in the database. Google's consent screen, Razorpay's checkout and the email provider are simulated; the real ones need the owner's accounts ([`docs/runbooks/journal-setup.md`](docs/runbooks/journal-setup.md)).
+
 ## What it is not
 
 - Not a tax tool, not advice, not a broker integration
-- No accounts, no server, no analytics
+- Wrapped: no accounts, no server, no analytics. The Journal's optional account exists only for billing and encrypted sync
 - F&O on NSE and BSE only (no equity, currency or commodity). Brokers: Zerodha, Angel One, Upstox and Dhan; Groww waits on a real F&O export
 
 ## Why you can trust the numbers
@@ -69,6 +90,12 @@ Built by **Vikas Pal** (Software Engineer, Fintech).
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Implementers / interviewers | Pipeline, FIFO worked example, charges, card formulas |
 | [`docs/ACCEPTANCE_CRITERIA.md`](docs/ACCEPTANCE_CRITERIA.md) | QA / agents | Launch gate and the binary “done” checklist |
 | [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) | Implementers | Required unit and e2e test names, and edge cases |
+| [`docs/BRIEF.md`](docs/BRIEF.md) | Everyone | The owner’s brief: from Wrapped to the paid Journal (now the Trade Journal) |
+| [`docs/SPEC.md`](docs/SPEC.md) | Implementers / QA | User stories and Given/When/Then criteria, each with its test |
+| [`docs/validation-report.md`](docs/validation-report.md) | Owner | Launch-gate evidence and go/no-go |
+| [`docs/adr/`](docs/adr/README.md) | Implementers | Architecture decisions for the Journal |
+| [`docs/security.md`](docs/security.md) | Everyone | What each part of the product can and can’t see |
+| [`docs/runbooks/`](docs/runbooks/) | Owner | Journal cloud setup and key rotation |
 | [`AGENTS.md`](AGENTS.md) | Agents | Short pointer to the brief |
 
 ---
@@ -105,7 +132,9 @@ npm run brand        # regenerate the link-preview image and icons
 | Hindi, installable offline app, privacy page, link previews, accessibility (axe) | ✅ |
 | Console P&L statement (exact charges, expired positions valued) | ✅ (still to check against the owner’s own export) |
 | Angel One, Upstox (options), Dhan | ✅ beta: built from redacted real layouts; Groww recognised, not supported yet |
-| Launch gate: ±0.5% vs Console on ≥ 5 real accounts | ◐ harness ready (`npm run verify:real`); needs real accounts |
+| Trade Journal: history, rules, weekly report, notes, encrypted sync, plans (SPEC §4) | ✅ built and tested; cloud side needs the owner’s Supabase and Razorpay setup |
+| Trade Journal: Zerodha equity (intraday, delivery, holdings at cost) (SPEC §5) | ✅ built and tested on synthetic data; owner check against Console’s tax P&L and the rates still to do. Currency, commodity, MF: wait on samples |
+| Launch gate: ±0.5% vs Console on ≥ 5 real accounts | ◐ harness ready (`npm run verify:real`, per-contract detail, [validation report](docs/validation-report.md)); needs real accounts |
 
 ## Project layout
 
@@ -119,7 +148,10 @@ src/engine/            # pure TypeScript, no DOM: runs in the worker and in Node
   periods.ts           # Samvat, calendar and financial-year views
   analyze.ts           # the whole pipeline, one view per period
   i18n.ts              # engine copy in English and Hindi
-src/worker/            # Web Worker that runs the engine (both languages)
+src/engine/journal/    # Journal analysis: rules, insights, weekly report, imports, notes
+src/journal/           # Journal: on-device store, encryption, cloud clients, screens
+src/worker/            # Web Workers: Wrapped analysis and the Journal (both languages)
+supabase/              # Journal server: SQL migrations with RLS, Edge Functions
 src/app/               # landing, privacy, progress, worker lifecycle, UI copy
 src/cards/             # story viewer and card components
 src/share/             # PNG export, per-card share, Web Share
@@ -128,6 +160,7 @@ public/                # manifest, icons, link-preview image
 tests/unit/            # Vitest, named per docs/TEST_PLAN.md
 tests/e2e/             # Playwright (incl. offline, privacy and axe accessibility)
 tests/fixtures/        # synthetic Console-format files only
+tests/golden/          # reviewed totals per fixture (money math)
 scripts/               # fixture and brand-image generators; verify-real.ts (launch gate)
 ```
 

@@ -253,6 +253,57 @@
 
 Parsers are tested on synthetic files that mirror layouts seen in redacted real exports. Before launch each must also be checked against a user’s own export (ACCEPTANCE §A).
 
+### Launch gate and edge cases ([`SPEC.md`](SPEC.md) §2)
+
+| Test | Criterion |
+|------|-----------|
+| `verify_real_uses_only_trades_in_statement_period` | AC-0.1.2 |
+| `verify_real_gate_needs_five_passing_accounts` | AC-0.1.4 |
+| `verify_real_console_shows_no_trade_data` | AC-0.1.5, AC-0.2.8, PV-4 |
+| `verify_real_writes_contract_detail` | AC-0.2.1 |
+| `verify_real_classifies_contracts` | AC-0.2.2 to AC-0.2.5 |
+| `verify_real_attributes_expired_contract_as_excluded` | AC-0.2.5 |
+| `verify_real_attribution_adds_up` | AC-0.2.6 |
+| `verify_real_detail_file_is_gitignored` | AC-0.2.7 |
+| `new_rate_window_applies_without_code_change` | AC-0.3.3 |
+| `verify_real_gate_needs_primary_rates` | AC-0.3.4 |
+| `exercised_option_is_excluded_not_valued` | AC-0.4.2 |
+| `carry_forward_round_trip_counts_on_exit_day` | AC-0.4.4 |
+| `intraday_and_carry_forward_share_one_fifo_queue` | AC-0.4.5 |
+| `samvat_boundary_on_muhurat_day` | AC-0.4.8 |
+| `adjusted_contract_is_not_netted_with_original` | AC-0.4.9 |
+| `partly_closed_position_counts_realised_part` | AC-0.4.10 |
+| `settled_remainder_plus_partial_equals_statement_row` | AC-0.4.11 |
+| `verify_real_markdown_has_no_amounts` | AC-0.5.1 |
+
+### Launch polish ([`SPEC.md`](SPEC.md) §3)
+
+| Test | Kind | Criterion |
+|------|------|-----------|
+| `no_advice_wordlist_catches_examples`, `copy_passes_no_advice_wordlist` | unit | NA-1 to NA-4, AC-1.5.1 |
+| `share_image_has_disclaimer_in_its_language` | e2e | AC-1.2.2, NA-5 |
+| `share_image_has_no_file_names` | e2e | AC-1.2.3, PV-3 |
+| `e2e_error_links_to_export_guide` | e2e | AC-1.3.2 |
+| `e2e_no_request_carries_file_data` | e2e | AC-1.4.2, PV-1 |
+| `build_has_no_third_party_origins` | e2e (reads `dist/`) | AC-1.4.3 |
+| CI `lighthouse` job (`lighthouserc.json`) | CI | AC-1.1.2 |
+
+### Journal ([`SPEC.md`](SPEC.md) §4)
+
+| File | Tests | Criteria |
+|------|-------|----------|
+| `tests/unit/journalEngine.test.ts` | rules, insights, weekly report, incremental import, notes | US-2.4 to US-2.8 |
+| `tests/unit/journalStore.test.ts` | IndexedDB store and migrations (fake-indexeddb), encryption (Web Crypto) | US-2.2, US-2.3 |
+| `tests/unit/journalCloud.test.ts` | PKCE sign-in, plan, encrypted push and pull against an in-memory Supabase | US-2.1, US-2.3 |
+| `tests/unit/billing.test.ts` | Razorpay webhook (signature, idempotency, ordering, retry, logs), create subscription, reminder email, unsubscribe | US-2.1, US-2.7 |
+| `tests/unit/supabaseRls.test.ts` | the shipped migration on real Postgres (PGlite): RLS blocks unentitled and other users | AC-2.1.7 |
+| `tests/unit/money.test.ts` | golden totals per fixture (`tests/golden/`), 200-seed property tests | US-2.9 |
+| `tests/e2e/journal.spec.ts` | opt-in, import/reload/undo/delete, rules, weekly report, notes, Hindi, axe | US-2.1 to US-2.8 |
+| `tests/journey/journey.spec.ts` | `e2e_journey_complete_user_flow`: the whole journey on two devices against the local stack (real migration, real PostgREST with RLS, real Edge Function handlers) | US-2.10, US-2.11 |
+| `tests/unit/billing.test.ts` (added) | `cancel_subscription_at_period_end`, `delete_account_cancels_then_deletes` | US-2.10 |
+| `tests/unit/supabaseRls.test.ts` (added) | `rls_lets_owner_delete_without_plan`, `server_stamps_sync_times` | AC-2.10.2, ADR-0002 |
+| `tests/e2e/journal-cloud.spec.ts` | cloud build with a mocked Supabase: locked until plan, PKCE sign-in, subscribe redirect, key-loss warning, ciphertext-only sync | US-2.1, US-2.3 |
+
 ## 3. Required e2e tests (Playwright)
 
 | Test | Flow | Expect |
@@ -303,7 +354,7 @@ Parsers are tested on synthetic files that mirror layouts seen in redacted real 
 | Estimated gross vs statement realized P&L | Report only; investigate if > 0.5% |
 | Each charge component vs statement | Report only; used to debug failures |
 
-Record results (aliases + % only) in the launch PR description. **Do not launch until every account passes.**
+Record results (aliases + % only) in [`validation-report.md`](validation-report.md) (`--markdown` prints the table) and the launch PR. For a FAIL, the per-contract breakdown is in `<dir>/verification-report-<alias>.json`, which stays in the private folder. **Do not launch until every account passes and every rate row is primary-checked.**
 
 ---
 
@@ -323,6 +374,7 @@ npm test                 # vitest run
 npm run test:e2e         # playwright test
 npm run test:tz          # whole suite under TZ=America/New_York
 PW_CHROMIUM_PATH=/path/to/chrome npm run test:e2e   # when the local Chromium differs from Playwright's
+npx playwright test --project=journey               # just the complete user journey (downloads PostgREST once)
 npm run verify:real -- --dir ../fo-wrapped-private
 ```
 

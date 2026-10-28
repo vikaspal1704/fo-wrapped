@@ -1,0 +1,11 @@
+{
+  "reviewed": "Hand-computed in docs/SPEC.md AC-3.1.12 review, 2026-10-21. Paise.",
+  "trades": 10,
+  "intradayPnlPaise": 7900,
+  "deliveryPnlPaise": 12600,
+  "unmatched": [{ "symbol": "TESTB", "date": "2026-10-09", "qty": 5 }],
+  "holdings": [{ "symbol": "TESTC", "qty": 2, "costPaise": 38000 }],
+  "dpStockDays": 3,
+  "charges": { "brokerage": 127, "stt": 433, "exchangeTxn": 24, "sebi": 0, "stampDuty": 35, "gst": 28, "other": 0, "total": 647 },
+  "intradayBrokerageWithGstPaise": 150
+}

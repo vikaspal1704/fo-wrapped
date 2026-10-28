@@ -2,7 +2,8 @@ import { SAMVAT_YEARS } from './config/samvat';
 import { m } from './i18n';
 import type { IstDate } from './types';
 
-export type PeriodKind = 'ALL' | 'SAMVAT' | 'CALENDAR' | 'FY';
+/** WEEK views exist only when a caller asks for them (the Journal's weekly report). */
+export type PeriodKind = 'ALL' | 'SAMVAT' | 'CALENDAR' | 'FY' | 'WEEK';
 
 export interface Period {
   /** Stable id, e.g. 'all', 'samvat-2082', 'cy-2026', 'fy-2025'. */

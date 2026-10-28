@@ -81,13 +81,13 @@ function chargesForDay(date: IstDate, fills: readonly Fill[], rates: ChargeRateT
 }
 
 /** value × num / den, rounded to the nearest paise (half up). */
-function applyRate(value: bigint, rate: Rational): number {
+export function applyRate(value: bigint, rate: Rational): number {
   const num = value * BigInt(rate.num);
   const den = BigInt(rate.den);
   return Number((2n * num + den) / (2n * den));
 }
 
-function pick<T>(windows: readonly RateWindow<T>[], date: IstDate, what: string): T {
+export function pick<T>(windows: readonly RateWindow<T>[], date: IstDate, what: string): T {
   const w = windows.find((x) => x.effectiveFrom <= date && (!x.effectiveTo || date <= x.effectiveTo));
   if (!w) throw new ChargesUnavailableError(date, what);
   return w.value;

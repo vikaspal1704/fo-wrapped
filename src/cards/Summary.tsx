@@ -122,7 +122,7 @@ export function Summary({ summary, view, versions, onClear }: Props) {
       </p>
 
       {/* Off-screen 1080×1920 source for the PNG. Only the 3 headlines,
-          the year and the site URL: no symbols, trades or account details. */}
+          the year, the site URL and the disclaimer: no symbols, trades or account details. */}
       <div className="share-image" ref={imageRef} aria-hidden="true" data-testid="share-image">
         <p className="si-eyebrow">{t.siEyebrow}</p>
         <p className="si-year">{year}</p>
@@ -135,6 +135,7 @@ export function Summary({ summary, view, versions, onClear }: Props) {
           ))}
         </div>
         <p className="si-url">{SITE_LABEL}</p>
+        <p className="si-disclaimer">{t.disclaimer}</p>
       </div>
     </div>
   );

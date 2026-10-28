@@ -6,11 +6,13 @@ Binary checklist. v1 is **done** only when every box is true. v1 may **launch** 
 
 ## Status (v0.3)
 
-- **B–F:** implemented and passing (146 unit, 23 e2e including axe accessibility).
+- **B–F:** implemented and passing (224 unit, 38 e2e including axe accessibility and the complete user journey, across three builds). Journal criteria: [`SPEC.md`](SPEC.md) §4.
 - **E:** CI and Pages are live. Make `main` the default branch so pushes to `main` deploy.
-- **A:** the harness is built (`npm run verify:real`). The run needs the owner’s real accounts and P&L statements, and the rates need primary-source checks.
+- **A:** the harness is built (`npm run verify:real`), with per-contract detail and a go/no-go table ([`SPEC.md`](SPEC.md) US-0.1 to US-0.5). The run needs the owner’s real accounts and P&L statements, and the rates need primary-source checks. Current decision: **NO-GO** ([`validation-report.md`](validation-report.md)).
 
 ## A. Launch gate (blocking)
+
+Stories and Given/When/Then criteria for this gate: [`SPEC.md`](SPEC.md) §2 (US-0.1 to US-0.5). Evidence goes in [`validation-report.md`](validation-report.md).
 
 - [ ] On **≥ 5 real Zerodha accounts**, estimated net P&L (tradebook only, no P&L statement) is within **±0.5%** of the Console P&L statement’s net P&L (`npm run verify:real`, TEST_PLAN §4)
 - [ ] Results recorded in the launch PR as account alias + % difference only (no amounts, no symbols)

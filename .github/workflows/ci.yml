@@ -42,3 +42,16 @@ jobs:
           name: playwright-report
           path: test-results/
           retention-days: 7
+
+  lighthouse:
+    # SPEC AC-1.1.2: mobile Lighthouse on the built site; below threshold fails CI.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx -y @lhci/cli@0.15.1 autorun

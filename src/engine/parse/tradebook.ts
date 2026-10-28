@@ -32,7 +32,7 @@ export const TRADEBOOK_HEADERS = [
 
 const F_AND_O_SEGMENT = 'FO';
 
-function refine<T>(parse: (s: string) => T | null, message: string) {
+export function refine<T>(parse: (s: string) => T | null, message: string) {
   return z.string().transform((s, ctx) => {
     const v = parse(s);
     if (v === null) {
@@ -43,7 +43,7 @@ function refine<T>(parse: (s: string) => T | null, message: string) {
   });
 }
 
-const digits = z.string().regex(/^\d+$/, 'expected digits only');
+export const digits = z.string().regex(/^\d+$/, 'expected digits only');
 
 /** One CSV row, as strings, to typed values. `symbol` is resolved after. */
 const rowSchema = z.object({
@@ -80,7 +80,7 @@ const rowSchema = z.object({
 });
 
 /** Rows scanned for the header row (XLSX exports put a preamble above it). */
-const MAX_HEADER_SEARCH_ROWS = 30;
+export const MAX_HEADER_SEARCH_ROWS = 30;
 
 /**
  * Parses a Zerodha Console F&O tradebook, CSV or XLSX. Validation is
@@ -109,16 +109,32 @@ export function parseTradebook(fileName: string, bytes: ArrayBuffer): Fill[] {
  * CSV headers are `trade_date`; Console's XLSX writes `Trade Date`. Both
  * normalise to `trade_date`.
  */
-const headerKey = (h: string) => h.trim().toLowerCase().replace(/\s+/g, '_');
+export const headerKey = (h: string) => h.trim().toLowerCase().replace(/\s+/g, '_');
 /** Every segment's tradebook has these; only F&O adds `expiry_date`. */
-const COMMON_HEADERS = TRADEBOOK_HEADERS.filter((h) => h !== 'expiry_date');
+export const COMMON_HEADERS = TRADEBOOK_HEADERS.filter((h) => h !== 'expiry_date');
 
 /** Does a row within the first 30 hold the tradebook headers (of any segment)? */
 export function looksLikeTradebook(data: readonly (readonly string[])[]): boolean {
-  return data.slice(0, MAX_HEADER_SEARCH_ROWS).some((row) => {
-    const cells = new Set(row.map(headerKey));
-    return COMMON_HEADERS.every((h) => cells.has(h));
-  });
+  return findTradebookHeader(data) !== null;
+}
+
+/**
+ * The header row: the first row, within the first 30, that holds every
+ * header all segments share. `index` maps a normalised header to its column.
+ */
+export function findTradebookHeader(rows: readonly (readonly string[])[]): { headerAt: number; index: Map<string, number> } | null {
+  for (let r = 0; r < Math.min(rows.length, MAX_HEADER_SEARCH_ROWS); r++) {
+    const index = new Map(rows[r]!.map((h, i) => [headerKey(h), i]));
+    if (COMMON_HEADERS.every((h) => index.has(h))) return { headerAt: r, index };
+  }
+  return null;
+}
+
+/** The segment of a Console tradebook, from its first data row ('' if none). */
+export function tradebookSegment(rows: readonly (readonly string[])[]): string {
+  const header = findTradebookHeader(rows);
+  if (!header) return '';
+  return (rows[header.headerAt + 1]?.[header.index.get('segment')!] ?? '').trim().toUpperCase();
 }
 
 /**
@@ -131,17 +147,9 @@ export function parseTradebookRows(fileName: string, data: readonly (readonly st
   const rows = data.slice();
   while (rows.length > 0 && isBlank(rows[rows.length - 1]!)) rows.pop();
 
-  let headerAt = -1;
-  let index = new Map<string, number>();
-  for (let r = 0; r < Math.min(rows.length, MAX_HEADER_SEARCH_ROWS); r++) {
-    const candidate = new Map(rows[r]!.map((h, i) => [headerKey(h), i]));
-    if (COMMON_HEADERS.every((h) => candidate.has(h))) {
-      headerAt = r;
-      index = candidate;
-      break;
-    }
-  }
-  if (headerAt === -1) throw UnrecognizedFileError.forFile(fileName);
+  const header = findTradebookHeader(rows);
+  if (!header) throw UnrecognizedFileError.forFile(fileName);
+  const { headerAt, index } = header;
   if (!index.has('expiry_date')) {
     // Another segment's tradebook (equity, currency, commodity): say which.
     const segment = (rows[headerAt + 1]?.[index.get('segment')!] ?? '').trim();
@@ -193,7 +201,7 @@ export function parseTradebookRows(fileName: string, data: readonly (readonly st
   return fills;
 }
 
-function isBlank(cells: readonly string[]): boolean {
+export function isBlank(cells: readonly string[]): boolean {
   return cells.every((c) => c.trim() === '');
 }
 

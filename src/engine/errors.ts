@@ -62,7 +62,10 @@ function segmentLabel(segment: string): string {
 }
 
 export class ChargesUnavailableError extends FoWrappedError {
-  constructor(readonly date: string, what: string) {
+  constructor(
+    readonly date: string,
+    readonly what: string,
+  ) {
     super(m().chargesUnavailableFor(date, what));
   }
 }
