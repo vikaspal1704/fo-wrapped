@@ -108,6 +108,12 @@ export function Landing({ onFiles, onPrivacy, onJournal, files, error }: Props) 
           </button>
         </p>
         <p>
+          {t.builtBy}{' '}
+          <a href="https://vikaspal.is-a.dev/" target="_blank" rel="author noopener noreferrer">
+            Vikas Pal
+          </a>
+        </p>
+        <p>
           <button type="button" className="link" onClick={onJournal}>
             {t.journalLink}
           </button>
